@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -32,11 +31,6 @@ export default function LoginPage() {
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        {/* Language switcher at top-right */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
-          <LanguageSwitcher />
-        </div>
-
         <div className="auth-card__logo">
           <div className="auth-card__logo-icon">N</div>
           <span className="auth-card__wordmark">{t('app_name')}</span>
@@ -47,7 +41,9 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="form-group">
-            <label className="form-label" htmlFor="login-username">{t('auth.username')}</label>
+            <label className="form-label" htmlFor="login-username">
+              {t('auth.username')}
+            </label>
             <input
               id="login-username"
               type="text"
@@ -62,7 +58,9 @@ export default function LoginPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="login-password">{t('auth.password')}</label>
+            <label className="form-label" htmlFor="login-password">
+              {t('auth.password')}
+            </label>
             <input
               id="login-password"
               type="password"
@@ -81,7 +79,9 @@ export default function LoginPage() {
             className="btn btn--primary"
             disabled={loading}
           >
-            {loading ? <span className="spinner" style={{ width: 18, height: 18 }} /> : t('auth.login')}
+            {loading
+              ? <span className="spinner" style={{ width: 18, height: 18 }} />
+              : t('auth.login')}
           </button>
         </form>
 

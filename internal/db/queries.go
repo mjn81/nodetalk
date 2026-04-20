@@ -70,11 +70,41 @@ func (d *DB) GetChannel(id string) (*models.Channel, error) {
 	return &ch, nil
 }
 
+// ListAllChannels scans and returns all channels in the database.
+func (d *DB) ListAllChannels() ([]*models.Channel, error) {
+	var channels []*models.Channel
+	err := d.bdb.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = []byte(prefixChannel)
+		it := txn.NewIterator(opts)
+		defer it.Close()
+		for it.Rewind(); it.Valid(); it.Next() {
+			var ch models.Channel
+			if err := it.Item().Value(func(val []byte) error {
+				return json.Unmarshal(val, &ch)
+			}); err != nil {
+				return err
+			}
+			channels = append(channels, &ch)
+		}
+		return nil
+	})
+	return channels, err
+}
+
 // SetUserChannel writes the junction index entry for a user↔channel mapping.
 func (d *DB) SetUserChannel(userID, channelID string) error {
 	uc := models.UserChannel{JoinedAt: time.Now().UTC()}
 	return d.set(ucKey(userID, channelID), uc)
 }
+
+// DeleteUserChannel removes the junction index entry for a user↔channel mapping.
+func (d *DB) DeleteUserChannel(userID, channelID string) error {
+	return d.bdb.Update(func(txn *badger.Txn) error {
+		return txn.Delete([]byte(ucKey(userID, channelID)))
+	})
+}
+
 
 // ListUserChannels fetches all channels a user belongs to by scanning the
 // uc:{user_id}: prefix and then resolving each channel record.
@@ -129,7 +159,8 @@ func (d *DB) SetMessage(msg *models.Message) error {
 }
 
 // ListMessages returns up to `limit` messages for a channel, newest-first.
-func (d *DB) ListMessages(channelID string, limit int) ([]*models.Message, error) {
+// If before > 0, it strictly returns messages older than that Unix timestamp.
+func (d *DB) ListMessages(channelID string, before int64, limit int) ([]*models.Message, error) {
 	prefix := []byte(fmt.Sprintf("%s%s:", prefixMessage, channelID))
 	var msgs []*models.Message
 
@@ -140,9 +171,15 @@ func (d *DB) ListMessages(channelID string, limit int) ([]*models.Message, error
 		it := txn.NewIterator(opts)
 		defer it.Close()
 
-		// For reverse iteration, seed with the lexicographically largest key
-		// in this prefix range (append 0xFF bytes).
-		seekKey := append(append([]byte{}, prefix...), 0xFF)
+		var seekKey []byte
+		if before > 0 {
+			// To get messages strictly older than 'before', we seek to before-1
+			seekKey = []byte(fmt.Sprintf("%s%s:%019d", prefixMessage, channelID, before-1))
+		} else {
+			// Seed with the lexicographically largest key in this prefix range
+			seekKey = append(append([]byte{}, prefix...), 0xFF)
+		}
+
 		for it.Seek(seekKey); it.Valid() && len(msgs) < limit; it.Next() {
 			var m models.Message
 			if err := it.Item().Value(func(val []byte) error {
@@ -173,6 +210,13 @@ func (d *DB) GetPresence(userID string) (*models.Presence, error) {
 		return nil, err
 	}
 	return &p, nil
+}
+
+// DeletePresence deletes a Presence record.
+func (d *DB) DeletePresence(userID string) error {
+	return d.bdb.Update(func(txn *badger.Txn) error {
+		return txn.Delete([]byte(presenceKey(userID)))
+	})
 }
 
 // ============================================================

@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 	"nodetalk/internal/auth"
 	"nodetalk/internal/models"
 	"nodetalk/internal/store"
@@ -72,7 +72,6 @@ func (h *Hub) run() {
 				select {
 				case c.send <- env:
 				default:
-					// Slow receiver — drop the message instead of blocking.
 					log.Printf("ws: slow receiver %s, message dropped", memberID)
 				}
 			}
@@ -82,8 +81,7 @@ func (h *Hub) run() {
 }
 
 // ServeHTTP upgrades an HTTP request to a WebSocket connection.
-// Authentication is done via a `token` query parameter (sent on the initial
-// upgrade request before headers are exhausted).
+// Authentication is via a `token` query parameter sent on the upgrade request.
 func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if token == "" {
@@ -97,12 +95,15 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		InsecureSkipVerify: true, // Allow all origins for now; tighten in prod.
+		// Allow any origin in development; restrict with OriginPatterns in production.
+		InsecureSkipVerify: true,
 	})
 	if err != nil {
 		log.Printf("ws: upgrade failed for user %s: %v", session.UserID, err)
 		return
 	}
+	// Set a generous read limit for file/voice payloads (5 MB).
+	conn.SetReadLimit(5 << 20)
 
 	client := &Client{
 		UserID:   session.UserID,
@@ -114,16 +115,17 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.register(client)
 	defer h.unregister(client)
 
-	// Signal online presence.
 	_ = h.store.SetPresence(session.UserID, "online")
 
-	// On connect: push all channel keys for this user's channels.
-	go client.writeChannelKeys(h.store, h.kek)
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
 
-	ctx := conn.CloseRead(context.Background())
+	// Push all channel AES keys immediately after connect.
+	go client.writeChannelKeys(ctx, h.store, h.kek)
 
 	// Write pump — drains the send channel to the WebSocket.
 	go func() {
+		defer cancel()
 		for {
 			select {
 			case <-ctx.Done():
@@ -132,9 +134,12 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				if !ok {
 					return
 				}
-				if err := wsjson.Write(ctx, conn, env.msg); err != nil {
+				writeCtx, writeCancel := context.WithTimeout(ctx, 10*time.Second)
+				if err := wsjson.Write(writeCtx, conn, env.msg); err != nil {
+					writeCancel()
 					return
 				}
+				writeCancel()
 			}
 		}
 	}()
@@ -152,10 +157,16 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	_ = h.store.SetPresence(session.UserID, "offline")
 	h.broadcastPresence(session.UserID, "offline")
+	conn.Close(websocket.StatusNormalClosure, "goodbye")
 }
 
 func (h *Hub) register(c *Client) {
 	h.mu.Lock()
+	// Close any existing connection for this user (new login replaced old tab).
+	if old, ok := h.clients[c.UserID]; ok {
+		old.conn.Close(websocket.StatusGoingAway, "replaced by new connection")
+		close(old.send)
+	}
 	h.clients[c.UserID] = c
 	h.mu.Unlock()
 }
@@ -190,36 +201,37 @@ func (h *Hub) broadcastPresence(userID, status string) {
 
 // ---- Client Methods -------------------------------------------------------- //
 
-// writeChannelKeys pushes all decrypted channel keys to the client over WSS
-// immediately after connect, so the client can decrypt incoming messages.
-func (c *Client) writeChannelKeys(s *store.Store, kek []byte) {
+// writeChannelKeys pushes all decrypted AES channel keys to the client so it
+// can decrypt incoming messages immediately.
+func (c *Client) writeChannelKeys(ctx context.Context, s *store.Store, kek []byte) {
 	channels, err := s.ListUserChannels(c.UserID)
 	if err != nil {
+		log.Printf("ws: writeChannelKeys list error for %s: %v", c.UserID, err)
 		return
 	}
 	for _, ch := range channels {
 		rawKey, err := s.DecryptChannelKey(ch, kek)
 		if err != nil {
+			log.Printf("ws: cannot decrypt key for channel %s: %v", ch.ID, err)
 			continue
 		}
 		payload, _ := json.Marshal(map[string]any{
 			"channel_id": ch.ID,
-			"aes_key":    rawKey, // Raw bytes — client stores in memory only
+			"aes_key":    rawKey,
 		})
 		msg := &models.WSMessage{Type: "channel_key", Payload: payload}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_ = wsjson.Write(ctx, c.conn, msg)
+		writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		_ = wsjson.Write(writeCtx, c.conn, msg)
 		cancel()
 	}
 }
 
-// handleMessage routes inbound WSS messages to the appropriate handler.
+// handleMessage routes inbound WSS frames.
 func (c *Client) handleMessage(ctx context.Context, msg *models.WSMessage) error {
 	switch msg.Type {
 	case "message":
-		return c.handleChatMessage(ctx, msg)
+		return c.handleChatMessage(msg)
 	case "ping":
-		// Update presence on heartbeat.
 		return c.hub.store.SetPresence(c.UserID, "online")
 	default:
 		return fmt.Errorf("unknown message type: %s", msg.Type)
@@ -227,12 +239,12 @@ func (c *Client) handleMessage(ctx context.Context, msg *models.WSMessage) error
 }
 
 // handleChatMessage persists and broadcasts an incoming encrypted chat message.
-func (c *Client) handleChatMessage(_ context.Context, raw *models.WSMessage) error {
+func (c *Client) handleChatMessage(raw *models.WSMessage) error {
 	var body struct {
-		ChannelID  string          `json:"channel_id"`
+		ChannelID  string             `json:"channel_id"`
 		Type       models.MessageType `json:"type"`
-		Ciphertext []byte          `json:"ciphertext"`
-		Nonce      []byte          `json:"nonce"`
+		Ciphertext []byte             `json:"ciphertext"`
+		Nonce      []byte             `json:"nonce"`
 	}
 	if err := json.Unmarshal(raw.Payload, &body); err != nil {
 		return fmt.Errorf("invalid message payload: %w", err)
@@ -257,7 +269,6 @@ func (c *Client) handleChatMessage(_ context.Context, raw *models.WSMessage) err
 		return fmt.Errorf("persist message: %w", err)
 	}
 
-	// Broadcast the opaque message to all channel members.
 	outPayload, _ := json.Marshal(msg)
 	outMsg := &models.WSMessage{Type: "message", Payload: outPayload}
 	c.hub.broadcast <- &envelope{

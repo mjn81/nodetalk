@@ -1,0 +1,34 @@
+{
+  "name": "NodeTalk",
+  "outputfilename": "NodeTalk",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "http://localhost:5173",
+  "wailsjsdir": "./frontend/src/wailsjs",
+  "version": "2",
+  "info": {
+    "companyName": "NodeTalk",
+    "productName": "NodeTalk",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright © 2026 NodeTalk Contributors",
+    "comments": "Self-hosted, end-to-end encrypted communication"
+  },
+  "debounceMS": 100,
+  "devserver": "localhost:34115",
+  "appID": "com.nodetalk.app",
+  "platforms": [
+    {
+      "platform": "darwin/universal",
+      "icon": "build/appicon.png"
+    },
+    {
+      "platform": "windows/amd64",
+      "icon": "build/appicon.ico"
+    },
+    {
+      "platform": "linux/amd64",
+      "icon": "build/appicon.png"
+    }
+  ]
+}

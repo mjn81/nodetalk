@@ -1,35 +1,37 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ChannelProvider } from './context/ChannelContext';
 import LoginPage    from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AppPage      from './pages/AppPage';
 
-// Guard: redirect unauthenticated users to /login
-function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <span className="spinner" style={{ width: 36, height: 36 }} />
-      </div>
-    );
-  }
-  return user ? <>{children}</> : <Navigate to="/login" replace />;
+/** Full-screen spinner while session is being restored from localStorage */
+function LoadingScreen() {
+  return (
+    <div className="loading-screen">
+      <span className="spinner" style={{ width: 36, height: 36 }} />
+    </div>
+  );
 }
 
-// Guard: redirect authenticated users to /
-function PublicRoute({ children }: { children: React.ReactNode }) {
+/** Redirect to /login when unauthenticated */
+function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <span className="spinner" style={{ width: 36, height: 36 }} />
-      </div>
-    );
-  }
-  return user ? <Navigate to="/" replace /> : <>{children}</>;
+  const location = useLocation();
+
+  if (isLoading) return <LoadingScreen />;
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  return <>{children}</>;
+}
+
+/** Redirect to app when already authenticated */
+function RequireGuest({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return <LoadingScreen />;
+  if (user) return <Navigate to="/" replace />;
+  return <>{children}</>;
 }
 
 export default function App() {
@@ -37,18 +39,17 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={
-            <PublicRoute><LoginPage /></PublicRoute>
-          } />
-          <Route path="/register" element={
-            <PublicRoute><RegisterPage /></PublicRoute>
-          } />
+          {/* Public routes */}
+          <Route path="/login"    element={<RequireGuest><LoginPage /></RequireGuest>} />
+          <Route path="/register" element={<RequireGuest><RegisterPage /></RequireGuest>} />
+
+          {/* Protected app shell */}
           <Route path="/*" element={
-            <PrivateRoute>
+            <RequireAuth>
               <ChannelProvider>
                 <AppPage />
               </ChannelProvider>
-            </PrivateRoute>
+            </RequireAuth>
           } />
         </Routes>
       </AuthProvider>

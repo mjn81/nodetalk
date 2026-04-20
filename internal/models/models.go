@@ -21,16 +21,16 @@ type User struct {
 
 // ---- Channel --------------------------------------------------------------- //
 
-// Channel is NodeTalk's unified conversation primitive. Both 1-on-1 DMs and
-// group chats are stored identically — the UI derives the display mode from
-// len(Members).
+// Channel represents a chat channel across the platform (group or direct message).
 type Channel struct {
-	ID               string    `json:"id"`
-	Name             string    `json:"name"`       // Used only for groups (members > 2)
-	CreatorID        string    `json:"creator_id"`
-	Members          []string  `json:"members"`    // Slice of user IDs
-	AESKeyEncrypted  []byte    `json:"aes_key_enc"` // Channel AES-256 key encrypted with server KEK
-	CreatedAt        time.Time `json:"created_at"`
+	ID              string    `json:"id"`
+	Name            string    `json:"name"`
+	IsPrivate       bool      `json:"is_private"` // If true, hidden from public search
+	InviteLink      string    `json:"invite_link"` // Unique public/private join link
+	CreatorID       string    `json:"creator_id"`
+	Members         []string  `json:"members"`
+	AESKeyEncrypted []byte    `json:"aes_key_enc"` // Channel AES-256 key encrypted with server KEK
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 // ---- UserChannel (Junction Index) ------------------------------------------ //

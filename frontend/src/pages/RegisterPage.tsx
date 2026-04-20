@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export default function RegisterPage() {
   const { t } = useTranslation();
@@ -41,11 +40,6 @@ export default function RegisterPage() {
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        {/* Language switcher at top-right */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
-          <LanguageSwitcher />
-        </div>
-
         <div className="auth-card__logo">
           <div className="auth-card__logo-icon">N</div>
           <span className="auth-card__wordmark">{t('app_name')}</span>
@@ -56,7 +50,9 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="form-group">
-            <label className="form-label" htmlFor="reg-username">{t('auth.username')}</label>
+            <label className="form-label" htmlFor="reg-username">
+              {t('auth.username')}
+            </label>
             <input
               id="reg-username"
               type="text"
@@ -71,7 +67,9 @@ export default function RegisterPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="reg-password">{t('auth.password')}</label>
+            <label className="form-label" htmlFor="reg-password">
+              {t('auth.password')}
+            </label>
             <input
               id="reg-password"
               type="password"
@@ -85,7 +83,9 @@ export default function RegisterPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="reg-confirm">{t('auth.confirm_password')}</label>
+            <label className="form-label" htmlFor="reg-confirm">
+              {t('auth.confirm_password')}
+            </label>
             <input
               id="reg-confirm"
               type="password"

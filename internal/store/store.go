@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,6 +29,11 @@ func New(database *db.DB) *Store {
 // CreateUser hashes the password and persists a new User record.
 // Returns ErrConflict if the user ID already exists.
 func (s *Store) CreateUser(username, password, domain string) (*models.User, error) {
+	// First check if a user with this username already exists
+	if existing, _ := s.GetUserByUsername(username); existing != nil {
+		return nil, fmt.Errorf("store: username already exists")
+	}
+
 	id := uuid.New().String()
 	pwdHash, err := crypto.HashPassword(password)
 	if err != nil {
@@ -84,6 +90,55 @@ func (s *Store) AuthenticateUser(username, password string) (*models.User, error
 	return u, nil
 }
 
+// SearchUsers performs a prefix or contains match on Usernames.
+// Returns an array of safe user records (passwords stripped).
+func (s *Store) SearchUsers(query string) ([]*models.User, error) {
+	users, err := s.db.ListUsers()
+	if err != nil {
+		return nil, err
+	}
+	var matched []*models.User
+	q := strings.ToLower(query)
+	for _, u := range users {
+		if u.Status != "deleted" && strings.Contains(strings.ToLower(u.Username), q) {
+			safeUser := &models.User{
+				ID: u.ID,
+				Username: u.Username,
+				Domain: u.Domain,
+				Status: u.Status,
+			}
+			matched = append(matched, safeUser)
+		}
+	}
+	return matched, nil
+}
+
+// DeleteUser fully anonymizes a user by overwriting their username to "Deleted Account"
+// in the DB, clears their presence, and removes them from all channels they were part of.
+func (s *Store) DeleteUser(userID string) error {
+	// 1. Remove from all channels
+	channels, err := s.ListUserChannels(userID)
+	if err == nil {
+		for _, ch := range channels {
+			_ = s.RemoveMemberFromChannel(ch.ID, userID)
+		}
+	}
+
+	// 2. Clear presence
+	_ = s.db.DeletePresence(userID)
+
+	// 3. Anonymize user record
+	u, err := s.db.GetUser(userID)
+	if err == nil {
+		u.Username = "Deleted Account"
+		u.Status = "deleted"
+		u.PwdHash = nil
+		_ = s.db.SetUser(u)
+	}
+	return nil
+}
+
+
 // ============================================================
 //  Channels
 // ============================================================
@@ -91,7 +146,7 @@ func (s *Store) AuthenticateUser(username, password string) (*models.User, error
 // CreateChannel creates a new channel (DM or group), generates its AES-256
 // channel key, encrypts it with the server KEK, and writes the junction index
 // entries for all initial members.
-func (s *Store) CreateChannel(name, creatorID string, memberIDs []string, kek []byte) (*models.Channel, error) {
+func (s *Store) CreateChannel(name, creatorID string, isPrivate bool, memberIDs []string, kek []byte) (*models.Channel, error) {
 	// Generate a fresh AES-256 key for this channel.
 	rawKey, err := crypto.GenerateAES256Key()
 	if err != nil {
@@ -105,6 +160,8 @@ func (s *Store) CreateChannel(name, creatorID string, memberIDs []string, kek []
 	ch := &models.Channel{
 		ID:              uuid.New().String(),
 		Name:            name,
+		IsPrivate:       isPrivate,
+		InviteLink:      uuid.New().String()[:12] + uuid.New().String()[24:], // Unique shortish link
 		CreatorID:       creatorID,
 		Members:         memberIDs,
 		AESKeyEncrypted: encKey,
@@ -126,6 +183,20 @@ func (s *Store) CreateChannel(name, creatorID string, memberIDs []string, kek []
 // GetChannel retrieves a channel by ID.
 func (s *Store) GetChannel(id string) (*models.Channel, error) {
 	return s.db.GetChannel(id)
+}
+
+// GetChannelByInviteLink searches for a channel by its unique invite link.
+func (s *Store) GetChannelByInviteLink(link string) (*models.Channel, error) {
+	channels, err := s.db.ListAllChannels()
+	if err != nil {
+		return nil, err
+	}
+	for _, ch := range channels {
+		if ch.InviteLink == link {
+			return ch, nil
+		}
+	}
+	return nil, db.ErrNotFound
 }
 
 // AddMemberToChannel adds a user to an existing channel and updates the index.
@@ -151,6 +222,33 @@ func (s *Store) ListUserChannels(userID string) ([]*models.Channel, error) {
 	return s.db.ListUserChannels(userID)
 }
 
+// ListAllChannels scans and returns all channels in the DB.
+func (s *Store) ListAllChannels() ([]*models.Channel, error) {
+	return s.db.ListAllChannels()
+}
+
+// RemoveMemberFromChannel removes a user from a channel's member list and
+// deletes the junction index entry.
+func (s *Store) RemoveMemberFromChannel(channelID, userID string) error {
+	ch, err := s.db.GetChannel(channelID)
+	if err != nil {
+		return err
+	}
+	// Filter out the target user.
+	filtered := ch.Members[:0]
+	for _, m := range ch.Members {
+		if m != userID {
+			filtered = append(filtered, m)
+		}
+	}
+	ch.Members = filtered
+	if err := s.db.SetChannel(ch); err != nil {
+		return err
+	}
+	return s.db.DeleteUserChannel(userID, channelID)
+}
+
+
 // DecryptChannelKey decrypts and returns the raw AES key for a channel.
 func (s *Store) DecryptChannelKey(ch *models.Channel, kek []byte) ([]byte, error) {
 	return crypto.DecryptAES256GCM(kek, ch.AESKeyEncrypted)
@@ -166,8 +264,9 @@ func (s *Store) SaveMessage(msg *models.Message) error {
 }
 
 // ListMessages returns recent messages for a channel, newest-first, up to limit.
-func (s *Store) ListMessages(channelID string, limit int) ([]*models.Message, error) {
-	return s.db.ListMessages(channelID, limit)
+// If before is > 0, it returns messages older than that timestamp.
+func (s *Store) ListMessages(channelID string, before int64, limit int) ([]*models.Message, error) {
+	return s.db.ListMessages(channelID, before, limit)
 }
 
 // ============================================================
