@@ -1,0 +1,77 @@
+{
+  "app_name": "نودتاک",
+  "tagline": "پیام‌رسان خودمیزبان با رمزنگاری سرتاسر.",
+  "nav": {
+    "home": "خانه",
+    "settings": "تنظیمات",
+    "logout": "خروج"
+  },
+  "auth": {
+    "login": "ورود",
+    "register": "ساخت حساب",
+    "username": "نام کاربری",
+    "password": "رمز عبور",
+    "confirm_password": "تکرار رمز عبور",
+    "username_placeholder": "نام_کاربری_شما",
+    "password_placeholder": "حداقل ۸ کاراکتر",
+    "no_account": "حساب ندارید؟",
+    "have_account": "قبلاً ثبت‌نام کرده‌اید؟",
+    "create_one": "بسازید",
+    "sign_in": "وارد شوید",
+    "errors": {
+      "required": "نام کاربری و رمز عبور الزامی است",
+      "min_password": "رمز عبور باید حداقل ۸ کاراکتر داشته باشد",
+      "passwords_mismatch": "رمزهای عبور مطابقت ندارند",
+      "login_failed": "ورود ناموفق بود",
+      "register_failed": "ثبت‌نام ناموفق بود"
+    }
+  },
+  "sidebar": {
+    "groups": "گروه‌ها",
+    "direct_messages": "پیام‌های مستقیم",
+    "search_placeholder": "جستجو در مکالمات…",
+    "new_channel": "مکالمه یا گروه جدید",
+    "online": "آنلاین",
+    "no_conversations": "هیچ مکالمه‌ای وجود ندارد.\nبرای شروع ✏️ را بزنید.",
+    "no_matches": "نتیجه‌ای یافت نشد"
+  },
+  "chat": {
+    "message_placeholder": "پیام…",
+    "today": "امروز",
+    "yesterday": "دیروز",
+    "direct_message": "پیام مستقیم",
+    "members": "{{count}} عضو",
+    "send": "ارسال",
+    "pick_emoji": "انتخاب ایموجی",
+    "record_voice": "نگه دارید تا ضبط شود",
+    "recording": "در حال ضبط… رها کنید تا ارسال شود",
+    "search_messages": "جستجو در پیام‌ها",
+    "view_members": "مشاهده اعضا"
+  },
+  "channel": {
+    "new_conversation": "مکالمه جدید",
+    "direct_message": "💬 پیام مستقیم",
+    "group": "👥 گروه",
+    "user_id_label": "شناسه کاربر",
+    "user_id_placeholder": "شناسه کاربر را وارد کنید…",
+    "group_name_label": "نام گروه",
+    "group_name_placeholder": "مثلاً تیم طراحی",
+    "create": "ایجاد",
+    "close": "بستن",
+    "errors": {
+      "user_id_required": "یک شناسه کاربری برای پیام وارد کنید",
+      "group_name_required": "نام گروه الزامی است",
+      "create_failed": "ساخت کانال ناموفق بود"
+    }
+  },
+  "empty_state": {
+    "title": "به نودتاک خوش آمدید",
+    "description": "یک مکالمه را از سمت چپ انتخاب کنید، یا ✏️ را بزنید تا مکالمه جدیدی شروع کنید."
+  },
+  "errors": {
+    "upload_failed": "آپلود ناموفق بود",
+    "mic_denied": "دسترسی به میکروفون رد شد",
+    "encrypted": "[رمزگذاری‌شده]",
+    "decryption_failed": "[رمزگشایی ناموفق بود]"
+  }
+}
