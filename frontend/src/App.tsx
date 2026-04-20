@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { ChannelProvider } from './context/ChannelContext';
+import { useStore } from './store/useStore';
 import LoginPage    from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AppPage      from './pages/AppPage';
@@ -17,42 +16,44 @@ function LoadingScreen() {
 
 /** Redirect to /login when unauthenticated */
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const isAuthLoading = useStore(state => state.isAuthLoading);
+  const user = useStore(state => state.user);
   const location = useLocation();
 
-  if (isLoading) return <LoadingScreen />;
+  if (isAuthLoading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
   return <>{children}</>;
 }
 
 /** Redirect to app when already authenticated */
 function RequireGuest({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const isAuthLoading = useStore(state => state.isAuthLoading);
+  const user = useStore(state => state.user);
 
-  if (isLoading) return <LoadingScreen />;
+  if (isAuthLoading) return <LoadingScreen />;
   if (user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
 export default function App() {
+  React.useEffect(() => {
+    useStore.getState().initAuth();
+  }, []);
+
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login"    element={<RequireGuest><LoginPage /></RequireGuest>} />
-          <Route path="/register" element={<RequireGuest><RegisterPage /></RequireGuest>} />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login"    element={<RequireGuest><LoginPage /></RequireGuest>} />
+        <Route path="/register" element={<RequireGuest><RegisterPage /></RequireGuest>} />
 
-          {/* Protected app shell */}
-          <Route path="/*" element={
-            <RequireAuth>
-              <ChannelProvider>
-                <AppPage />
-              </ChannelProvider>
-            </RequireAuth>
-          } />
-        </Routes>
-      </AuthProvider>
+        {/* Protected app shell */}
+        <Route path="/*" element={
+          <RequireAuth>
+            <AppPage />
+          </RequireAuth>
+        } />
+      </Routes>
     </BrowserRouter>
   );
 }

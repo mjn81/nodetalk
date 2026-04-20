@@ -137,11 +137,21 @@ export async function apiGetChannel(id: string): Promise<Channel> {
   return apiFetch(`/api/channels/${id}`);
 }
 
-export async function apiAddMember(channelId: string, userId: string): Promise<void> {
+export async function apiAddMember(channelId: string, usernames: string[]): Promise<void> {
   return apiFetch(`/api/channels/${channelId}/members`, {
     method: 'POST',
-    body: JSON.stringify({ user_id: userId }),
+    body: JSON.stringify({ usernames }),
   });
+}
+
+export async function apiGetChannelMembers(channelId: string): Promise<Array<{ id: string; username: string; domain: string; status: string }>> {
+  const result = await apiFetch<Array<any> | null>(`/api/channels/${channelId}/members`);
+  return result ?? [];
+}
+
+export async function apiSearchUsers(query: string): Promise<Array<{ id: string; username: string; domain: string; status: string }>> {
+  const result = await apiFetch<Array<any> | null>(`/api/users?q=${encodeURIComponent(query)}`);
+  return result ?? [];
 }
 
 // ── Messages ──────────────────────────────────────────────────────────────

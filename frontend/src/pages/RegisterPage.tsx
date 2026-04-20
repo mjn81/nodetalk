@@ -1,123 +1,138 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../context/AuthContext';
+import { apiRegister } from '@/api/client';
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 
 export default function RegisterPage() {
-  const { t } = useTranslation();
-  const { register } = useAuth();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm]   = useState('');
-  const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
+	const { t } = useTranslation();
+	const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (!username || !password) {
-      setError(t('auth.errors.required'));
-      return;
-    }
-    if (password.length < 8) {
-      setError(t('auth.errors.min_password'));
-      return;
-    }
-    if (password !== confirm) {
-      setError(t('auth.errors.passwords_mismatch'));
-      return;
-    }
-    setLoading(true);
-    try {
-      await register(username, password);
-    } catch (err: unknown) {
-      setError((err as Error).message ?? t('auth.errors.register_failed'));
-    } finally {
-      setLoading(false);
-    }
-  };
+	const [username, setUsername] = useState('');
+	const [password, setPassword] = useState('');
+	const [error, setError] = useState('');
+	const [loading, setLoading] = useState(false);
+	const [success, setSuccess] = useState(false);
 
-  return (
-    <div className="auth-shell">
-      <div className="auth-card">
-        <div className="auth-card__logo">
-          <div className="auth-card__logo-icon">N</div>
-          <span className="auth-card__wordmark">{t('app_name')}</span>
-        </div>
-        <p className="auth-card__tagline">{t('tagline')}</p>
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setError('');
 
-        {error && <div className="alert alert--error" role="alert">{error}</div>}
+		if (!username || !password) {
+			setError(t('auth.errors.required'));
+			return;
+		}
+		if (password.length < 8) {
+			setError(t('auth.errors.password_length'));
+			return;
+		}
 
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="form-group">
-            <label className="form-label" htmlFor="reg-username">
-              {t('auth.username')}
-            </label>
-            <input
-              id="reg-username"
-              type="text"
-              className="form-input"
-              placeholder={t('auth.username_placeholder')}
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              autoComplete="username"
-              autoFocus
-              required
-            />
-          </div>
+		setLoading(true);
+		try {
+			await apiRegister(username, password);
+			setSuccess(true);
+			setTimeout(() => navigate('/login'), 2000);
+		} catch (err: unknown) {
+			setError((err as Error).message ?? t('auth.errors.register_failed'));
+		} finally {
+			setLoading(false);
+		}
+	};
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="reg-password">
-              {t('auth.password')}
-            </label>
-            <input
-              id="reg-password"
-              type="password"
-              className="form-input"
-              placeholder={t('auth.password_placeholder')}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              autoComplete="new-password"
-              required
-            />
-          </div>
+	return (
+		<div className="flex h-screen w-full items-center justify-center bg-[#313338]">
+			<Card className="w-full max-w-[480px] bg-[#313338] border-none sm:bg-[#2b2d31] sm:shadow-lg sm:p-4 text-[#dbdee1]">
+				<CardHeader className="text-center space-y-2 pb-6">
+					<CardTitle className="text-2xl font-bold text-white tracking-wide">
+						Create an account
+					</CardTitle>
+					<CardDescription className="text-[#b5bac1] text-base">
+						Join NodeTalk and start chatting.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					{error && (
+						<div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md mb-4 border border-destructive/20 text-center">
+							{error}
+						</div>
+					)}
+					{success && (
+						<div className="bg-green-500/10 text-green-400 text-sm p-3 rounded-md mb-4 border border-green-500/20 text-center">
+							Registration successful! Redirecting to login...
+						</div>
+					)}
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="reg-confirm">
-              {t('auth.confirm_password')}
-            </label>
-            <input
-              id="reg-confirm"
-              type="password"
-              className={`form-input ${confirm && confirm !== password ? 'error' : ''}`}
-              placeholder={t('auth.confirm_password')}
-              value={confirm}
-              onChange={e => setConfirm(e.target.value)}
-              autoComplete="new-password"
-              required
-            />
-            {confirm && confirm !== password && (
-              <p className="form-error">{t('auth.errors.passwords_mismatch')}</p>
-            )}
-          </div>
-
-          <button
-            id="register-submit"
-            type="submit"
-            className="btn btn--primary"
-            disabled={loading}
-          >
-            {loading
-              ? <span className="spinner" style={{ width: 18, height: 18 }} />
-              : t('auth.register')}
-          </button>
-        </form>
-
-        <p className="auth-card__switch">
-          {t('auth.have_account')}{' '}
-          <Link to="/login">{t('auth.sign_in')}</Link>
-        </p>
-      </div>
-    </div>
-  );
+					<form onSubmit={handleSubmit} className="space-y-4">
+						<div className="space-y-2">
+							<Label
+								htmlFor="reg-username"
+								className="text-xs uppercase font-bold text-[#b5bac1]"
+							>
+								{t('auth.username')}
+								<span className="text-destructive ml-1">*</span>
+							</Label>
+							<Input
+								id="reg-username"
+								className="bg-[#1e1f22] border-none text-[15px] h-10 text-[#dbdee1] focus-visible:ring-0 focus-visible:ring-offset-0"
+								value={username}
+								onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+									setUsername(e.target.value)
+								}
+								autoComplete="username"
+								autoFocus
+								required
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label
+								htmlFor="reg-password"
+								className="text-xs uppercase font-bold text-[#b5bac1]"
+							>
+								{t('auth.password')}
+								<span className="text-destructive ml-1">*</span>
+							</Label>
+							<Input
+								id="reg-password"
+								type="password"
+								className="bg-[#1e1f22] border-none text-[15px] h-10 text-[#dbdee1] focus-visible:ring-0 focus-visible:ring-offset-0"
+								value={password}
+								onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+									setPassword(e.target.value)
+								}
+								autoComplete="new-password"
+								required
+							/>
+						</div>
+						<Button
+							type="submit"
+							className="w-full h-11 bg-primary hover:bg-[#4752C4] text-white font-medium text-base mt-2 transition-colors"
+							disabled={loading || success}
+						>
+							{loading ? <span className="spinner" /> : 'Continue'}
+						</Button>
+					</form>
+				</CardContent>
+				<CardFooter className="flex flex-col items-start gap-2 pt-2">
+					<div className="text-sm text-[#949ba4]">
+						<Link
+							to="/login"
+							className="text-primary hover:underline font-medium"
+						>
+							Already have an account?
+						</Link>
+					</div>
+				</CardFooter>
+			</Card>
+		</div>
+	);
 }
