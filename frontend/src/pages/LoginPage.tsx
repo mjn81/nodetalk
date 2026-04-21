@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useStore } from '@/store/useStore';
 import {
 	Card,
 	CardContent,
@@ -13,10 +12,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { useAuthStore } from '@/store/store';
 
 export default function LoginPage() {
 	const { t } = useTranslation();
-	const login = useStore((state) => state.login);
+	const login = useAuthStore((state) => state.login);
 	const [username, setUsername] = useState('');
 	const [password, setPassword] = useState('');
 	const [error, setError] = useState('');

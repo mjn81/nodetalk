@@ -28,13 +28,13 @@ swagger: ## Regenerate Swagger docs (requires swag in GOBIN)
 	$(GOBIN)/swag init -g cmd/server/main.go --output docs --parseDependency
 
 ## ── Frontend ─────────────────────────────────────────────────────────────────
-frontend/install: ## npm install
+front/install: ## npm install
 	cd frontend && $(NPM) install
 
-frontend/dev: ## Vite dev server
+front/dev: ## Vite dev server
 	cd frontend && $(NPM) run dev
 
-frontend/build: ## Build production bundle into frontend/dist/
+front/build: ## Build production bundle into frontend/dist/
 	cd frontend && $(NPM) run build
 
 ## ── Wails Desktop (PRIMARY build target) ────────────────────────────────────

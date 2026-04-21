@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useStore } from './store/useStore';
+import { useAuthStore } from './store/store';
 import LoginPage    from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AppPage      from './pages/AppPage';
@@ -16,8 +16,8 @@ function LoadingScreen() {
 
 /** Redirect to /login when unauthenticated */
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const isAuthLoading = useStore(state => state.isAuthLoading);
-  const user = useStore(state => state.user);
+  const isAuthLoading = useAuthStore(state => state.isAuthLoading)
+  const user = useAuthStore(state => state.user);
   const location = useLocation();
 
   if (isAuthLoading) return <LoadingScreen />;
@@ -27,8 +27,8 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 /** Redirect to app when already authenticated */
 function RequireGuest({ children }: { children: React.ReactNode }) {
-  const isAuthLoading = useStore(state => state.isAuthLoading);
-  const user = useStore(state => state.user);
+  const isAuthLoading = useAuthStore(state => state.isAuthLoading);
+  const user = useAuthStore((state) => state.user);
 
   if (isAuthLoading) return <LoadingScreen />;
   if (user) return <Navigate to="/" replace />;
@@ -37,7 +37,7 @@ function RequireGuest({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   React.useEffect(() => {
-    useStore.getState().initAuth();
+    useAuthStore.getState().initAuth();
   }, []);
 
   return (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useStore } from '@/store/useStore';
+import { useAuthStore, useChannelStore } from '@/store/store';
 import { apiSearchUsers } from '@/api/client';
 import {
 	Dialog,
@@ -20,9 +20,9 @@ interface NewChannelModalProps {
 }
 
 export default function NewChannelModal({ initialTab = 'dm', onClose }: NewChannelModalProps) {
-	const user = useStore((state) => state.user);
-	const createChannel = useStore((state) => state.createChannel);
-	const setActiveChannel = useStore((state) => state.setActiveChannel);
+	const user = useAuthStore((state) => state.user);
+	const createChannel = useChannelStore((state) => state.createChannel);
+	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
 
 	const [mode, setMode] = useState<'dm' | 'group'>(initialTab === 'channel' ? 'group' : 'dm');
 	const [name, setName] = useState('');
@@ -37,19 +37,20 @@ export default function NewChannelModal({ initialTab = 'dm', onClose }: NewChann
 
 	const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+	const trimmedQuery = searchQuery.trim();
+
 	useEffect(() => {
 		if (mode !== 'dm') return;
-		if (!searchQuery.trim()) {
-			setSearchResults([]);
-			return;
-		}
+		if (!trimmedQuery) return;
 
 		if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
 		searchTimeout.current = setTimeout(async () => {
 			setIsSearching(true);
+
 			try {
-				const results = await apiSearchUsers(searchQuery);
-				const filtered = results.filter(u => u.username !== user?.username);
+				const results = await apiSearchUsers(trimmedQuery);
+				const filtered = results.filter((u) => u.username !== user?.username);
 				setSearchResults(filtered);
 			} catch (err) {
 				console.error(err);
@@ -61,7 +62,8 @@ export default function NewChannelModal({ initialTab = 'dm', onClose }: NewChann
 		return () => {
 			if (searchTimeout.current) clearTimeout(searchTimeout.current);
 		};
-	}, [searchQuery, mode, user]);
+	}, [trimmedQuery, mode, user]);
+
 
 	const handleCreateGroup = async () => {
 		setError('');
@@ -99,7 +101,7 @@ export default function NewChannelModal({ initialTab = 'dm', onClose }: NewChann
 	return (
 		<Dialog open onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className="bg-[#313338] border-none text-[#dbdee1] sm:max-w-[440px] p-0 overflow-hidden shadow-2xl">
-				<div className="p-6 pb-2">
+				<div className="p-6">
 					<DialogHeader>
 						<DialogTitle className="text-xl font-bold text-white text-center mb-2">
 							New Conversation

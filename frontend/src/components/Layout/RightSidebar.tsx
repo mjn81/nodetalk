@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useStore } from '@/store/useStore';
 import { apiGetChannelMembers } from '@/api/client';
 import { Avatar as MinidenticonAvatar } from '@/components/Avatar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Users } from 'lucide-react';
+import { useChannelStore } from '@/store/store';
 
 interface Member {
 	id: string;
@@ -14,14 +14,14 @@ interface Member {
 }
 
 export default function RightSidebar() {
-	const activeChannel = useStore((state) => state.activeChannel);
+	const activeChannel = useChannelStore((state) => state.activeChannel);
 	const [members, setMembers] = useState<Member[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 
 	useEffect(() => {
 		if (!activeChannel) {
 			setMembers([]);
-			return;
+		return;
 		}
 
 		let cancelled = false;

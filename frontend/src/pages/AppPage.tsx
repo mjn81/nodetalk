@@ -1,4 +1,3 @@
-import { useStore } from '@/store/useStore';
 import {
 	ResizableHandle,
 	ResizablePanel,
@@ -7,9 +6,10 @@ import {
 import LeftSidebar from '@/components/Layout/LeftSidebar';
 import RightSidebar from '@/components/Layout/RightSidebar';
 import ChatArea from '@/components/ChatArea';
+import { useChannelStore } from '@/store/store';
 
 export default function AppPage() {
-	const activeChannel = useStore((state) => state.activeChannel);
+	const activeChannel = useChannelStore((state) => state.activeChannel);
 
 	return (
 		<ResizablePanelGroup
