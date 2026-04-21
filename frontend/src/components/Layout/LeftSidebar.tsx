@@ -23,8 +23,15 @@ import {
 } from '@/store/store';
 import type { AuthUser, Channel } from '@/types/api';
 
-
-const RenderChannel = ({ch, isGroup, user}:{ch: Channel[][number], isGroup: boolean, user: AuthUser | null}) => {
+const RenderChannel = ({
+	ch,
+	isGroup,
+	user,
+}: {
+	ch: Channel[][number];
+	isGroup: boolean;
+	user: AuthUser | null;
+}) => {
 	const activeChannel = useChannelStore((state) => state.activeChannel);
 	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
 	const display = getChannelDisplayName(ch, user?.user_id ?? '');
@@ -81,10 +88,10 @@ export default function LeftSidebar() {
 	const [showNewChannel, setShowNew] = useState(false);
 	const [showSettings, setShowSettings] = useState(false);
 	const [modalTab, setModalTab] = useState<'dm' | 'channel'>('dm');
-	
+
 	useEffect(() => {
-		fetchVersion()
-	}, [fetchVersion])
+		fetchVersion();
+	}, [fetchVersion]);
 
 	useEffect(() => {
 		const handler = setTimeout(() => {
@@ -105,7 +112,9 @@ export default function LeftSidebar() {
 			setIsJoining(id);
 			await apiJoinChannel(link);
 			await useChannelStore.getState().refreshChannels();
-			const active = useChannelStore.getState().channels.find(c => c.id === id);
+			const active = useChannelStore
+				.getState()
+				.channels.find((c) => c.id === id);
 			if (active) useChannelStore.getState().setActiveChannel(active);
 			setSearch('');
 		} catch (error) {
@@ -120,8 +129,12 @@ export default function LeftSidebar() {
 		return display.toLowerCase().includes(search.toLowerCase());
 	});
 
-	const dmChannels = filtered.filter((ch) => ch.members.length === 2);
-	const groupChannels = filtered.filter((ch) => ch.members.length !== 2);
+	const dmChannels = filtered.filter(
+		(ch) => ch.members.length === 2 && (!ch.name || ch.name.trim() === ''),
+	);
+	const groupChannels = filtered.filter(
+		(ch) => !dmChannels.some((dm) => dm.id === ch.id),
+	);
 
 	return (
 		<div className="flex flex-col h-full bg-[#2b2d31]">
@@ -190,7 +203,12 @@ export default function LeftSidebar() {
 							</div>
 							<div className="flex flex-col gap-0.5">
 								{groupChannels.map((ch) => (
-									<RenderChannel key={ch.id} ch={ch} isGroup={true} user={user} />
+									<RenderChannel
+										key={ch.id}
+										ch={ch}
+										isGroup={true}
+										user={user}
+									/>
 								))}
 							</div>
 						</div>
@@ -203,7 +221,12 @@ export default function LeftSidebar() {
 							</div>
 							<div className="flex flex-col gap-0.5">
 								{dmChannels.map((ch) => (
-									<RenderChannel key={ch.id} ch={ch} isGroup={false} user={user} />
+									<RenderChannel
+										key={ch.id}
+										ch={ch}
+										isGroup={false}
+										user={user}
+									/>
 								))}
 							</div>
 						</div>
@@ -228,13 +251,15 @@ export default function LeftSidebar() {
 								) : exploreChannels.length > 0 ? (
 									<div className="flex flex-col gap-0.5 mt-2">
 										{exploreChannels.map((ch) => {
-											const isJoined = channels.some(c => c.id === ch.id);
+											const isJoined = channels.some((c) => c.id === ch.id);
 											if (isJoined) return null;
 
 											return (
 												<div
 													key={ch.id}
-													onClick={() => handleJoinChannel(ch.invite_link, ch.id)}
+													onClick={() =>
+														handleJoinChannel(ch.invite_link, ch.id)
+													}
 													className="flex items-center justify-between px-2 py-1.5 mx-2 rounded-md cursor-pointer transition flex-1 min-w-0 text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]"
 												>
 													<div className="flex items-center gap-3 min-w-0 flex-1">

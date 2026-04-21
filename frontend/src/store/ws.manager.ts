@@ -5,6 +5,14 @@ import type { Message } from '@/types/api';
 import { useAppStore } from './app.slice';
 
 let initialized = false;
+let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function debouncedRefresh() {
+	if (refreshTimeout) clearTimeout(refreshTimeout);
+	refreshTimeout = setTimeout(() => {
+		useChannelStore.getState().refreshChannels();
+	}, 100);
+}
 
 export function initWebSocket() {
 	if (initialized) return;
@@ -19,7 +27,7 @@ export function initWebSocket() {
 	});
 
 	onWS('channel_key', () => {
-		useChannelStore.getState().refreshChannels();
+		debouncedRefresh();
 	});
 
 	onWS('message', (payload: unknown) => {

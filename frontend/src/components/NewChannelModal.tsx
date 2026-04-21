@@ -246,7 +246,7 @@ export default function NewChannelModal({
 						Cancel
 					</Button>
 					<Button
-						disabled={loading}
+						disabled={loading || (mode === 'channel' && !name.trim())}
 						onClick={handleCreateChannel}
 						className="bg-[#5865F2] hover:bg-[#4752c4] text-white"
 					>
