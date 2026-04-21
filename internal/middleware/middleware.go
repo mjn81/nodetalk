@@ -1,11 +1,61 @@
 package middleware
 
 import (
+	"bufio"
+	"errors"
+	"log"
+	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"golang.org/x/time/rate"
 )
+
+// responseWriter is a wrapper for http.ResponseWriter to capture status code.
+type responseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.status = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	h, ok := rw.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, errors.New("http.Hijacker not implemented")
+	}
+	return h.Hijack()
+}
+
+func (rw *responseWriter) Flush() {
+	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// Logger returns a middleware that logs incoming requests.
+func Logger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rw := &responseWriter{w, http.StatusOK}
+
+		next.ServeHTTP(rw, r)
+
+		duration := time.Since(start)
+		log.Printf(
+			"[%s] %s %s | %d | %v",
+			r.Method,
+			r.URL.Path,
+			realIP(r),
+			rw.status,
+			duration,
+		)
+	})
+}
 
 // ipLimiter stores a per-IP rate limiter.
 type ipLimiter struct {

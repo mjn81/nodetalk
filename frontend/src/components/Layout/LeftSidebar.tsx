@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Avatar as MinidenticonAvatar } from '@/components/Avatar';
 import NewChannelModal from '@/components/NewChannelModal';
 import SettingsModal from '@/components/SettingsModal';
-import { Settings, LogOut, Plus, Hash } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { apiExploreChannels, apiJoinChannel } from '@/api/client';
+import { Settings, LogOut, Plus, Hash, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -73,12 +75,45 @@ export default function LeftSidebar() {
 	const fetchVersion = useAppStore((state) => state.fetchVersion);
 	const wsState = useAppStore((state) => state.wsState);
 	const [search, setSearch] = useState('');
+	const [debouncedSearch, setDebouncedSearch] = useState('');
+	const [isJoining, setIsJoining] = useState<string | null>(null);
+
 	const [showNewChannel, setShowNew] = useState(false);
 	const [showSettings, setShowSettings] = useState(false);
 	const [modalTab, setModalTab] = useState<'dm' | 'channel'>('dm');
+	
 	useEffect(() => {
 		fetchVersion()
 	}, [fetchVersion])
+
+	useEffect(() => {
+		const handler = setTimeout(() => {
+			setDebouncedSearch(search.trim());
+		}, 300);
+		return () => clearTimeout(handler);
+	}, [search]);
+
+	const { data: exploreChannels = [], isFetching: isExploring } = useQuery({
+		queryKey: ['channels', 'explore', debouncedSearch],
+		queryFn: () => apiExploreChannels(debouncedSearch),
+		enabled: debouncedSearch.length > 0,
+	});
+
+	const handleJoinChannel = async (link: string, id: string) => {
+		if (isJoining) return;
+		try {
+			setIsJoining(id);
+			await apiJoinChannel(link);
+			await useChannelStore.getState().refreshChannels();
+			const active = useChannelStore.getState().channels.find(c => c.id === id);
+			if (active) useChannelStore.getState().setActiveChannel(active);
+			setSearch('');
+		} catch (error) {
+			console.error(error);
+		} finally {
+			setIsJoining(null);
+		}
+	};
 
 	const filtered = channels.filter((ch) => {
 		const display = getChannelDisplayName(ch, user?.user_id ?? '');
@@ -113,27 +148,30 @@ export default function LeftSidebar() {
 			</div>
 
 			{/* Search area */}
-			<div className="px-2 pt-3 pb-2 shrink-0">
-				<Button
-					variant="secondary"
-					className="w-full justify-start text-[#949ba4] bg-[#1e1f22] hover:bg-[#1e1f22] h-8 py-2 text-xs font-medium px-2 shadow-sm"
-					onClick={() => {
-						setModalTab('dm');
-						setShowNew(true);
-					}}
-				>
-					Find or start a conversation
-				</Button>
-				{/* Hidden search input that could be mapped to click above instead */}
-				<div className="hidden">
+			<div className="px-3 pt-3 pb-2 shrink-0 flex items-center gap-2">
+				<div className="relative flex-1">
 					<Input
 						id="channel-search"
+						className="bg-[#1e1f22] border-none text-[13px] h-8 pl-8 pr-2 text-[#dbdee1] focus-visible:ring-0 rounded-md placeholder:text-[#949ba4] w-full"
+						placeholder="Search or explore..."
 						value={search}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-							setSearch(e.target.value)
-						}
+						onChange={(e) => setSearch(e.target.value)}
+						autoComplete="off"
 					/>
+					<Search className="absolute left-2.5 top-2 w-4 h-4 text-[#949ba4]" />
 				</div>
+				<Button
+					variant="ghost"
+					size="icon"
+					className="h-8 w-8 text-[#b5bac1] hover:text-[#dbdee1] hover:bg-[#3f4147] shrink-0"
+					onClick={() => {
+						setModalTab('channel');
+						setShowNew(true);
+					}}
+					title="Create"
+				>
+					<Plus className="w-4 h-4" />
+				</Button>
 			</div>
 
 			{/* Channel Lists */}
@@ -144,57 +182,83 @@ export default function LeftSidebar() {
 					</div>
 				) : (
 					<div className="pb-4">
-						{groupChannels.length > 0 && (
-							<div className="mt-4">
-								<div className="flex items-center justify-between px-4 mb-[2px]">
-									<span className="text-xs font-semibold text-[#949ba4] hover:text-[#dbdee1] cursor-pointer tracking-wider">
-										CHANNELS
-									</span>
-									<button
-										onClick={() => {
-											setModalTab('channel');
-											setShowNew(true);
-										}}
-										className="text-[#949ba4] hover:text-[#dbdee1] focus:outline-none"
-									>
-										<Plus className="w-4 h-4" />
-									</button>
-								</div>
-								<div className="flex flex-col gap-0.5">
-									{groupChannels.map((ch) => (
-										<RenderChannel ch={ch} isGroup={true} user={user} />
-									))}
-								</div>
-							</div>
-						)}
-
-						<div className="mt-6">
+						<div className="mt-4">
 							<div className="flex items-center justify-between px-4 mb-[2px]">
-								<span className="text-xs font-semibold text-[#949ba4] hover:text-[#dbdee1] cursor-pointer tracking-wider">
-									DIRECT MESSAGES
+								<span className="text-xs font-semibold text-[#949ba4] hover:text-[#dbdee1] cursor-default tracking-wider">
+									CHANNELS
 								</span>
-								<button
-									onClick={() => {
-										setModalTab('dm');
-										setShowNew(true);
-									}}
-									className="text-[#949ba4] hover:text-[#dbdee1] focus:outline-none"
-								>
-									<Plus className="w-4 h-4" />
-								</button>
 							</div>
 							<div className="flex flex-col gap-0.5">
-								{dmChannels.map((ch) => (
-									<RenderChannel ch={ch} isGroup={false} user={user} />
+								{groupChannels.map((ch) => (
+									<RenderChannel key={ch.id} ch={ch} isGroup={true} user={user} />
 								))}
 							</div>
 						</div>
 
-						{filtered.length === 0 && !isLoading && (
+						<div className="mt-6">
+							<div className="flex items-center justify-between px-4 mb-[2px]">
+								<span className="text-xs font-semibold text-[#949ba4] hover:text-[#dbdee1] cursor-default tracking-wider">
+									DIRECT MESSAGES
+								</span>
+							</div>
+							<div className="flex flex-col gap-0.5">
+								{dmChannels.map((ch) => (
+									<RenderChannel key={ch.id} ch={ch} isGroup={false} user={user} />
+								))}
+							</div>
+						</div>
+
+						{filtered.length === 0 && !isLoading && !search && (
 							<div className="text-center mt-6 text-[#949ba4] text-xs px-4">
-								{search
-									? 'No matches found.'
-									: 'No conversations. Click + to start!'}
+								No conversations. Click + to start!
+							</div>
+						)}
+
+						{search && (
+							<div className="mt-6">
+								<div className="flex items-center justify-between px-4 mb-[2px]">
+									<span className="text-xs font-semibold text-[#949ba4] uppercase tracking-wider">
+										Public Channels
+									</span>
+								</div>
+								{isExploring ? (
+									<div className="flex justify-center py-4">
+										<span className="spinner" />
+									</div>
+								) : exploreChannels.length > 0 ? (
+									<div className="flex flex-col gap-0.5 mt-2">
+										{exploreChannels.map((ch) => {
+											const isJoined = channels.some(c => c.id === ch.id);
+											if (isJoined) return null;
+
+											return (
+												<div
+													key={ch.id}
+													onClick={() => handleJoinChannel(ch.invite_link, ch.id)}
+													className="flex items-center justify-between px-2 py-1.5 mx-2 rounded-md cursor-pointer transition flex-1 min-w-0 text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]"
+												>
+													<div className="flex items-center gap-3 min-w-0 flex-1">
+														<Hash className="w-5 h-5 shrink-0 opacity-70" />
+														<span className="truncate text-[15px] font-medium leading-none">
+															{ch.name}
+														</span>
+													</div>
+													{isJoining === ch.id ? (
+														<span className="spinner small" />
+													) : (
+														<span className="text-xs font-semibold text-[#5865F2]">
+															Join
+														</span>
+													)}
+												</div>
+											);
+										})}
+									</div>
+								) : (
+									<div className="text-center mt-2 text-[#949ba4] text-xs px-4">
+										No public channels found.
+									</div>
+								)}
 							</div>
 						)}
 					</div>

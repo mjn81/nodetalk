@@ -13,6 +13,14 @@ export interface Channel {
 	unread_count?: number;
 }
 
+export interface ExploreChannel {
+	id: string;
+	name: string;
+	invite_link: string;
+	member_count: number;
+	created_at: string;
+}
+
 export interface Message {
 	id: string;
 	channel_id: string;

@@ -71,7 +71,7 @@ apiClient.interceptors.response.use(
 	}
 );
 
-import type { AuthUser, Channel, Message, Presence, User } from '@/types/api';
+import type { AuthUser, Channel, ExploreChannel, Message, Presence, User } from '@/types/api';
 
 // ─────────────────────────────────────────────
 // Auth API
@@ -108,19 +108,23 @@ export async function apiListChannels() {
 }
 
 export async function apiExploreChannels(query: string) {
-	return apiClient.get<Channel[]>(`/api/channels/explore?q=${encodeURIComponent(query)}`).then(r => (r as unknown as Channel[]) || []);
+	return apiClient.get<ExploreChannel[]>(`/api/channels/explore?q=${encodeURIComponent(query)}`).then(r => (r as unknown as ExploreChannel[]) || []);
 }
 
-export async function apiCreateChannel(name: string, members: string[], isPrivate: boolean) {
-	return apiClient.post<Channel>('/api/channels', { name, members, is_private: isPrivate }) as unknown as Promise<Channel>;
+export async function apiCreateChannel(name: string, memberIds: string[], isPrivate: boolean) {
+	return apiClient.post<Channel>('/api/channels', { name, members: memberIds, is_private: isPrivate }) as unknown as Promise<Channel>;
 }
 
 export async function apiGetChannel(id: string) {
 	return apiClient.get<Channel>(`/api/channels/${id}`) as unknown as Promise<Channel>;
 }
 
-export async function apiAddMember(channelId: string, usernames: string[]) {
-	return apiClient.post(`/api/channels/${channelId}/members`, { usernames });
+export async function apiJoinChannel(link: string) {
+	return apiClient.post(`/api/join/${link}`);
+}
+
+export async function apiAddMember(channelId: string, userIds: string[]) {
+	return apiClient.post(`/api/channels/${channelId}/members`, { user_ids: userIds });
 }
 
 export async function apiGetChannelMembers(channelId: string) {

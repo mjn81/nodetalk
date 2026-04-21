@@ -42,6 +42,7 @@ import (
 	"nodetalk/internal/db"
 	"nodetalk/internal/store"
 	"nodetalk/internal/ws"
+	"nodetalk/internal/middleware"
 )
 
 func main() {
@@ -108,7 +109,7 @@ func main() {
 	addr := fmt.Sprintf(":%d", cfg.Server.HTTPPort)
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      rootMux,
+		Handler:      middleware.Logger(rootMux),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,

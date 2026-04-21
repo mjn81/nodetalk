@@ -16,6 +16,7 @@ import (
 	"nodetalk/internal/db"
 	"nodetalk/internal/store"
 	"nodetalk/internal/ws"
+	"nodetalk/internal/middleware"
 )
 
 // App is the Wails application struct. Its exported methods are automatically
@@ -103,7 +104,7 @@ func (a *App) Startup(ctx context.Context) {
 	rootMux.Handle("/", api.NewRouter(apiHandler, float64(cfg.RateLimit.GlobalRPS), float64(cfg.RateLimit.AuthRPS)))
 
 	a.srv = &http.Server{
-		Handler:      rootMux,
+		Handler:      middleware.Logger(rootMux),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}

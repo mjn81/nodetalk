@@ -64,7 +64,7 @@ export default function NewChannelModal({
 
 		setLoading(true);
 		try {
-			const ch = await createChannel(name.trim(), [user!.username], isPrivate);
+			const ch = await createChannel(name.trim(), [user!.user_id], isPrivate);
 			setActiveChannel(ch);
 			onClose();
 		} catch (e: unknown) {
@@ -74,11 +74,11 @@ export default function NewChannelModal({
 		}
 	};
 
-	const handleCreateDM = async (targetUsername: string) => {
+	const handleCreateDM = async (targetId: string) => {
 		setError('');
 		setLoading(true);
 		try {
-			const ch = await createChannel('', [user!.username, targetUsername], true);
+			const ch = await createChannel('', [user!.user_id, targetId], true);
 			setActiveChannel(ch);
 			onClose();
 		} catch (e: unknown) {
@@ -144,7 +144,7 @@ export default function NewChannelModal({
 											{searchResults.map((u) => (
 												<div
 													key={u.id}
-													onClick={() => handleCreateDM(u.username)}
+													onClick={() => handleCreateDM(u.id)}
 													className="flex items-center gap-3 px-3 py-2 hover:bg-[#3f4147] cursor-pointer transition-colors"
 												>
 													<Avatar className="w-8 h-8">

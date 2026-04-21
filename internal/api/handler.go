@@ -135,7 +135,7 @@ type CreateChannelRequest struct {
 }
 
 type AddMembersRequest struct {
-	Usernames []string `json:"usernames" example:"[\"bob\",\"charlie\"]"`
+	UserIDs []string `json:"user_ids" example:"[\"user-1\",\"user-2\"]"`
 }
 
 type UploadFileResponse struct {
@@ -568,16 +568,13 @@ func (h *Handler) AddMembers(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	if len(body.Usernames) == 0 {
-		writeError(w, http.StatusBadRequest, "usernames required")
+	if len(body.UserIDs) == 0 {
+		writeError(w, http.StatusBadRequest, "user_ids required")
 		return
 	}
 	
-	for _, uname := range body.Usernames {
-		// Look up user by username
-		if u, err := h.Store.GetUserByUsername(uname); err == nil {
-			_ = h.Store.AddMemberToChannel(ch.ID, u.ID)
-		}
+	for _, uid := range body.UserIDs {
+		_ = h.Store.AddMemberToChannel(ch.ID, uid)
 	}
 	writeJSON(w, http.StatusOK, StatusResponse{Status: "members added"})
 }

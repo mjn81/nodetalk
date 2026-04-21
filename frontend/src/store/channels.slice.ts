@@ -11,7 +11,7 @@ export interface ChannelSlice {
 
 	refreshChannels: () => Promise<void>;
 	setActiveChannel: (ch: Channel) => void;
-	createChannel: (name: string, members: string[], isPrivate: boolean) => Promise<Channel>;
+	createChannel: (name: string, memberIds: string[], isPrivate: boolean) => Promise<Channel>;
 	incrementUnread: (id: string) => void;
 	resetChannels: () => void;
 }
@@ -50,8 +50,8 @@ export const useChannelStore = create<ChannelSlice>((set,) => ({
 		}));
 	},
 
-	createChannel: async (name, members, isPrivate) => {
-		const ch = await apiCreateChannel(name, members, isPrivate);
+	createChannel: async (name, memberIds, isPrivate) => {
+		const ch = await apiCreateChannel(name, memberIds, isPrivate);
 		set((s) => ({ channels: [ch, ...s.channels] }));
 		return ch;
 	},
