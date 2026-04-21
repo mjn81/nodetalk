@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MessageSquare, Users, Search } from 'lucide-react';
+import { MessageSquare, Hash, Search, Lock, Globe } from 'lucide-react';
 import { Avatar as MinidenticonAvatar } from '@/components/Avatar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
@@ -28,10 +28,11 @@ export default function NewChannelModal({
 	const createChannel = useChannelStore((state) => state.createChannel);
 	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
 
-	const [mode, setMode] = useState<'dm' | 'group'>(
-		initialTab === 'channel' ? 'group' : 'dm',
+	const [mode, setMode] = useState<'dm' | 'channel'>(
+		initialTab === 'channel' ? 'channel' : 'dm',
 	);
 	const [name, setName] = useState('');
+	const [isPrivate, setIsPrivate] = useState(true);
 
 	// DM Search state
 	const [searchQuery, setSearchQuery] = useState('');
@@ -54,20 +55,20 @@ export default function NewChannelModal({
 	const [error, setError] = useState('');
 	const [loading, setLoading] = useState(false);
 
-	const handleCreateGroup = async () => {
+	const handleCreateChannel = async () => {
 		setError('');
 		if (!name.trim()) {
-			setError('Group name is required');
+			setError('Channel name is required');
 			return;
 		}
 
 		setLoading(true);
 		try {
-			const ch = await createChannel(name.trim(), [user!.username]);
+			const ch = await createChannel(name.trim(), [user!.username], isPrivate);
 			setActiveChannel(ch);
 			onClose();
 		} catch (e: unknown) {
-			setError((e as Error).message ?? 'Failed to create conversation');
+			setError((e as Error).message ?? 'Failed to create channel');
 		} finally {
 			setLoading(false);
 		}
@@ -77,7 +78,7 @@ export default function NewChannelModal({
 		setError('');
 		setLoading(true);
 		try {
-			const ch = await createChannel('', [user!.username, targetUsername]);
+			const ch = await createChannel('', [user!.username, targetUsername], true);
 			setActiveChannel(ch);
 			onClose();
 		} catch (e: unknown) {
@@ -108,11 +109,11 @@ export default function NewChannelModal({
 						</Button>
 						<Button
 							variant="ghost"
-							className={`flex-1 flex gap-2 items-center h-9 transition-colors rounded-md ${mode === 'group' ? 'bg-[#4752c4] text-white hover:bg-[#4752c4]' : 'bg-transparent text-[#b5bac1] hover:bg-[#35373c] hover:text-[#dbdee1]'}`}
-							onClick={() => setMode('group')}
+							className={`flex-1 flex gap-2 items-center h-9 transition-colors rounded-md ${mode === 'channel' ? 'bg-[#4752c4] text-white hover:bg-[#4752c4]' : 'bg-transparent text-[#b5bac1] hover:bg-[#35373c] hover:text-[#dbdee1]'}`}
+							onClick={() => setMode('channel')}
 						>
-							<Users size={16} />
-							Group
+							<Hash size={16} />
+							Channel
 						</Button>
 					</div>
 
@@ -172,22 +173,57 @@ export default function NewChannelModal({
 							</div>
 						)}
 
-						{mode === 'group' && (
-							<div className="space-y-2 pb-4">
-								<Label
-									htmlFor="group-name"
-									className="text-xs uppercase font-bold text-[#b5bac1]"
-								>
-									Group Name
-								</Label>
-								<Input
-									id="group-name"
-									className="bg-[#1e1f22] border-none text-[15px] h-10 text-[#dbdee1] focus-visible:ring-0 focus-visible:ring-offset-0"
-									placeholder="e.g. Design Team"
-									value={name}
-									onChange={(e) => setName(e.target.value)}
-									autoFocus
-								/>
+						{mode === 'channel' && (
+							<div className="space-y-4 pb-4">
+								<div className="space-y-2">
+									<Label
+										htmlFor="channel-name"
+										className="text-xs uppercase font-bold text-[#b5bac1]"
+									>
+										Channel Name
+									</Label>
+									<Input
+										id="channel-name"
+										className="bg-[#1e1f22] border-none text-[15px] h-10 text-[#dbdee1] focus-visible:ring-0 focus-visible:ring-offset-0"
+										placeholder="e.g. Design Team"
+										value={name}
+										onChange={(e) => setName(e.target.value)}
+										autoFocus
+									/>
+								</div>
+
+								<div className="bg-[#2b2d31] rounded-md overflow-hidden">
+									<div 
+										className="flex items-center justify-between p-3 cursor-pointer hover:bg-[#35373c] transition-colors"
+										onClick={() => setIsPrivate(!isPrivate)}
+									>
+										<div className="flex items-center gap-3">
+											{isPrivate ? <Lock size={20} className="text-[#f23f42]" /> : <Globe size={20} className="text-[#23a559]" />}
+											<div className="flex flex-col">
+												<span className="text-sm font-bold text-white">
+													{isPrivate ? 'Private Channel' : 'Public Channel'}
+												</span>
+												<span className="text-xs text-[#949ba4]">
+													{isPrivate 
+														? 'Only invited members can find and join.' 
+														: 'Anyone can find and join this channel.'
+													}
+												</span>
+											</div>
+										</div>
+										<div className={`w-10 h-5 rounded-full relative transition-colors ${isPrivate ? 'bg-[#5865F2]' : 'bg-[#4e5058]'}`}>
+											<div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isPrivate ? 'right-1' : 'left-1'}`} />
+										</div>
+									</div>
+									<div className="px-3 pb-3">
+										<p className="text-[11px] text-[#949ba4] bg-[#1e1f22] p-2 rounded italic">
+											{isPrivate 
+												? 'Note: This channel will not appear in the discoverable "Explore" list.' 
+												: 'Note: This channel will be visible to everyone on the server via search.'
+											}
+										</p>
+									</div>
+								</div>
 							</div>
 						)}
 
@@ -211,7 +247,7 @@ export default function NewChannelModal({
 					</Button>
 					<Button
 						disabled={loading}
-						onClick={handleCreateGroup}
+						onClick={handleCreateChannel}
 						className="bg-[#5865F2] hover:bg-[#4752c4] text-white"
 					>
 						{loading ? <span className="spinner" /> : 'Create'}

@@ -264,6 +264,22 @@ func (c *Client) handleChatMessage(raw *models.WSMessage) error {
 		body.Type = models.MessageTypeText
 	}
 
+	// Membership check
+	ch, err := c.hub.store.GetChannel(body.ChannelID)
+	if err != nil {
+		return fmt.Errorf("channel not found: %s", body.ChannelID)
+	}
+	isMember := false
+	for _, m := range ch.Members {
+		if m == c.UserID {
+			isMember = true
+			break
+		}
+	}
+	if !isMember {
+		return fmt.Errorf("not a member of channel: %s", body.ChannelID)
+	}
+
 	msg := &models.Message{
 		ID:         fmt.Sprintf("%d", time.Now().UnixNano()),
 		ChannelID:  body.ChannelID,

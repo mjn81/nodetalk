@@ -107,8 +107,12 @@ export async function apiListChannels() {
 	return apiClient.get<Channel[]>('/api/channels').then(r => (r as unknown as Channel[]) || []);
 }
 
-export async function apiCreateChannel(name: string, members: string[]) {
-	return apiClient.post<Channel>('/api/channels', { name, members }) as unknown as Promise<Channel>;
+export async function apiExploreChannels(query: string) {
+	return apiClient.get<Channel[]>(`/api/channels/explore?q=${encodeURIComponent(query)}`).then(r => (r as unknown as Channel[]) || []);
+}
+
+export async function apiCreateChannel(name: string, members: string[], isPrivate: boolean) {
+	return apiClient.post<Channel>('/api/channels', { name, members, is_private: isPrivate }) as unknown as Promise<Channel>;
 }
 
 export async function apiGetChannel(id: string) {

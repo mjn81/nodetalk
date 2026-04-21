@@ -2,6 +2,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,6 +39,9 @@ func NewRouter(h *Handler, globalRPS, authRPS float64) http.Handler {
 	protect := func(handler http.HandlerFunc) http.Handler {
 		return globalLimiter.Limit(h.Sessions.Require(handler))
 	}
+	protectMember := func(handler http.HandlerFunc) http.Handler {
+		return globalLimiter.Limit(h.Sessions.Require(h.RequireMember(handler)))
+	}
 
 	// Public
 	mux.Handle("GET /api/version",   http.HandlerFunc(h.GetVersion))
@@ -54,13 +58,13 @@ func NewRouter(h *Handler, globalRPS, authRPS float64) http.Handler {
 
 	mux.Handle("POST /api/channels",                     protect(h.CreateChannel))
 	mux.Handle("GET /api/channels",                      protect(h.ListChannels))
-	mux.Handle("GET /api/channels/{id}",                 protect(h.GetChannel))
+	mux.Handle("GET /api/channels/explore",              protect(h.ExploreChannels))
+	mux.Handle("GET /api/channels/{id}",                 protectMember(h.GetChannel))
 	mux.Handle("POST /api/join/{link}",                  protect(h.JoinChannel))
-	mux.Handle("GET /api/channels/{id}/members",         protect(h.GetChannelMembers))
-	mux.Handle("POST /api/channels/{id}/members",        protect(h.AddMembers))
-	mux.Handle("DELETE /api/channels/{id}/members/{uid}",protect(h.RemoveMember))
-	
-	mux.Handle("GET /api/channels/{id}/messages",        protect(h.ListMessages))
+	mux.Handle("GET /api/channels/{id}/members",         protectMember(h.GetChannelMembers))
+	mux.Handle("POST /api/channels/{id}/members",        protectMember(h.AddMembers))
+	mux.Handle("DELETE /api/channels/{id}/members/{uid}", protectMember(h.RemoveMember))
+	mux.Handle("GET /api/channels/{id}/messages",        protectMember(h.ListMessages))
 	
 	mux.Handle("POST /api/upload",                       protect(h.UploadFile))
 	mux.Handle("GET /api/files/{id}",                    protect(h.DownloadFile))
@@ -88,6 +92,25 @@ type LoginRequest struct {
 type LoginResponse struct {
 	UserID   string `json:"user_id"  example:"a3f4..."`
 	Username string `json:"username" example:"alice"`
+}
+
+type ChannelResponse struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	IsPrivate   bool      `json:"is_private"`
+	InviteLink  string    `json:"invite_link"`
+	CreatorID   string    `json:"creator_id"`
+	Members     []string  `json:"members,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UnreadCount int       `json:"unread_count,omitempty"`
+}
+
+type ExploreChannelResponse struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	InviteLink  string    `json:"invite_link"`
+	MemberCount int       `json:"member_count"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type UserResponse struct {
@@ -345,49 +368,109 @@ func (h *Handler) CreateChannel(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, ch)
 }
 
-// ListChannels godoc
-//	@Summary     List channels for the user OR search global public channels
-//	@Description Without ?q=, returns your joined channels. With ?q=, searches across all public channels globally.
+// --- Context Helpers ---
+type apiContextKey int
+const channelCtxKey apiContextKey = 0
+
+func (h *Handler) RequireMember(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session := auth.SessionFromContext(r.Context())
+		channelID := r.PathValue("id")
+		if channelID == "" {
+			writeError(w, http.StatusBadRequest, "missing channel id")
+			return
+		}
+
+		ch, err := h.Store.GetChannel(channelID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "channel not found")
+			return
+		}
+
+		isMember := false
+		for _, m := range ch.Members {
+			if m == session.UserID {
+				isMember = true
+				break
+			}
+		}
+		if !isMember {
+			writeError(w, http.StatusForbidden, "not a member of this channel")
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), channelCtxKey, ch)
+		next(w, r.WithContext(ctx))
+	}
+}
+
+func ChannelFromContext(ctx context.Context) *models.Channel {
+	ch, _ := ctx.Value(channelCtxKey).(*models.Channel)
+	return ch
+}
+
+//	@Summary     List channels for the current user
 //	@Tags        channels
 //	@Produce     json
 //	@Security    BearerAuth
-//	@Param       q query string false "Search query for ALL public channels"
 //	@Success     200 {array} models.Channel
 //	@Router      /api/channels [get]
 func (h *Handler) ListChannels(w http.ResponseWriter, r *http.Request) {
 	session := auth.SessionFromContext(r.Context())
-	search := r.URL.Query().Get("q")
 
-	if search == "" {
-		// No search, just return joined channels
-		channels, err := h.Store.ListUserChannels(session.UserID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "could not list channels")
-			return
-		}
-		if channels == nil {
-			channels = []*models.Channel{}
-		}
-		writeJSON(w, http.StatusOK, channels)
+	channels, err := h.Store.ListUserChannels(session.UserID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not list channels")
 		return
 	}
+	
+	resp := make([]ChannelResponse, 0)
+	for _, ch := range channels {
+		resp = append(resp, ChannelResponse{
+			ID:          ch.ID,
+			Name:        ch.Name,
+			IsPrivate:   ch.IsPrivate,
+			InviteLink:  ch.InviteLink,
+			CreatorID:   ch.CreatorID,
+			Members:     ch.Members,
+			CreatedAt:   ch.CreatedAt,
+			UnreadCount: ch.UnreadCount,
+		})
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
 
-	// Search provided -> List all public matching channels
+// ExploreChannels godoc
+//	@Summary     Search public channels
+//	@Tags        channels
+//	@Produce     json
+//	@Security    BearerAuth
+//	@Param       q query string false "Search query"
+//	@Success     200 {array} ExploreChannelResponse
+//	@Router      /api/channels/explore [get]
+func (h *Handler) ExploreChannels(w http.ResponseWriter, r *http.Request) {
+	search := r.URL.Query().Get("q")
 	allChannels, err := h.Store.ListAllChannels()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not list all channels")
 		return
 	}
 
-	filtered := make([]*models.Channel, 0)
+	filtered := make([]ExploreChannelResponse, 0)
 	searchQuery := strings.ToLower(search)
 
 	for _, ch := range allChannels {
 		if ch.IsPrivate {
 			continue // Hide private
 		}
-		if strings.Contains(strings.ToLower(ch.Name), searchQuery) {
-			filtered = append(filtered, ch)
+		if search == "" || strings.Contains(strings.ToLower(ch.Name), searchQuery) {
+			filtered = append(filtered, ExploreChannelResponse{
+				ID:          ch.ID,
+				Name:        ch.Name,
+				InviteLink:  ch.InviteLink,
+				MemberCount: len(ch.Members),
+				CreatedAt:   ch.CreatedAt,
+			})
 		}
 	}
 
@@ -403,13 +486,17 @@ func (h *Handler) ListChannels(w http.ResponseWriter, r *http.Request) {
 //	@Success     200 {object} models.Channel
 //	@Router      /api/channels/{id} [get]
 func (h *Handler) GetChannel(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	ch, err := h.Store.GetChannel(id)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "channel not found")
-		return
-	}
-	writeJSON(w, http.StatusOK, ch)
+	ch := ChannelFromContext(r.Context())
+	writeJSON(w, http.StatusOK, ChannelResponse{
+		ID:          ch.ID,
+		Name:        ch.Name,
+		IsPrivate:   ch.IsPrivate,
+		InviteLink:  ch.InviteLink,
+		CreatorID:   ch.CreatorID,
+		Members:     ch.Members,
+		CreatedAt:   ch.CreatedAt,
+		UnreadCount: ch.UnreadCount,
+	})
 }
 
 // JoinChannel godoc
@@ -446,13 +533,7 @@ func (h *Handler) JoinChannel(w http.ResponseWriter, r *http.Request) {
 //	@Success     200 {array} UserResponse
 //	@Router      /api/channels/{id}/members [get]
 func (h *Handler) GetChannelMembers(w http.ResponseWriter, r *http.Request) {
-	channelID := r.PathValue("id")
-	ch, err := h.Store.GetChannel(channelID)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "channel not found")
-		return
-	}
-
+	ch := ChannelFromContext(r.Context())
 	var members []UserResponse
 	for _, uid := range ch.Members {
 		if u, err := h.Store.GetUser(uid); err == nil {
@@ -481,7 +562,7 @@ func (h *Handler) GetChannelMembers(w http.ResponseWriter, r *http.Request) {
 //	@Success     200 {object} StatusResponse
 //	@Router      /api/channels/{id}/members [post]
 func (h *Handler) AddMembers(w http.ResponseWriter, r *http.Request) {
-	channelID := r.PathValue("id")
+	ch := ChannelFromContext(r.Context())
 	var body AddMembersRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -495,7 +576,7 @@ func (h *Handler) AddMembers(w http.ResponseWriter, r *http.Request) {
 	for _, uname := range body.Usernames {
 		// Look up user by username
 		if u, err := h.Store.GetUserByUsername(uname); err == nil {
-			_ = h.Store.AddMemberToChannel(channelID, u.ID)
+			_ = h.Store.AddMemberToChannel(ch.ID, u.ID)
 		}
 	}
 	writeJSON(w, http.StatusOK, StatusResponse{Status: "members added"})
@@ -512,20 +593,15 @@ func (h *Handler) AddMembers(w http.ResponseWriter, r *http.Request) {
 //	@Router      /api/channels/{id}/members/{uid} [delete]
 func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	session    := auth.SessionFromContext(r.Context())
-	channelID  := r.PathValue("id")
+	ch         := ChannelFromContext(r.Context())
 	targetUID  := r.PathValue("uid")
 
-	ch, err := h.Store.GetChannel(channelID)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "channel not found")
-		return
-	}
 	// Only the creator or the user themselves can remove a member.
 	if ch.CreatorID != session.UserID && session.UserID != targetUID {
 		writeError(w, http.StatusForbidden, "insufficient permissions")
 		return
 	}
-	if err := h.Store.RemoveMemberFromChannel(channelID, targetUID); err != nil {
+	if err := h.Store.RemoveMemberFromChannel(ch.ID, targetUID); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to remove member")
 		return
 	}
@@ -548,7 +624,7 @@ func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 //	@Success     200 {array}  models.Message
 //	@Router      /api/channels/{id}/messages [get]
 func (h *Handler) ListMessages(w http.ResponseWriter, r *http.Request) {
-	channelID := r.PathValue("id")
+	ch := ChannelFromContext(r.Context())
 	limit := 50
 	var before int64 = 0
 
@@ -563,7 +639,7 @@ func (h *Handler) ListMessages(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	msgs, err := h.Store.ListMessages(channelID, before, limit)
+	msgs, err := h.Store.ListMessages(ch.ID, before, limit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not fetch messages")
 		return

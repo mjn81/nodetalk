@@ -443,7 +443,7 @@ func TestExploreAndJoinChannel(t *testing.T) {
 	mustDo(t, newJSONReq(t, http.MethodPost, srv.URL+"/api/channels", tokenA, privBody))
 
 	// Bob searches for Tech
-	resp := mustDo(t, newJSONReq(t, http.MethodGet, srv.URL+"/api/channels?q=Tech", tokenB, nil))
+	resp := mustDo(t, newJSONReq(t, http.MethodGet, srv.URL+"/api/channels/explore?q=Tech", tokenB, nil))
 	var explored []map[string]any
 	decodeJSON(t, resp, &explored)
 	if len(explored) != 1 {
