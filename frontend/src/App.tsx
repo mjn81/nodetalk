@@ -38,6 +38,13 @@ function RequireGuest({ children }: { children: React.ReactNode }) {
 export default function App() {
   React.useEffect(() => {
     useAuthStore.getState().initAuth();
+
+    const handleUnauthorized = () => {
+      useAuthStore.getState().logout();
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
   return (

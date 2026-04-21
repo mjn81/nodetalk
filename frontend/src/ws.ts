@@ -1,6 +1,6 @@
 // WebSocket client with auto-reconnect and channel key management
 
-import { getToken, type Message } from './api/client';
+import { type Message } from './api/client';
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080';
 
@@ -35,9 +35,6 @@ let worker: SharedWorker | null = null;
 export function wsConnect(): void {
   if (worker) return; // already initialized
 
-  const token = getToken();
-  if (!token) return;
-
   worker = new SharedWorker(new URL('./ws/shared.worker.ts', import.meta.url), {
     type: 'module',
     name: 'nodetalk-ws' // Groups tabs into same worker namespace
@@ -61,7 +58,6 @@ export function wsConnect(): void {
   worker.port.postMessage({
     cmd: 'CONNECT',
     payload: {
-      token,
       url: `${WS_URL}/ws`,
     }
   });

@@ -28,14 +28,12 @@ type SessionStore struct {
 	ttl      time.Duration
 }
 
-const defaultTTL = 7 * 24 * time.Hour // 1 week
-
 // NewSessionStore creates a new SessionStore and starts the background
 // expiry sweeper.
-func NewSessionStore() *SessionStore {
+func NewSessionStore(ttl time.Duration) *SessionStore {
 	ss := &SessionStore{
 		sessions: make(map[string]*Session),
-		ttl:      defaultTTL,
+		ttl:      ttl,
 	}
 	go ss.sweepExpired()
 	return ss
@@ -102,11 +100,14 @@ func (ss *SessionStore) sweepExpired() {
 
 // ---- HTTP Helpers ---------------------------------------------------------- //
 
-// BearerToken extracts the token from the `Authorization: Bearer <token>` header.
+// BearerToken extracts the token from the cookie or `Authorization: Bearer <token>` header.
 func BearerToken(r *http.Request) (string, error) {
+	if c, err := r.Cookie("nodetalk_session"); err == nil && c.Value != "" {
+		return c.Value, nil
+	}
 	h := r.Header.Get("Authorization")
 	if len(h) < 8 || h[:7] != "Bearer " {
-		return "", errors.New("auth: missing or malformed Authorization header")
+		return "", errors.New("auth: missing or malformed token")
 	}
 	return h[7:], nil
 }

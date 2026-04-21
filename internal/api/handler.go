@@ -12,11 +12,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"nodetalk/internal/auth"
 	"nodetalk/internal/middleware"
 	"nodetalk/internal/models"
 	"nodetalk/internal/store"
+
+	"github.com/google/uuid"
 )
 
 // Handler bundles all HTTP handler dependencies.
@@ -25,6 +26,7 @@ type Handler struct {
 	Sessions  *auth.SessionStore
 	KEK       []byte
 	UploadDir string
+	TokenTTL  time.Duration
 }
 
 // NewRouter wires the full HTTP API with rate limiting.
@@ -84,7 +86,6 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Token    string `json:"token"    example:"Bearer eyJhb..."`
 	UserID   string `json:"user_id"  example:"a3f4..."`
 	Username string `json:"username" example:"alice"`
 }
@@ -181,7 +182,16 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = h.Store.SetPresence(u.ID, "online")
-	writeJSON(w, http.StatusOK, LoginResponse{Token: token, UserID: u.ID, Username: u.Username})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "nodetalk_session",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false, // Set to true in prod mapped over HTTPS
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   int(h.TokenTTL.Seconds()),
+	})
+	writeJSON(w, http.StatusOK, LoginResponse{UserID: u.ID, Username: u.Username})
 }
 
 // Logout godoc
@@ -198,6 +208,14 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		_ = h.Store.SetPresence(session.UserID, "offline")
 	}
 	h.Sessions.Delete(token)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "nodetalk_session",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+		HttpOnly: true,
+	})
 	writeJSON(w, http.StatusOK, StatusResponse{Status: "logged out"})
 }
 
@@ -239,6 +257,14 @@ func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	h.Sessions.Delete(token)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "nodetalk_session",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+		HttpOnly: true,
+	})
 	writeJSON(w, http.StatusOK, StatusResponse{Status: "account deleted"})
 }
 

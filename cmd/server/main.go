@@ -84,7 +84,8 @@ func main() {
 
 	// ── 5. App layers ──────────────────────────────────────────────────────
 	dataStore := store.New(database)
-	sessions  := auth.NewSessionStore()
+	tokenTTL  := time.Duration(cfg.Security.TokenExpireHours) * time.Hour
+	sessions  := auth.NewSessionStore(tokenTTL)
 
 	// ── 6. HTTP router + WebSocket Hub ────────────────────────────────────
 	uploadDir := "./data/uploads"
@@ -93,6 +94,7 @@ func main() {
 		Sessions:  sessions,
 		KEK:       kek,
 		UploadDir: uploadDir,
+		TokenTTL:  tokenTTL,
 	}
 	hub := ws.NewHub(dataStore, sessions, kek)
 

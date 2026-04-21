@@ -49,7 +49,7 @@ wails/build/mac: ## Build macOS universal binary
 
 ## ── Combined ─────────────────────────────────────────────────────────────────
 dev: ## Run standalone backend + Vite concurrently (web mode)
-	@$(MAKE) -j2 run frontend/dev
+	@$(MAKE) -j2 run front/dev
 
 clean: ## Remove build artifacts and temp data
 	rm -f $(BIN)

@@ -6,8 +6,6 @@ import {
 	apiLogin,
 	apiRegister,
 	apiLogout,
-	loadUser,
-	clearToken,
 	type AuthUser,
 } from '@/api/client';
 
@@ -31,10 +29,10 @@ export const useAuthStore = create<AuthSlice>()(
 			isAuthLoading: true,
 
 			initAuth: () => {
-				const saved = loadUser();
+				const saved = get().user;
 
 				if (saved) {
-					set({ user: saved, isAuthLoading: false });
+					set({ isAuthLoading: false });
 					connectWS();
 					useChannelStore.getState().refreshChannels();
 				} else {
@@ -57,7 +55,6 @@ export const useAuthStore = create<AuthSlice>()(
 
 			logout: async () => {
 				await apiLogout().catch(() => {});
-				clearToken();
 
 				disconnectWS();
 				useChannelStore.getState().resetChannels();

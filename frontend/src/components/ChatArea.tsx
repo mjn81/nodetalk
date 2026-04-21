@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiListMessages, type Message, type Channel } from '@/api/client';
 import { onWS, wsSendMessage, decryptMessage } from '@/ws';
 
@@ -50,13 +51,12 @@ function formatDate(iso: string): string {
 }
 
 export default function ChatArea({ channel }: ChatAreaProps) {
-	const [messages, setMessages] = useState<DecryptedMessage[]>([]);
 	const [inputText, setInputText] = useState('');
 	const [sending, setSending] = useState(false);
 	const [showEmoji, setShowEmoji] = useState(false);
 	const feedRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
-
+	
 	// Scroll to bottom helper
 	const scrollToBottom = useCallback(() => {
 		requestAnimationFrame(() => {
@@ -66,30 +66,36 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 		});
 	}, []);
 
-	// Decrypt and set a message
-	const addMessage = useCallback(
-		async (msg: Message) => {
-			const text = msg.type === 'text' ? await decryptMessage(msg) : undefined;
-			setMessages((prev) => [...prev, { ...msg, text }]);
-			scrollToBottom();
-		},
-		[scrollToBottom],
-	);
+	const queryClient = useQueryClient();
 
-	// Load history on channel switch
-	useEffect(() => {
-		setMessages([]);
-		apiListMessages(channel.id, 50).then(async (msgs) => {
+	const { data: messages = [] } = useQuery({
+		queryKey: ['messages', channel.id],
+		queryFn: async () => {
+			const msgs = await apiListMessages(channel.id, 50);
 			const decrypted = await Promise.all(
 				msgs.reverse().map(async (m) => ({
 					...m,
 					text: m.type === 'text' ? await decryptMessage(m) : undefined,
 				})),
 			);
-			setMessages(decrypted);
+			setTimeout(scrollToBottom, 50);
+			return decrypted;
+		},
+		staleTime: 60000,
+	});
+
+	// Decrypt and set a message via cache (so other components can read if needed)
+	const addMessage = useCallback(
+		async (msg: Message) => {
+			const text = msg.type === 'text' ? await decryptMessage(msg) : undefined;
+			queryClient.setQueryData<DecryptedMessage[]>(
+				['messages', channel.id],
+				(old = []) => [...old, { ...msg, text }]
+			);
 			scrollToBottom();
-		});
-	}, [channel.id, scrollToBottom]);
+		},
+		[scrollToBottom, queryClient, channel.id],
+	);
 
 	// Subscribe to incoming messages for this channel
 	useEffect(() => {

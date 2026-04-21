@@ -24,7 +24,8 @@ type ServerConfig struct {
 }
 
 type SecurityConfig struct {
-	MasterPassword string `toml:"master_password"`
+	MasterPassword   string `toml:"master_password"`
+	TokenExpireHours int    `toml:"token_expire_hours"`
 }
 
 type DatabaseConfig struct {
@@ -49,7 +50,8 @@ func Load() (*Config, error) {
 			UDPPort:  9090,
 		},
 		Security: SecurityConfig{
-			MasterPassword: "",
+			MasterPassword:   "",
+			TokenExpireHours: 24,
 		},
 		Database: DatabaseConfig{
 			Path: "./data/db",

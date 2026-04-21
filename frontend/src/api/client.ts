@@ -1,6 +1,7 @@
 // client.ts — Fully improved API client
 
 import { logger } from '@/utils/logger';
+import axios, { AxiosError } from 'axios';
 
 // ─────────────────────────────────────────────
 // Environment
@@ -36,109 +37,39 @@ export class NetworkError extends Error {
 }
 
 // ─────────────────────────────────────────────
-// Token + User Storage
+// Axios Instance
 // ─────────────────────────────────────────────
-const TOKEN_KEY = 'nodetalk_token';
-const USER_KEY = 'nodetalk_user';
+export const apiClient = axios.create({
+	baseURL: BASE_URL,
+	withCredentials: true,
+	timeout: 8000,
+});
 
-export function getToken() {
-	return localStorage.getItem(TOKEN_KEY);
-}
-export function setToken(t: string) {
-	localStorage.setItem(TOKEN_KEY, t);
-}
-export function clearToken() {
-	localStorage.removeItem(TOKEN_KEY);
-	localStorage.removeItem(USER_KEY);
-}
-export function saveUser(u: AuthUser) {
-	localStorage.setItem(USER_KEY, JSON.stringify(u));
-}
-export function loadUser(): AuthUser | null {
-	try {
-		const raw = localStorage.getItem(USER_KEY);
-		return raw ? JSON.parse(raw) : null;
-	} catch {
-		return null;
-	}
-}
-
-// ─────────────────────────────────────────────
-// Timeout wrapper
-// ─────────────────────────────────────────────
-function withTimeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
-	let timer: number;
-	return new Promise((resolve, reject) => {
-		timer = window.setTimeout(
-			() => reject(new NetworkError('Request timeout')),
-			ms,
-		);
-		promise
-			.then((r) => {
-				clearTimeout(timer);
-				resolve(r);
-			})
-			.catch((err) => {
-				clearTimeout(timer);
-				reject(err);
-			});
-	});
-}
-
-// ─────────────────────────────────────────────
-// Core Fetch Wrapper
-// ─────────────────────────────────────────────
-async function apiFetch<T>(
-	path: string,
-	options: RequestInit = {},
-): Promise<T> {
-	const url = BASE_URL + path;
-
-	const token = getToken();
-
-	const headers: Record<string, string> = {
-		...(options.headers as any),
-	};
-
-	if (!(options.body instanceof FormData)) {
-		headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
-	}
-
-	if (token) headers['Authorization'] = `Bearer ${token}`;
-
-	let resp: Response;
-
-	try {
-		resp = await withTimeout(fetch(url, { ...options, headers }));
-	} catch (err) {
-		logger.error('Network error', { url, err });
-		throw new NetworkError();
-	}
-
-	let data: unknown = null;
-	try {
-		if (resp.status !== 204) {
-			data = await resp.clone().json();
+apiClient.interceptors.response.use(
+	(res) => res.data, // Strip AxiosResponse wrapper
+	(error: AxiosError) => {
+		if (error.code === 'ECONNABORTED' || !error.response) {
+			logger.error('Network error', { url: error.config?.url, error });
+			throw new NetworkError(error.message);
 		}
-	} catch {
-		// ignore json parse errors
-	}
 
-  if (!resp.ok) {
-		const message = data?.error || `HTTP ${resp.status}`;
+		const url = error.config?.url || '';
+		const status = error.response.status;
+		const data = error.response.data as any;
+		const message = data?.error || error.message || `HTTP ${status}`;
 
-		if (resp.status === 401) {
-			clearToken();
+		if (status === 401) {
 			logger.warn('Unauthorized API error', { url, data });
+			if (typeof window !== 'undefined' && !url.includes('/api/logout')) {
+				window.dispatchEvent(new Event('auth:unauthorized'));
+			}
 			throw new AuthError(message, data);
 		}
 
-		logger.error('API error', { status: resp.status, url, data });
-		throw new APIError(resp.status, message, data);
+		logger.error('API error', { status, url, data });
+		throw new APIError(status, message, data);
 	}
-
-	return data as T;
-}
+);
 
 // ─────────────────────────────────────────────
 // Types (same as before)
@@ -146,7 +77,6 @@ async function apiFetch<T>(
 export interface AuthUser {
 	user_id: string;
 	username: string;
-	token: string;
 }
 
 export interface Channel {
@@ -192,105 +122,75 @@ export interface User {
 // Auth API
 // ─────────────────────────────────────────────
 export async function apiRegister(username: string, password: string) {
-	return apiFetch<{ id: string; username: string }>('/api/register', {
-		method: 'POST',
-		body: JSON.stringify({ username, password }),
-	});
+	return apiClient.post<{ id: string; username: string }>('/api/register', { username, password }) as unknown as Promise<{ id: string; username: string }>;
 }
 
 export async function apiLogin(
 	username: string,
 	password: string,
 ): Promise<AuthUser> {
-	const user = await apiFetch<AuthUser>('/api/login', {
-		method: 'POST',
-		body: JSON.stringify({ username, password }),
-	});
-	setToken(user.token);
-	saveUser(user);
-	return user;
+	return apiClient.post('/api/login', { username, password }) as unknown as Promise<AuthUser>;
 }
 
 export async function apiLogout() {
-	await apiFetch('/api/logout', { method: 'POST' });
-	clearToken();
+	return apiClient.post('/api/logout');
 }
 
 export async function apiMe() {
-	return apiFetch<{
+	return apiClient.get<{
 		id: string;
 		username: string;
 		domain: string;
 		status: string;
-	}>('/api/me');
+	}>('/api/me') as unknown as Promise<{ id: string; username: string; domain: string; status: string }>;
 }
 
 // ─────────────────────────────────────────────
 // Channels
 // ─────────────────────────────────────────────
 export async function apiListChannels() {
-	return apiFetch<Channel[] | null>('/api/channels').then((r) => r ?? []);
+	return apiClient.get<Channel[]>('/api/channels').then(r => (r as unknown as Channel[]) || []);
 }
 
 export async function apiCreateChannel(name: string, members: string[]) {
-	return apiFetch<Channel>('/api/channels', {
-		method: 'POST',
-		body: JSON.stringify({ name, members }),
-	});
+	return apiClient.post<Channel>('/api/channels', { name, members }) as unknown as Promise<Channel>;
 }
 
 export async function apiGetChannel(id: string) {
-	return apiFetch<Channel>(`/api/channels/${id}`);
+	return apiClient.get<Channel>(`/api/channels/${id}`) as unknown as Promise<Channel>;
 }
 
 export async function apiAddMember(channelId: string, usernames: string[]) {
-	return apiFetch(`/api/channels/${channelId}/members`, {
-		method: 'POST',
-		body: JSON.stringify({ usernames }),
-	});
+	return apiClient.post(`/api/channels/${channelId}/members`, { usernames });
 }
 
 export async function apiGetChannelMembers(channelId: string) {
-	return apiFetch<User[] | null>(`/api/channels/${channelId}/members`).then(
-		(r) => r ?? [],
-	);
+	return apiClient.get<User[]>(`/api/channels/${channelId}/members`).then(r => (r as unknown as User[]) || []);
 }
 
 export async function apiSearchUsers(query: string) {
-	return apiFetch<User[] | null>(
-		`/api/users?q=${encodeURIComponent(query)}`,
-	).then((r) => r ?? []);
+	return apiClient.get<User[]>(`/api/users?q=${encodeURIComponent(query)}`).then(r => (r as unknown as User[]) || []);
 }
 
 // ─────────────────────────────────────────────
 // Messages
 // ─────────────────────────────────────────────
 export async function apiListMessages(id: string, limit = 50) {
-	return apiFetch<Message[] | null>(
-		`/api/channels/${id}/messages?limit=${limit}`,
-	).then((r) => r ?? []);
+	return apiClient.get<Message[]>(`/api/channels/${id}/messages?limit=${limit}`).then(r => (r as unknown as Message[]) || []);
 }
 
 // ─────────────────────────────────────────────
 // File Uploads
 // ─────────────────────────────────────────────
 export async function apiUploadFile(file: Blob, mimeType: string) {
-	const token = getToken();
 	const formData = new FormData();
 	formData.append('file', file, `upload.${mimeType.split('/')[1] ?? 'bin'}`);
 
-	const resp = await fetch(`${BASE_URL}/api/upload`, {
-		method: 'POST',
-		headers: token ? { Authorization: `Bearer ${token}` } : {},
-		body: formData,
+	return apiClient.post('/api/upload', formData, {
+		headers: {
+			'Content-Type': 'multipart/form-data',
+		},
 	});
-
-	if (!resp.ok) {
-		const err = await resp.json().catch(() => ({}));
-		throw new APIError(resp.status, err.error ?? 'Upload failed', err);
-	}
-
-	return resp.json();
 }
 
 export function apiFileUrl(fileId: string) {
@@ -301,17 +201,12 @@ export function apiFileUrl(fileId: string) {
 // Presence
 // ─────────────────────────────────────────────
 export async function apiGetPresence(userId: string) {
-	return apiFetch<Presence>(`/api/users/${userId}/presence`);
+	return apiClient.get<Presence>(`/api/users/${userId}/presence`) as unknown as Promise<Presence>;
 }
 
 export async function apiGetVersion() {
-	return fetch(`${BASE_URL}/api/version`)
-		.then((r) => {
-			if (!r.ok) throw new APIError(r.status, 'Failed to fetch version');
-			return r.json();
-		})
-		.catch((err) => {
-			logger.error('Version fetch error', err);
-			throw err;
-		});
+	return apiClient.get('/api/version').catch((err) => {
+		logger.error('Version fetch error', err);
+		throw err;
+	});
 }

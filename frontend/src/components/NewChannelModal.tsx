@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore, useChannelStore } from '@/store/store';
 import { apiSearchUsers } from '@/api/client';
 import {
@@ -19,51 +20,39 @@ interface NewChannelModalProps {
 	onClose: () => void;
 }
 
-export default function NewChannelModal({ initialTab = 'dm', onClose }: NewChannelModalProps) {
+export default function NewChannelModal({
+	initialTab = 'dm',
+	onClose,
+}: NewChannelModalProps) {
 	const user = useAuthStore((state) => state.user);
 	const createChannel = useChannelStore((state) => state.createChannel);
 	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
 
-	const [mode, setMode] = useState<'dm' | 'group'>(initialTab === 'channel' ? 'group' : 'dm');
+	const [mode, setMode] = useState<'dm' | 'group'>(
+		initialTab === 'channel' ? 'group' : 'dm',
+	);
 	const [name, setName] = useState('');
-	
+
 	// DM Search state
 	const [searchQuery, setSearchQuery] = useState('');
-	const [searchResults, setSearchResults] = useState<Array<{ id: string; username: string }>>([]);
-	const [isSearching, setIsSearching] = useState(false);
-	
-	const [error, setError] = useState('');
-	const [loading, setLoading] = useState(false);
-
-	const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-	const trimmedQuery = searchQuery.trim();
+	const [debouncedQuery, setDebouncedQuery] = useState('');
 
 	useEffect(() => {
-		if (mode !== 'dm') return;
-		if (!trimmedQuery) return;
-
-		if (searchTimeout.current) clearTimeout(searchTimeout.current);
-
-		searchTimeout.current = setTimeout(async () => {
-			setIsSearching(true);
-
-			try {
-				const results = await apiSearchUsers(trimmedQuery);
-				const filtered = results.filter((u) => u.username !== user?.username);
-				setSearchResults(filtered);
-			} catch (err) {
-				console.error(err);
-			} finally {
-				setIsSearching(false);
-			}
+		const handler = setTimeout(() => {
+			setDebouncedQuery(searchQuery.trim());
 		}, 300);
+		return () => clearTimeout(handler);
+	}, [searchQuery]);
 
-		return () => {
-			if (searchTimeout.current) clearTimeout(searchTimeout.current);
-		};
-	}, [trimmedQuery, mode, user]);
+	const { data: searchResults = [], isFetching: isSearching } = useQuery({
+		queryKey: ['users', 'search', debouncedQuery],
+		queryFn: () => apiSearchUsers(debouncedQuery),
+		enabled: debouncedQuery.length > 0,
+		select: (data) => data.filter((u) => u.username !== user?.username),
+	});
 
+	const [error, setError] = useState('');
+	const [loading, setLoading] = useState(false);
 
 	const handleCreateGroup = async () => {
 		setError('');
@@ -142,15 +131,17 @@ export default function NewChannelModal({ initialTab = 'dm', onClose }: NewChann
 									/>
 									<Search className="absolute left-3 top-3.5 w-5 h-5 text-[#949ba4]" />
 								</div>
-								
+
 								{/* Search Results Dropdown */}
 								<div className="bg-[#2b2d31] rounded-md overflow-hidden min-h-[50px] max-h-[220px] overflow-y-auto">
 									{isSearching ? (
-										<div className="p-4 text-center text-sm text-[#949ba4]">Searching...</div>
+										<div className="p-4 text-center text-sm text-[#949ba4]">
+											Searching...
+										</div>
 									) : searchResults.length > 0 ? (
 										<div className="py-2">
-											{searchResults.map(u => (
-												<div 
+											{searchResults.map((u) => (
+												<div
 													key={u.id}
 													onClick={() => handleCreateDM(u.username)}
 													className="flex items-center gap-3 px-3 py-2 hover:bg-[#3f4147] cursor-pointer transition-colors"
@@ -161,15 +152,21 @@ export default function NewChannelModal({ initialTab = 'dm', onClose }: NewChann
 														</AvatarFallback>
 													</Avatar>
 													<div className="flex flex-col flex-1">
-														<span className="text-sm font-bold text-white">{u.username}</span>
+														<span className="text-sm font-bold text-white">
+															{u.username}
+														</span>
 													</div>
 												</div>
 											))}
 										</div>
 									) : searchQuery.trim() !== '' ? (
-										<div className="p-4 text-center text-sm text-[#949ba4]">No users found.</div>
+										<div className="p-4 text-center text-sm text-[#949ba4]">
+											No users found.
+										</div>
 									) : (
-										<div className="p-4 text-center text-sm text-[#949ba4]">Start typing to find someone.</div>
+										<div className="p-4 text-center text-sm text-[#949ba4]">
+											Start typing to find someone.
+										</div>
 									)}
 								</div>
 							</div>
@@ -202,7 +199,9 @@ export default function NewChannelModal({ initialTab = 'dm', onClose }: NewChann
 					</div>
 				</div>
 
-				<div className={`p-4 bg-[#2b2d31] border-t border-[#1e1f22] flex justify-end gap-3 ${mode === 'dm' ? 'hidden' : ''}`}>
+				<div
+					className={`p-4 bg-[#2b2d31] border-t border-[#1e1f22] flex justify-end gap-3 ${mode === 'dm' ? 'hidden' : ''}`}
+				>
 					<Button
 						variant="link"
 						className="text-[#949ba4] hover:text-[#dbdee1]"

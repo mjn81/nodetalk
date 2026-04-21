@@ -78,7 +78,7 @@ export default function LeftSidebar() {
 	const [modalTab, setModalTab] = useState<'dm' | 'channel'>('dm');
 	useEffect(() => {
 		fetchVersion()
-	})
+	}, [fetchVersion])
 
 	const filtered = channels.filter((ch) => {
 		const display = getChannelDisplayName(ch, user?.user_id ?? '');
@@ -103,8 +103,8 @@ export default function LeftSidebar() {
 								wsState === 'connected'
 									? 'bg-green-500'
 									: wsState === 'connecting'
-									? 'bg-yellow-500'
-									: 'bg-red-500'
+										? 'bg-yellow-500'
+										: 'bg-red-500'
 							}`}
 							title={wsState}
 						/>
@@ -161,7 +161,9 @@ export default function LeftSidebar() {
 									</button>
 								</div>
 								<div className="flex flex-col gap-0.5">
-									{groupChannels.map((ch) => <RenderChannel ch={ch} isGroup={true} user={user} /> )}
+									{groupChannels.map((ch) => (
+										<RenderChannel ch={ch} isGroup={true} user={user} />
+									))}
 								</div>
 							</div>
 						)}
@@ -182,7 +184,9 @@ export default function LeftSidebar() {
 								</button>
 							</div>
 							<div className="flex flex-col gap-0.5">
-								{dmChannels.map((ch) => <RenderChannel ch={ch} isGroup={false} user={user} />)}
+								{dmChannels.map((ch) => (
+									<RenderChannel ch={ch} isGroup={false} user={user} />
+								))}
 							</div>
 						</div>
 
@@ -199,34 +203,28 @@ export default function LeftSidebar() {
 
 			{/* User Controls Footer */}
 			<div className="h-[52px] bg-[#232428] shrink-0 flex items-center px-2 gap-2">
-				<div className="flex items-center gap-2 flex-1 min-w-0 hover:bg-[#3f4147] p-1 rounded-md cursor-pointer transition">
-					<Avatar className="w-8 h-8 shrink-0 relative overflow-visible">
-						<AvatarFallback className="bg-transparent overflow-hidden rounded-full">
-							<MinidenticonAvatar userId={user?.user_id ?? ''} size={32} />
-						</AvatarFallback>
-						<div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-[2.5px] border-[#232428] z-10 box-content" />
-					</Avatar>
-					<div className="flex flex-col flex-1 min-w-0 leading-tight">
-						<span className="text-[13px] font-bold text-white truncate">
-							{user?.username}
-						</span>
-						<span className="text-[11px] text-[#949ba4] truncate">Online</span>
-					</div>
-				</div>
-
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 text-[#b5bac1] hover:text-[#dbdee1] hover:bg-[#3f4147]"
-							onClick={() => setShowSettings(true)}
-						>
-							<Settings className="w-5 h-5" />
-						</Button>
+						<div className="flex items-center gap-2 flex-1 min-w-0 hover:bg-[#3f4147] p-1 rounded-md cursor-pointer transition">
+							<Avatar className="w-8 h-8 shrink-0 relative overflow-visible">
+								<AvatarFallback className="bg-transparent overflow-hidden rounded-full">
+									<MinidenticonAvatar userId={user?.user_id ?? ''} size={32} />
+								</AvatarFallback>
+								<div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-[2.5px] border-[#232428] z-10 box-content" />
+							</Avatar>
+							<div className="flex flex-col flex-1 min-w-0 leading-tight">
+								<span className="text-[13px] font-bold text-white truncate">
+									{user?.username}
+								</span>
+								<span className="text-[11px] text-[#949ba4] truncate">
+									Online
+								</span>
+							</div>
+						</div>
 					</DropdownMenuTrigger>
+
 					<DropdownMenuContent
-						align="end"
+						align="start"
 						className="w-48 bg-[#111214] border-none text-[#dbdee1]"
 					>
 						<DropdownMenuItem
@@ -238,9 +236,23 @@ export default function LeftSidebar() {
 						</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
+
+				<Button
+					variant="ghost"
+					size="icon"
+					className="h-8 w-8 text-[#b5bac1] hover:text-[#dbdee1] hover:bg-[#3f4147]"
+					onClick={() => setShowSettings(true)}
+				>
+					<Settings className="w-5 h-5" />
+				</Button>
 			</div>
 
-			{showNewChannel && <NewChannelModal initialTab={modalTab} onClose={() => setShowNew(false)} />}
+			{showNewChannel && (
+				<NewChannelModal
+					initialTab={modalTab}
+					onClose={() => setShowNew(false)}
+				/>
+			)}
 			{showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
 		</div>
 	);
