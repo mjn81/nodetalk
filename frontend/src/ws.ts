@@ -1,6 +1,6 @@
 // WebSocket client with auto-reconnect and channel key management
 
-import { type Message } from './api/client';
+import type { Message } from '@/types/api';
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080';
 

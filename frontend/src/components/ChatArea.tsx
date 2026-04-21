@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiListMessages, type Message, type Channel } from '@/api/client';
+import { apiListMessages } from '@/api/client';
+import type { Message, Channel } from '@/types/api';
 import { onWS, wsSendMessage, decryptMessage } from '@/ws';
 
 import { Avatar } from './Avatar';

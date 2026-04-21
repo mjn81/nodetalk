@@ -1,6 +1,7 @@
 // channels.slice.ts
 import { create } from 'zustand';
-import { apiListChannels, apiCreateChannel, type Channel } from '@/api/client';
+import { apiListChannels, apiCreateChannel } from '@/api/client';
+import type { Channel } from '@/types/api';
 import { wsSendReadReceipt } from '@/ws';
 
 export interface ChannelSlice {

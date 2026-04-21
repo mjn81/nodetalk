@@ -9,7 +9,7 @@ import (
 
 func TestSessionCreateAndValidate(t *testing.T) {
 	t.Parallel()
-	ss := auth.NewSessionStore()
+	ss := auth.NewSessionStore(time.Hour)
 
 	token, err := ss.Create("user-123", "alice")
 	if err != nil {
@@ -33,7 +33,7 @@ func TestSessionCreateAndValidate(t *testing.T) {
 
 func TestSessionDelete(t *testing.T) {
 	t.Parallel()
-	ss := auth.NewSessionStore()
+	ss := auth.NewSessionStore(time.Hour)
 	token, _ := ss.Create("user-456", "bob")
 
 	ss.Delete(token)
@@ -45,7 +45,7 @@ func TestSessionDelete(t *testing.T) {
 
 func TestInvalidToken(t *testing.T) {
 	t.Parallel()
-	ss := auth.NewSessionStore()
+	ss := auth.NewSessionStore(time.Hour)
 	_, err := ss.Validate("not-a-real-token")
 	if err == nil {
 		t.Error("Validate() with garbage token should return error")
@@ -54,7 +54,7 @@ func TestInvalidToken(t *testing.T) {
 
 func TestTokensAreUnique(t *testing.T) {
 	t.Parallel()
-	ss := auth.NewSessionStore()
+	ss := auth.NewSessionStore(time.Hour)
 	tokens := make(map[string]bool)
 	for i := 0; i < 50; i++ {
 		token, err := ss.Create("user-x", "charlie")

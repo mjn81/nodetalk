@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"nodetalk/internal/api"
 	"nodetalk/internal/auth"
@@ -43,11 +44,13 @@ func testServer(t *testing.T) *httptest.Server {
 	})
 
 	uploadDir := dir + "/uploads"
+	tokenTTL := 24 * time.Hour
 	handler := &api.Handler{
 		Store:     store.New(database),
-		Sessions:  auth.NewSessionStore(),
+		Sessions:  auth.NewSessionStore(tokenTTL),
 		KEK:       kek,
 		UploadDir: uploadDir,
+		TokenTTL:  tokenTTL,
 	}
 	router := api.NewRouter(handler, 1000, 1000) // high limits for testing
 	return httptest.NewServer(router)
@@ -169,9 +172,22 @@ func TestLogin_Success(t *testing.T) {
 
 	var got api.LoginResponse
 	decodeJSON(t, resp, &got)
-	if got.Token == "" {
-		t.Error("token should not be empty")
+
+	// Check for session cookie
+	found := false
+	for _, c := range resp.Cookies() {
+		if c.Name == "nodetalk_session" {
+			found = true
+			if c.Value == "" {
+				t.Error("session cookie value is empty")
+			}
+			break
+		}
 	}
+	if !found {
+		t.Error("session cookie 'nodetalk_session' not found")
+	}
+
 	if got.Username != "carol" {
 		t.Errorf("username = %q, want %q", got.Username, "carol")
 	}
@@ -218,9 +234,15 @@ func registerAndLogin(t *testing.T, srv *httptest.Server, username, password str
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("login failed with status %d", resp.StatusCode)
 	}
-	var got api.LoginResponse
-	decodeJSON(t, resp, &got)
-	return got.Token
+
+	// Extract token from cookie for use in subsequent Bearer-token-aware requests
+	for _, c := range resp.Cookies() {
+		if c.Name == "nodetalk_session" {
+			return c.Value
+		}
+	}
+	t.Fatal("session cookie not found in login response")
+	return ""
 }
 
 // ─────────────────────────────────────────────────────────────

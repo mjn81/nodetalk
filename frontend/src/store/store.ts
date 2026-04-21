@@ -1,4 +1,4 @@
-import type { Channel } from '@/api/client';
+import type { Channel } from '@/types/api';
 
 // store.ts
 export { useAuthStore } from './auth.slice';
@@ -10,7 +10,7 @@ export function getChannelDisplayName(
 	currentUserId: string,
 ): string {
 	if (ch.members.length === 2) {
-		return ch.members.find((m) => m !== currentUserId) ?? ch.name;
+		return ch.members.find((m: string) => m !== currentUserId) ?? ch.name;
 	}
 	return ch.name || `Group (${ch.members.length})`;
 }

@@ -77,9 +77,9 @@ func (a *App) Startup(ctx context.Context) {
 		}
 	}()
 
-	// ── App layers ─────────────────────────────────────────────────────────
+	tokenTTL := time.Duration(cfg.Security.TokenExpireHours) * time.Hour
 	a.store    = store.New(database)
-	a.sessions = auth.NewSessionStore()
+	a.sessions = auth.NewSessionStore(tokenTTL)
 	a.hub      = ws.NewHub(a.store, a.sessions, a.kek)
 
 	// ── HTTP server on random available port ───────────────────────────────
@@ -95,6 +95,7 @@ func (a *App) Startup(ctx context.Context) {
 		Sessions:  a.sessions,
 		KEK:       a.kek,
 		UploadDir: "./data/uploads",
+		TokenTTL:  tokenTTL,
 	}
 
 	rootMux := http.NewServeMux()

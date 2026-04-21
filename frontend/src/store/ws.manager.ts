@@ -1,7 +1,7 @@
 // ws.manager.ts
 import { wsConnect, wsDisconnect, onWS, wsSendReadReceipt } from '@/ws';
 import { useChannelStore } from './channels.slice';
-import type { ChannelMessage } from '@/types';
+import type { Message } from '@/types/api';
 import { useAppStore } from './app.slice';
 
 let initialized = false;
@@ -22,7 +22,8 @@ export function initWebSocket() {
 		useChannelStore.getState().refreshChannels();
 	});
 
-	onWS('message', (msg: ChannelMessage) => {
+	onWS('message', (payload: unknown) => {
+		const msg = payload as Message;
 		const { activeChannel, incrementUnread } = useChannelStore.getState();
 
 		if (activeChannel?.id === msg.channel_id) {

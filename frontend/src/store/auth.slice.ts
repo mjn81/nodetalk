@@ -6,8 +6,8 @@ import {
 	apiLogin,
 	apiRegister,
 	apiLogout,
-	type AuthUser,
 } from '@/api/client';
+import type { AuthUser } from '@/types/api';
 
 import { connectWS, disconnectWS } from './ws.manager';
 import { useChannelStore } from './channels.slice';

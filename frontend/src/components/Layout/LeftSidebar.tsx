@@ -19,7 +19,7 @@ import {
 	useChannelStore,
 	getChannelDisplayName,
 } from '@/store/store';
-import type { AuthUser, Channel } from '@/api/client';
+import type { AuthUser, Channel } from '@/types/api';
 
 
 const RenderChannel = ({ch, isGroup, user}:{ch: Channel[][number], isGroup: boolean, user: AuthUser | null}) => {
