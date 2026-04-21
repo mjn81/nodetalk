@@ -9,6 +9,8 @@ import EmojiPicker from './EmojiPicker';
 import VoiceRecorder from './VoiceRecorder';
 import { Search, Users as UsersIcon, Smile, SendHorizontal, Play, Pause } from 'lucide-react';
 
+import { getChannelDisplayName, useAuthStore } from '@/store/store';
+
 interface ChatAreaProps {
 	channel: Channel;
 }
@@ -52,6 +54,7 @@ function formatDate(iso: string): string {
 }
 
 export default function ChatArea({ channel }: ChatAreaProps) {
+	const user = useAuthStore((state) => state.user);
 	const [inputText, setInputText] = useState('');
 	const [sending, setSending] = useState(false);
 	const [showEmoji, setShowEmoji] = useState(false);
@@ -160,10 +163,16 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 			{/* Topbar */}
 			<div className="flex items-center justify-between px-4 h-12 border-b border-[#1e1f22] shrink-0 shadow-sm relative z-10 bg-background">
 				<div className="flex items-center gap-3">
-					<Avatar userId={channel.id} size={36} />
+					<Avatar 
+						userId={channel.members.length === 2 && (!channel.name || channel.name.trim() === '')
+							? (channel.members.find(m => m !== user?.user_id) || channel.id)
+							: channel.id
+						} 
+						size={36} 
+					/>
 					<div className="flex flex-col min-w-0">
 						<div className="text-[15px] font-bold text-white leading-tight truncate">
-							{channel.name || channel.id}
+							{getChannelDisplayName(channel, user?.user_id ?? '')}
 						</div>
 						<div className="text-[13px] text-[#949ba4] leading-tight">
 							{channel.members.length === 2
@@ -217,7 +226,7 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 								{!grouped && (
 									<div className="flex items-baseline gap-2 mb-0.5">
 										<span className="font-semibold text-[15px] text-[#f2f3f5] tracking-wide hover:underline cursor-pointer">
-											{msg.sender_id}
+											{channel.member_names?.[msg.sender_id] || msg.sender_id}
 										</span>
 										<span className="text-xs text-[#949ba4]">
 											{formatTime(msg.sent_at)}
@@ -244,7 +253,7 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 						ref={inputRef}
 						id="chat-input"
 						className="flex-1 bg-transparent border-none outline-none text-[#dbdee1] text-[15px] leading-6 resize-none min-h-[24px] max-h-[140px] placeholder-[#80848e] py-0"
-						placeholder={`Message ${channel.name ? '#' + channel.name : channel.id}`}
+						placeholder={`Message ${getChannelDisplayName(channel, user?.user_id ?? '')}`}
 						value={inputText}
 						onChange={handleInput}
 						onKeyDown={handleKeyDown}

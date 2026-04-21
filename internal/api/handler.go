@@ -95,14 +95,15 @@ type LoginResponse struct {
 }
 
 type ChannelResponse struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	IsPrivate   bool      `json:"is_private"`
-	InviteLink  string    `json:"invite_link"`
-	CreatorID   string    `json:"creator_id"`
-	Members     []string  `json:"members,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UnreadCount int       `json:"unread_count,omitempty"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	IsPrivate   bool              `json:"is_private"`
+	InviteLink  string            `json:"invite_link"`
+	CreatorID   string            `json:"creator_id"`
+	Members     []string          `json:"members,omitempty"`
+	MemberNames map[string]string `json:"member_names,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UnreadCount int               `json:"unread_count,omitempty"`
 }
 
 type ExploreChannelResponse struct {
@@ -359,13 +360,42 @@ func (h *Handler) CreateChannel(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
+
 	memberSet := uniqueStrings(append(body.Members, session.UserID))
+
+	// DM de-duplication: if this is a DM, check if it already exists
+	if body.Name == "" && len(memberSet) == 2 {
+		existing, err := h.Store.ListUserChannels(session.UserID)
+		if err == nil {
+			for _, ex := range existing {
+				// A DM has no name and exactly 2 members
+				if ex.Name == "" && len(ex.Members) == 2 {
+					// Check if it's the same 2 people
+					matches := 0
+					for _, m1 := range memberSet {
+						for _, m2 := range ex.Members {
+							if m1 == m2 {
+								matches++
+							}
+						}
+					}
+					if matches == 2 {
+						// Found existing DM, return it instead of creating new
+						writeJSON(w, http.StatusOK, h.toChannelResponse(ex))
+						return
+					}
+				}
+			}
+		}
+	}
+
 	ch, err := h.Store.CreateChannel(body.Name, session.UserID, body.IsPrivate, memberSet, h.KEK)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "channel creation failed")
 		return
 	}
-	writeJSON(w, http.StatusCreated, ch)
+
+	writeJSON(w, http.StatusCreated, h.toChannelResponse(ch))
 }
 
 // --- Context Helpers ---
@@ -426,18 +456,31 @@ func (h *Handler) ListChannels(w http.ResponseWriter, r *http.Request) {
 	
 	resp := make([]ChannelResponse, 0)
 	for _, ch := range channels {
-		resp = append(resp, ChannelResponse{
-			ID:          ch.ID,
-			Name:        ch.Name,
-			IsPrivate:   ch.IsPrivate,
-			InviteLink:  ch.InviteLink,
-			CreatorID:   ch.CreatorID,
-			Members:     ch.Members,
-			CreatedAt:   ch.CreatedAt,
-			UnreadCount: ch.UnreadCount,
-		})
+		resp = append(resp, h.toChannelResponse(ch))
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) toChannelResponse(ch *models.Channel) ChannelResponse {
+	memberNames := make(map[string]string)
+	for _, mID := range ch.Members {
+		u, err := h.Store.GetUser(mID)
+		if err == nil {
+			memberNames[mID] = u.Username
+		}
+	}
+
+	return ChannelResponse{
+		ID:          ch.ID,
+		Name:        ch.Name,
+		IsPrivate:   ch.IsPrivate,
+		InviteLink:  ch.InviteLink,
+		CreatorID:   ch.CreatorID,
+		Members:     ch.Members,
+		MemberNames: memberNames,
+		CreatedAt:   ch.CreatedAt,
+		UnreadCount: ch.UnreadCount,
+	}
 }
 
 // ExploreChannels godoc
@@ -487,16 +530,7 @@ func (h *Handler) ExploreChannels(w http.ResponseWriter, r *http.Request) {
 //	@Router      /api/channels/{id} [get]
 func (h *Handler) GetChannel(w http.ResponseWriter, r *http.Request) {
 	ch := ChannelFromContext(r.Context())
-	writeJSON(w, http.StatusOK, ChannelResponse{
-		ID:          ch.ID,
-		Name:        ch.Name,
-		IsPrivate:   ch.IsPrivate,
-		InviteLink:  ch.InviteLink,
-		CreatorID:   ch.CreatorID,
-		Members:     ch.Members,
-		CreatedAt:   ch.CreatedAt,
-		UnreadCount: ch.UnreadCount,
-	})
+	writeJSON(w, http.StatusOK, h.toChannelResponse(ch))
 }
 
 // JoinChannel godoc

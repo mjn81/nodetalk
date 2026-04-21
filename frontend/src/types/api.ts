@@ -7,8 +7,10 @@ export interface Channel {
 	id: string;
 	name: string;
 	is_private: boolean;
+	invite_link?: string;
 	creator_id: string;
 	members: string[];
+	member_names?: Record<string, string>;
 	created_at: string;
 	unread_count?: number;
 }

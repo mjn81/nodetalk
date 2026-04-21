@@ -2,11 +2,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import {
-	apiLogin,
-	apiRegister,
-	apiLogout,
-} from '@/api/client';
+import { apiLogin, apiRegister, apiLogout, apiMe } from '@/api/client';
 import type { AuthUser } from '@/types/api';
 
 import { connectWS, disconnectWS } from './ws.manager';
@@ -16,7 +12,7 @@ export interface AuthSlice {
 	user: AuthUser | null;
 	isAuthLoading: boolean;
 
-	initAuth: () => void;
+	initAuth: () => Promise<void>;
 	login: (u: string, p: string) => Promise<void>;
 	register: (u: string, p: string) => Promise<void>;
 	logout: () => Promise<void>;
@@ -28,13 +24,21 @@ export const useAuthStore = create<AuthSlice>()(
 			user: null,
 			isAuthLoading: true,
 
-			initAuth: () => {
+			initAuth: async () => {
 				const saved = get().user;
 
 				if (saved) {
-					set({ isAuthLoading: false });
-					connectWS();
-					useChannelStore.getState().refreshChannels();
+					try {
+						// Verify session is still valid on server
+						await apiMe();
+						set({ isAuthLoading: false });
+						connectWS();
+						useChannelStore.getState().refreshChannels();
+					} catch {
+						// Session invalid or server down
+						set({ user: null, isAuthLoading: false });
+						disconnectWS();
+					}
 				} else {
 					set({ isAuthLoading: false });
 				}
