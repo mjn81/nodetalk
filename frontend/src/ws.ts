@@ -29,86 +29,54 @@ function emit(event: WSEventType, payload: unknown) {
   listeners.get(event)?.forEach(fn => fn(payload));
 }
 
-// ── WebSocket Manager ────────────────────────────────────────────────────
-let socket: WebSocket | null = null;
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-let reconnectDelay = 1000;
-const MAX_DELAY = 30_000;
+// ── SharedWorker Manager ────────────────────────────────────────────────
+let worker: SharedWorker | null = null;
 
 export function wsConnect(): void {
-  if (socket?.readyState === WebSocket.OPEN) return;
+  if (worker) return; // already initialized
 
   const token = getToken();
   if (!token) return;
 
-  const url = `${WS_URL}/ws?token=${encodeURIComponent(token)}`;
-  socket = new WebSocket(url);
+  worker = new SharedWorker(new URL('./ws/shared.worker.ts', import.meta.url), {
+    type: 'module',
+    name: 'nodetalk-ws' // Groups tabs into same worker namespace
+  });
 
-  socket.onopen = () => {
-    reconnectDelay = 1000;
-    emit('open', null);
-    console.info('[ws] connected');
-    // Heartbeat every 25 seconds to keep the connection alive.
-    startHeartbeat();
-  };
-
-  socket.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data) as { type: string; payload: unknown };
-      handleInbound(msg);
-    } catch (e) {
-      console.warn('[ws] unparseable message', e);
+  worker.port.onmessage = (event: MessageEvent) => {
+    const { type, payload, code } = event.data;
+    if (type === 'WS_OPEN') {
+      emit('open', null);
+      console.info('[ws-worker] connected');
+    } else if (type === 'WS_CLOSE') {
+      emit('close', code);
+      console.info('[ws-worker] closed');
+    } else if (type === 'WS_MESSAGE') {
+      handleInbound(payload as { type: string; payload: unknown });
     }
   };
 
-  socket.onclose = (ev) => {
-    stopHeartbeat();
-    emit('close', ev.code);
-    console.info(`[ws] closed (${ev.code}). Reconnecting in ${reconnectDelay}ms…`);
-    scheduleReconnect();
-  };
+  worker.port.start();
 
-  socket.onerror = (e) => {
-    console.warn('[ws] error', e);
-  };
+  worker.port.postMessage({
+    cmd: 'CONNECT',
+    payload: {
+      token,
+      url: `${WS_URL}/ws`,
+    }
+  });
 }
 
 export function wsDisconnect(): void {
-  if (reconnectTimer) clearTimeout(reconnectTimer);
-  stopHeartbeat();
-  socket?.close();
-  socket = null;
+  worker?.port.postMessage({ cmd: 'DISCONNECT' });
+  worker = null;
   channelKeys.clear();
-}
-
-function scheduleReconnect() {
-  if (reconnectTimer) clearTimeout(reconnectTimer);
-  reconnectTimer = setTimeout(() => {
-    reconnectDelay = Math.min(reconnectDelay * 1.5, MAX_DELAY);
-    wsConnect();
-  }, reconnectDelay);
-}
-
-// ── Heartbeat ────────────────────────────────────────────────────────────
-let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-
-function startHeartbeat() {
-  stopHeartbeat();
-  heartbeatTimer = setInterval(() => {
-    wsSend({ type: 'ping', payload: null });
-  }, 25_000);
-}
-
-function stopHeartbeat() {
-  if (heartbeatTimer) clearInterval(heartbeatTimer);
-  heartbeatTimer = null;
 }
 
 // ── Inbound Handler ──────────────────────────────────────────────────────
 function handleInbound(msg: { type: string; payload: unknown }) {
   switch (msg.type) {
     case 'channel_key': {
-      // Server sends: { channel_id: string, aes_key: number[] }
       const { channel_id, aes_key } = msg.payload as { channel_id: string; aes_key: number[] };
       channelKeys.set(channel_id, new Uint8Array(aes_key));
       emit('channel_key', { channel_id });
@@ -121,15 +89,25 @@ function handleInbound(msg: { type: string; payload: unknown }) {
       emit('presence', msg.payload);
       break;
     default:
-      console.debug('[ws] unknown message type', msg.type);
+      console.debug('[ws-worker] unknown message type', msg.type);
   }
 }
 
 // ── Outbound Helpers ─────────────────────────────────────────────────────
 function wsSend(msg: { type: string; payload: unknown }): boolean {
-  if (socket?.readyState !== WebSocket.OPEN) return false;
-  socket.send(JSON.stringify(msg));
+  if (!worker) return false;
+  worker.port.postMessage({
+    cmd: 'SEND',
+    payload: msg
+  });
   return true;
+}
+
+export function wsSendReadReceipt(channelId: string) {
+  wsSend({
+    type: 'read_receipt',
+    payload: { channel_id: channelId }
+  });
 }
 
 /**

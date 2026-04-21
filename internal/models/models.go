@@ -31,6 +31,7 @@ type Channel struct {
 	Members         []string  `json:"members"`
 	AESKeyEncrypted []byte    `json:"aes_key_enc"` // Channel AES-256 key encrypted with server KEK
 	CreatedAt       time.Time `json:"created_at"`
+	UnreadCount     int       `json:"unread_count"` // Ephemeral: Populated per-user in handlers
 }
 
 // ---- UserChannel (Junction Index) ------------------------------------------ //
@@ -38,7 +39,8 @@ type Channel struct {
 // UserChannel is the secondary index stored under uc:{user_id}:{channel_id}.
 // It enables O(1) lookup of all channels for a specific user.
 type UserChannel struct {
-	JoinedAt time.Time `json:"joined_at"`
+	JoinedAt   time.Time `json:"joined_at"`
+	LastReadAt time.Time `json:"last_read_at"`
 }
 
 // ---- Message --------------------------------------------------------------- //

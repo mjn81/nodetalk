@@ -38,9 +38,11 @@ export interface AuthUser {
 export interface Channel {
   id: string;
   name: string;
+  is_private: boolean;
   creator_id: string;
   members: string[];
   created_at: string;
+  unread_count?: number;
 }
 
 export interface Message {
@@ -185,4 +187,10 @@ export function apiFileUrl(fileId: string): string {
 // ── Presence ─────────────────────────────────────────────────────────────
 export async function apiGetPresence(userId: string): Promise<Presence> {
   return apiFetch(`/api/users/${userId}/presence`);
+}
+
+export async function apiGetVersion(): Promise<{ version: string }> {
+  const res = await fetch(`${BASE_URL}/api/version`);
+  if (!res.ok) throw new Error('Failed to fetch version');
+  return res.json();
 }

@@ -105,6 +105,46 @@ func (d *DB) DeleteUserChannel(userID, channelID string) error {
 	})
 }
 
+// UpdateUserChannelReadTime updates the last read timestamp for a user in a channel.
+func (d *DB) UpdateUserChannelReadTime(userID, channelID string, t time.Time) error {
+	var uc models.UserChannel
+	err := d.get(ucKey(userID, channelID), &uc)
+	if err != nil {
+		uc = models.UserChannel{JoinedAt: time.Now().UTC()}
+	}
+	uc.LastReadAt = t
+	return d.set(ucKey(userID, channelID), uc)
+}
+
+// CountUnreadMessages counts how many messages in a channel are strictly newer than the user's LastReadAt.
+func (d *DB) CountUnreadMessages(userID, channelID string) (int, error) {
+	var uc models.UserChannel
+	if err := d.get(ucKey(userID, channelID), &uc); err != nil {
+		return 0, nil // If no index exists, 0 unread.
+	}
+	// If never read, consider all as unread, but we only scan up to what Badger finds.
+	var lastReadUnix int64 = 0
+	if !uc.LastReadAt.IsZero() {
+		lastReadUnix = uc.LastReadAt.UnixNano()
+	}
+
+	count := 0
+	prefix := []byte(fmt.Sprintf("%s%s:", prefixMessage, channelID))
+	err := d.bdb.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = prefix
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		seekKey := []byte(fmt.Sprintf("%s%s:%019d", prefixMessage, channelID, lastReadUnix+1))
+		for it.Seek(seekKey); it.Valid(); it.Next() {
+			count++
+		}
+		return nil
+	})
+	return count, err
+}
+
 
 // ListUserChannels fetches all channels a user belongs to by scanning the
 // uc:{user_id}: prefix and then resolving each channel record.

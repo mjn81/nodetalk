@@ -18,9 +18,9 @@ export default function AppPage() {
 		>
 			{/* Left Sidebar Pane */}
 			<ResizablePanel
-				defaultSize={20}
-				minSize={15}
-				maxSize={30}
+				defaultSize={250}
+				minSize={200}
+				maxSize={300}
 				className="bg-secondary flex flex-col border-r border-[#1e1f22]"
 			>
 				<LeftSidebar />
@@ -53,9 +53,9 @@ export default function AppPage() {
 
 			{/* Right Sidebar Pane */}
 			<ResizablePanel
-				defaultSize={20}
-				minSize={15}
-				maxSize={30}
+				defaultSize={250}
+				minSize={200}
+				maxSize={300}
 				className="bg-secondary flex flex-col border-l border-[#1e1f22]"
 			>
 				<RightSidebar />

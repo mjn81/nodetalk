@@ -217,9 +217,23 @@ func (s *Store) AddMemberToChannel(channelID, userID string) error {
 	return s.db.SetUserChannel(userID, channelID)
 }
 
-// ListUserChannels returns all channels a user belongs to.
+// ListUserChannels returns all channels a user belongs to, calculating unread counts for each.
 func (s *Store) ListUserChannels(userID string) ([]*models.Channel, error) {
-	return s.db.ListUserChannels(userID)
+	channels, err := s.db.ListUserChannels(userID)
+	if err != nil {
+		return nil, err
+	}
+	for _, ch := range channels {
+		if count, err := s.db.CountUnreadMessages(userID, ch.ID); err == nil {
+			ch.UnreadCount = count
+		}
+	}
+	return channels, nil
+}
+
+// UpdateChannelRead sets the LastReadAt timestamp to now for this user/channel.
+func (s *Store) UpdateChannelRead(userID, channelID string) error {
+	return s.db.UpdateUserChannelReadTime(userID, channelID, time.Now().UTC())
 }
 
 // ListAllChannels scans and returns all channels in the DB.

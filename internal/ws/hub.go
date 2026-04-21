@@ -231,6 +231,8 @@ func (c *Client) handleMessage(ctx context.Context, msg *models.WSMessage) error
 	switch msg.Type {
 	case "message":
 		return c.handleChatMessage(msg)
+	case "read_receipt":
+		return c.handleReadReceipt(msg)
 	case "ping":
 		return c.hub.store.SetPresence(c.UserID, "online")
 	default:
@@ -277,4 +279,18 @@ func (c *Client) handleChatMessage(raw *models.WSMessage) error {
 		msg:       outMsg,
 	}
 	return nil
+}
+
+// handleReadReceipt updates the last read timestamp for the channel.
+func (c *Client) handleReadReceipt(raw *models.WSMessage) error {
+	var body struct {
+		ChannelID string `json:"channel_id"`
+	}
+	if err := json.Unmarshal(raw.Payload, &body); err != nil {
+		return fmt.Errorf("invalid read_receipt payload: %w", err)
+	}
+	if body.ChannelID == "" {
+		return fmt.Errorf("missing channel_id")
+	}
+	return c.hub.store.UpdateChannelRead(c.UserID, body.ChannelID)
 }

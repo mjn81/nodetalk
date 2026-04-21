@@ -10,7 +10,8 @@ import {
 	apiListChannels,
 	apiCreateChannel,
 } from '@/api/client';
-import { wsConnect, wsDisconnect, onWS } from '@/ws';
+import { wsConnect, wsDisconnect, onWS, wsSendReadReceipt } from '@/ws';
+import { apiGetVersion } from '@/api/client';
 
 interface AppState {
 	// Auth
@@ -28,6 +29,11 @@ interface AppState {
 	setActiveChannel: (ch: Channel) => void;
 	createChannel: (name: string, members: string[]) => Promise<Channel>;
 	refreshChannels: () => Promise<void>;
+
+	// App Status
+	appVersion: string;
+	wsState: 'connecting' | 'connected' | 'disconnected';
+	fetchVersion: () => Promise<void>;
 }
 
 let wsListenerRegistered = false;
@@ -39,8 +45,9 @@ export const useStore = create<AppState>((set, get) => ({
 
 	initAuth: () => {
 		const saved = loadUser();
+		get().fetchVersion();
 		if (saved) {
-			set({ user: saved, isAuthLoading: false });
+			set({ user: saved, isAuthLoading: false, wsState: 'connecting' });
 			wsConnect();
 
 			// Auto-refresh channels on initial load if auth'd
@@ -49,6 +56,21 @@ export const useStore = create<AppState>((set, get) => ({
 			if (!wsListenerRegistered) {
 				onWS('channel_key', () => {
 					get().refreshChannels();
+				});
+				onWS('open', () => set({ wsState: 'connected' }));
+				onWS('close', () => set({ wsState: 'disconnected' }));
+				onWS('message', (msg: any) => {
+					const { activeChannel, channels } = get();
+					if (activeChannel?.id === msg.channel_id) {
+						wsSendReadReceipt(msg.channel_id);
+					} else {
+						// Increment unread count globally
+						set({
+							channels: channels.map(c => 
+								c.id === msg.channel_id ? { ...c, unread_count: (c.unread_count || 0) + 1 } : c
+							)
+						});
+					}
 				});
 				wsListenerRegistered = true;
 			}
@@ -59,13 +81,28 @@ export const useStore = create<AppState>((set, get) => ({
 
 	login: async (username, password) => {
 		const resp = await apiLogin(username, password);
-		set({ user: resp });
+		set({ user: resp, wsState: 'connecting' });
 		wsConnect();
 		get().refreshChannels();
 
 		if (!wsListenerRegistered) {
 			onWS('channel_key', () => {
 				get().refreshChannels();
+			});
+			onWS('open', () => set({ wsState: 'connected' }));
+			onWS('close', () => set({ wsState: 'disconnected' }));
+			onWS('message', (msg: any) => {
+				const { activeChannel, channels } = get();
+				if (activeChannel?.id === msg.channel_id) {
+					wsSendReadReceipt(msg.channel_id);
+				} else {
+					// Increment unread count globally
+					set({
+						channels: channels.map(c => 
+							c.id === msg.channel_id ? { ...c, unread_count: (c.unread_count || 0) + 1 } : c
+						)
+					});
+				}
 			});
 			wsListenerRegistered = true;
 		}
@@ -88,8 +125,27 @@ export const useStore = create<AppState>((set, get) => ({
 	activeChannel: null,
 	isChannelsLoading: false,
 
+	appVersion: 'V...',
+	wsState: 'disconnected',
+
+	fetchVersion: async () => {
+		try {
+			const res = await apiGetVersion();
+			set({ appVersion: res.version });
+		} catch {
+			// ignore
+		}
+	},
+
 	setActiveChannel: (ch: Channel) => {
-		set({ activeChannel: ch });
+		set((state) => {
+			wsSendReadReceipt(ch.id);
+			// Clear unread count optimistically locally
+			return {
+				activeChannel: ch,
+				channels: state.channels.map(c => c.id === ch.id ? { ...c, unread_count: 0 } : c)
+			};
+		});
 	},
 
 	createChannel: async (name: string, members: string[]) => {

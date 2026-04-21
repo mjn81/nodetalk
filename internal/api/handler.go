@@ -38,6 +38,7 @@ func NewRouter(h *Handler, globalRPS, authRPS float64) http.Handler {
 	}
 
 	// Public
+	mux.Handle("GET /api/version",   http.HandlerFunc(h.GetVersion))
 	mux.Handle("POST /api/register", authLimiter.Limit(http.HandlerFunc(h.Register)))
 	mux.Handle("POST /api/login",    authLimiter.Limit(http.HandlerFunc(h.Login)))
 
