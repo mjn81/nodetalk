@@ -141,11 +141,11 @@ export default function NewChannelModal({
 													onClick={() => handleCreateDM(u.id)}
 													className="flex items-center gap-3 px-3 py-2 hover:bg-[#3f4147] cursor-pointer transition-colors"
 												>
-													<Avatar className="w-8 h-8">
-														<AvatarFallback className="bg-transparent overflow-hidden">
-															<MinidenticonAvatar userId={u.id} size={32} />
-														</AvatarFallback>
-													</Avatar>
+													<MinidenticonAvatar 
+														userId={u.id} 
+														avatarId={u.avatar_id} 
+														size={32} 
+													/>
 													<div className="flex flex-col flex-1">
 														<span className="text-sm font-bold text-white">
 															{u.username}

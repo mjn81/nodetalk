@@ -22,8 +22,12 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	ID       string `json:"id"       example:"a3f4..."`
-	Username string `json:"username" example:"alice"`
+	ID        string `json:"id"       example:"a3f4..."`
+	Username  string `json:"username" example:"alice"`
+	Domain    string `json:"domain"   example:"localhost"`
+	Status    string `json:"status"   example:"online"`
+	AvatarID  string `json:"avatar_id,omitempty"`
+	CustomMsg string `json:"custom_msg,omitempty"`
 }
 
 type ChannelResponse struct {

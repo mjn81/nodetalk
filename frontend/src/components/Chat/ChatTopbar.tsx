@@ -1,6 +1,6 @@
 import React from 'react';
 import { Avatar } from '../Avatar';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { Search, SlidersHorizontal, Hash } from 'lucide-react';
 import { type Channel } from '@/types/api';
 import { getChannelDisplayName } from '@/store/store';
 
@@ -16,11 +16,17 @@ export const ChatTopbar: React.FC<ChatTopbarProps> = ({ channel, currentUserId }
 	return (
 		<div className="flex items-center justify-between px-4 h-12 border-b border-[#1e1f22] shrink-0 shadow-sm relative z-10 bg-background">
 			<div className="flex items-center gap-3">
-				<Avatar 
-					userId={isDM ? otherMemberId : channel.id} 
-					avatarId={isDM ? channel.member_avatars?.[otherMemberId] : undefined}
-					size={36} 
-				/>
+				{isDM ? (
+					<Avatar 
+						userId={otherMemberId} 
+						avatarId={channel.member_avatars?.[otherMemberId]}
+						size={32} 
+					/>
+				) : (
+					<div className="w-8 h-8 flex items-center justify-center text-[#949ba4] shrink-0">
+						<Hash size={24} className="opacity-70" />
+					</div>
+				)}
 				<div className="flex flex-col min-w-0">
 					<div className="text-[15px] font-bold text-white leading-tight truncate">
 						{getChannelDisplayName(channel, currentUserId)}

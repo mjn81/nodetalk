@@ -76,7 +76,14 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(h.TokenTTL.Seconds()),
 	})
-	writeJSON(w, http.StatusOK, LoginResponse{ID: u.ID, Username: u.Username})
+	writeJSON(w, http.StatusOK, LoginResponse{
+		ID:        u.ID,
+		Username:  u.Username,
+		Domain:    u.Domain,
+		Status:    u.Status,
+		AvatarID:  u.AvatarID,
+		CustomMsg: u.CustomMsg,
+	})
 }
 
 // Logout godoc

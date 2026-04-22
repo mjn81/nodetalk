@@ -108,7 +108,13 @@ export async function apiMe() {
 	return apiClient.get<AuthUser>('/api/me') as unknown as Promise<AuthUser>;
 }
 
-export async function apiUpdateProfile(data: { avatar_id?: string }) {
+export async function apiUpdateProfile(data: {
+	avatar_id?: string;
+	username?: string;
+	custom_msg?: string;
+	password?: string;
+	old_password?: string;
+}) {
 	return apiClient.patch<AuthUser>('/api/users/me', data) as unknown as Promise<AuthUser>;
 }
 
