@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 	"nodetalk/internal/auth"
+	"nodetalk/internal/crypto"
 )
 
 // ============================
@@ -30,7 +31,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		Username: u.Username,
 		Domain:   u.Domain,
 		Status:   u.Status,
-		AvatarID: u.AvatarID,
+		AvatarID: u.AvatarID, CustomMsg: u.CustomMsg,
 	})
 }
 
@@ -85,8 +86,41 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.AvatarID != "" {
-		u.AvatarID = body.AvatarID
+	if body.Username != "" && body.Username != u.Username {
+		// Check if username is already taken by someone else
+		existing, _ := h.Store.GetUserByUsername(body.Username)
+		if existing != nil && existing.ID != u.ID {
+			writeError(w, http.StatusConflict, "username already taken")
+			return
+		}
+		u.Username = body.Username
+	}
+
+	if body.Password != "" {
+		if len(body.Password) < 8 {
+			writeError(w, http.StatusBadRequest, "password too short")
+			return
+		}
+		// Verify old password
+		valid, err := crypto.VerifyPassword(body.OldPassword, u.PwdHash)
+		if err != nil || !valid {
+			writeError(w, http.StatusUnauthorized, "invalid current password")
+			return
+		}
+
+		pwdHash, err := crypto.HashPassword(body.Password)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to hash password")
+			return
+		}
+		u.PwdHash = pwdHash
+	}
+
+	if body.AvatarID != nil {
+		u.AvatarID = *body.AvatarID
+	}
+	if body.CustomMsg != nil {
+		u.CustomMsg = *body.CustomMsg
 	}
 
 	if err := h.Store.UpdateUser(u); err != nil {
@@ -99,7 +133,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		Username: u.Username,
 		Domain:   u.Domain,
 		Status:   u.Status,
-		AvatarID: u.AvatarID,
+		AvatarID: u.AvatarID, CustomMsg: u.CustomMsg,
 	})
 }
 
@@ -126,11 +160,12 @@ func (h *Handler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 	var res []UserResponse
 	for _, u := range users {
 		res = append(res, UserResponse{
-			ID:       u.ID,
-			Username: u.Username,
-			Domain:   u.Domain,
-			Status:   u.Status,
-			AvatarID: u.AvatarID,
+			ID:        u.ID,
+			Username:  u.Username,
+			Domain:    u.Domain,
+			Status:    u.Status,
+			AvatarID:  u.AvatarID,
+			CustomMsg: u.CustomMsg,
 		})
 	}
 	if res == nil {
@@ -159,7 +194,7 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 		Username: u.Username,
 		Domain:   u.Domain,
 		Status:   u.Status,
-		AvatarID: u.AvatarID,
+		AvatarID: u.AvatarID, CustomMsg: u.CustomMsg,
 	})
 }
 

@@ -57,7 +57,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({ msg, channel, grouped,
 		>
 			<div className="flex shrink-0 w-[55px] pt-1">
 				{!grouped ? (
-					<Avatar userId={msg.sender_id} size={40} />
+					<Avatar 
+						userId={msg.sender_id} 
+						avatarId={channel.member_avatars?.[msg.sender_id]}
+						size={40} 
+					/>
 				) : (
 					<div className="w-full text-center text-[10px] text-transparent group-hover:text-[#949ba4] select-none pt-1">
 						{formatTime(msg.sent_at)}

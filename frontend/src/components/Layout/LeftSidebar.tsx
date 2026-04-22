@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Avatar as MinidenticonAvatar } from '@/components/Avatar';
+import { Avatar } from '@/components/Avatar';
 import NewChannelModal from '@/components/NewChannelModal';
 import SettingsModal from '@/components/SettingsModal';
 import { useExploreChannels } from '@/hooks/useChannels';
@@ -8,7 +8,6 @@ import { Settings, LogOut, Plus, Hash, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -28,13 +27,13 @@ const RenderChannel = ({
 	isGroup,
 	user,
 }: {
-	ch: Channel[][number];
+	ch: Channel;
 	isGroup: boolean;
 	user: AuthUser | null;
 }) => {
 	const activeChannel = useChannelStore((state) => state.activeChannel);
 	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
-	const display = getChannelDisplayName(ch, user?.user_id ?? '');
+	const display = getChannelDisplayName(ch, user?.id ?? '');
 	const isActive = activeChannel?.id === ch.id;
 
 	return (
@@ -50,21 +49,16 @@ const RenderChannel = ({
 			{isGroup ? (
 				<Hash className="w-5 h-5 shrink-0 opacity-70" />
 			) : (
-				<Avatar className="w-8 h-8 shrink-0">
-					<AvatarImage
-						src={`data:image/svg+xml;utf8,${encodeURIComponent('<svg></svg>')}`}
-					/>
-					<AvatarFallback className="bg-transparent">
-						<MinidenticonAvatar
-							userId={
-								isGroup
-									? ch.id
-									: ch.members.find((m) => m !== user?.user_id) || ch.id
-							}
-							size={32}
-						/>
-					</AvatarFallback>
-				</Avatar>
+				<Avatar
+					userId={ch.members.find((m) => m !== user?.id) || ch.id}
+					avatarId={
+						ch.member_avatars?.[
+							ch.members.find((m) => m !== user?.id) || ''
+						]
+					}
+					size={32}
+					className="shrink-0"
+				/>
 			)}
 			<div className="flex-1 min-w-0 flex items-center justify-between">
 				<span className="truncate text-[15px] font-medium">{display}</span>
@@ -105,7 +99,8 @@ export default function LeftSidebar() {
 		return () => clearTimeout(handler);
 	}, [search]);
 
-	const { data: exploreChannels = [], isFetching: isExploring } = useExploreChannels(debouncedSearch);
+	const { data: exploreChannels = [], isFetching: isExploring } =
+		useExploreChannels(debouncedSearch);
 
 	const handleJoinChannel = async (link: string, id: string) => {
 		if (isJoining) return;
@@ -126,7 +121,7 @@ export default function LeftSidebar() {
 	};
 
 	const filtered = channels.filter((ch) => {
-		const display = getChannelDisplayName(ch, user?.user_id ?? '');
+		const display = getChannelDisplayName(ch, user?.id ?? '');
 		return display.toLowerCase().includes(search.toLowerCase());
 	});
 
@@ -296,12 +291,15 @@ export default function LeftSidebar() {
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<div className="flex items-center gap-2 flex-1 min-w-0 hover:bg-[#3f4147] p-1 rounded-md cursor-pointer transition">
-							<Avatar className="w-8 h-8 shrink-0 relative overflow-visible">
-								<AvatarFallback className="bg-transparent overflow-hidden rounded-full">
-									<MinidenticonAvatar userId={user?.user_id ?? ''} size={32} />
-								</AvatarFallback>
-								<div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-[2.5px] border-[#232428] z-10 box-content" />
-							</Avatar>
+							<div className="relative">
+								<Avatar
+									userId={user?.id || ''}
+									avatarId={user?.avatar_id}
+									size={32}
+									className="shrink-0"
+								/>
+								<div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-[2px] border-[#232428] z-10" />
+							</div>
 							<div className="flex flex-col flex-1 min-w-0 leading-tight">
 								<span className="text-[13px] font-bold text-white truncate">
 									{user?.username}

@@ -18,6 +18,7 @@ export const ChatTopbar: React.FC<ChatTopbarProps> = ({ channel, currentUserId }
 			<div className="flex items-center gap-3">
 				<Avatar 
 					userId={isDM ? otherMemberId : channel.id} 
+					avatarId={isDM ? channel.member_avatars?.[otherMemberId] : undefined}
 					size={36} 
 				/>
 				<div className="flex flex-col min-w-0">

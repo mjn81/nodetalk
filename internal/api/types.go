@@ -22,20 +22,22 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	UserID   string `json:"user_id"  example:"a3f4..."`
+	ID       string `json:"id"       example:"a3f4..."`
 	Username string `json:"username" example:"alice"`
 }
 
 type ChannelResponse struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	IsPrivate   bool              `json:"is_private"`
-	InviteLink  string            `json:"invite_link"`
-	CreatorID   string            `json:"creator_id"`
-	Members     []string          `json:"members,omitempty"`
-	MemberNames map[string]string `json:"member_names,omitempty"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UnreadCount int               `json:"unread_count,omitempty"`
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	IsPrivate     bool              `json:"is_private"`
+	InviteLink    string            `json:"invite_link"`
+	CreatorID     string            `json:"creator_id"`
+	Members       []string          `json:"members,omitempty"`
+	MemberNames   map[string]string `json:"member_names,omitempty"`
+	MemberAvatars map[string]string `json:"member_avatars,omitempty"`
+	MemberDomains map[string]string `json:"member_domains,omitempty"`
+	CreatedAt     time.Time         `json:"created_at"`
+	UnreadCount   int               `json:"unread_count,omitempty"`
 }
 
 type ExploreChannelResponse struct {
@@ -47,15 +49,20 @@ type ExploreChannelResponse struct {
 }
 
 type UserResponse struct {
-	ID       string `json:"id" example:"user-1"`
-	Username string `json:"username" example:"alice"`
-	Domain   string `json:"domain" example:"localhost"`
-	Status   string `json:"status" example:"online"`
-	AvatarID string `json:"avatar_id,omitempty"`
+	ID        string `json:"id" example:"user-1"`
+	Username  string `json:"username" example:"alice"`
+	Domain    string `json:"domain" example:"localhost"`
+	Status    string `json:"status" example:"online"`
+	AvatarID  string `json:"avatar_id,omitempty"`
+	CustomMsg string `json:"custom_msg,omitempty"`
 }
 
 type UpdateUserRequest struct {
-	AvatarID string `json:"avatar_id"`
+	Username    string  `json:"username,omitempty"`
+	Password    string  `json:"password,omitempty"`
+	OldPassword string  `json:"old_password,omitempty"`
+	AvatarID    *string `json:"avatar_id,omitempty"`
+	CustomMsg   *string `json:"custom_msg,omitempty"`
 }
 
 type ErrorResponse struct {

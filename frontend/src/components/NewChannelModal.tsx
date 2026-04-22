@@ -58,7 +58,7 @@ export default function NewChannelModal({
 
 		setLoading(true);
 		try {
-			const ch = await createChannel(name.trim(), [user!.user_id], isPrivate);
+			const ch = await createChannel(name.trim(), [user!.id], isPrivate);
 			setActiveChannel(ch);
 			onClose();
 		} catch (e: unknown) {
@@ -72,7 +72,7 @@ export default function NewChannelModal({
 		setError('');
 		setLoading(true);
 		try {
-			const ch = await createChannel('', [user!.user_id, targetId], true);
+			const ch = await createChannel('', [user!.id, targetId], true);
 			setActiveChannel(ch);
 			onClose();
 		} catch (e: unknown) {

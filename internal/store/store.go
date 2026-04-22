@@ -102,10 +102,12 @@ func (s *Store) SearchUsers(query string) ([]*models.User, error) {
 	for _, u := range users {
 		if u.Status != "deleted" && strings.Contains(strings.ToLower(u.Username), q) {
 			safeUser := &models.User{
-				ID: u.ID,
-				Username: u.Username,
-				Domain: u.Domain,
-				Status: u.Status,
+				ID:        u.ID,
+				Username:  u.Username,
+				Domain:    u.Domain,
+				Status:    u.Status,
+				AvatarID:  u.AvatarID,
+				CustomMsg: u.CustomMsg,
 			}
 			matched = append(matched, safeUser)
 		}

@@ -1,6 +1,5 @@
 import { useChannelMembers } from '@/hooks/useChannels';
-import { Avatar as MinidenticonAvatar } from '@/components/Avatar';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar } from '@/components/Avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Users } from 'lucide-react';
 import { useChannelStore } from '@/store/store';
@@ -10,6 +9,7 @@ interface Member {
 	username: string;
 	domain: string;
 	status: string;
+	avatar_id?: string;
 }
 
 export default function RightSidebar() {
@@ -31,14 +31,17 @@ export default function RightSidebar() {
 			key={member.id}
 			className="flex items-center gap-3 px-2 py-1 mx-2 rounded-md cursor-pointer transition hover:bg-[#35373c] group"
 		>
-			<Avatar className="w-8 h-8 shrink-0 relative">
-				<AvatarFallback className="bg-transparent">
-					<MinidenticonAvatar userId={member.id} size={32} />
-				</AvatarFallback>
+			<div className="relative">
+				<Avatar 
+					userId={member.id} 
+					avatarId={member.avatar_id}
+					size={32} 
+					className="shrink-0" 
+				/>
 				<div
 					className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-[3px] border-[#2b2d31] group-hover:border-[#35373c] transition-colors ${member.status === 'online' ? 'bg-green-500' : 'bg-gray-500'}`}
 				/>
-			</Avatar>
+			</div>
 			<div className="flex flex-col flex-1 min-w-0">
 				<span
 					className={`text-[15px] font-medium leading-tight truncate ${member.status === 'online' ? 'text-[#f2f3f5]' : 'text-[#80848E]'}`}

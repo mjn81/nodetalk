@@ -202,6 +202,7 @@ func (h *Handler) GetChannelMembers(w http.ResponseWriter, r *http.Request) {
 				Username: u.Username,
 				Domain: u.Domain,
 				Status: u.Status,
+				AvatarID: u.AvatarID,
 			})
 		}
 	}
@@ -327,6 +328,8 @@ func ChannelFromContext(ctx context.Context) *models.Channel {
 
 func (h *Handler) toChannelResponse(ch *models.Channel) ChannelResponse {
 	memberNames := make(map[string]string)
+	memberAvatars := make(map[string]string)
+	memberDomains := make(map[string]string)
 	members, err := h.Store.GetChannelMembers(ch.ID)
 	
 	var memberIDs []string
@@ -336,19 +339,23 @@ func (h *Handler) toChannelResponse(ch *models.Channel) ChannelResponse {
 			u, err := h.Store.GetUser(m.UserID)
 			if err == nil {
 				memberNames[m.UserID] = u.Username
+				memberAvatars[m.UserID] = u.AvatarID
+				memberDomains[m.UserID] = u.Domain
 			}
 		}
 	}
 
 	return ChannelResponse{
-		ID:          ch.ID,
-		Name:        ch.Name,
-		IsPrivate:   ch.IsPrivate,
-		InviteLink:  ch.InviteLink,
-		CreatorID:   ch.CreatorID,
-		Members:     memberIDs,
-		MemberNames: memberNames,
-		CreatedAt:   ch.CreatedAt,
-		UnreadCount: ch.UnreadCount,
+		ID:            ch.ID,
+		Name:          ch.Name,
+		IsPrivate:     ch.IsPrivate,
+		InviteLink:    ch.InviteLink,
+		CreatorID:     ch.CreatorID,
+		Members:       memberIDs,
+		MemberNames:   memberNames,
+		MemberAvatars: memberAvatars,
+		MemberDomains: memberDomains,
+		CreatedAt:     ch.CreatedAt,
+		UnreadCount:   ch.UnreadCount,
 	}
 }

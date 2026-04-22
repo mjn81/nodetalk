@@ -173,10 +173,10 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 	const filteredMembers = useMemo(() => {
 		return members.filter(
 			(m) =>
-				m.id !== user?.user_id &&
+				m.id !== user?.id &&
 				m.username.toLowerCase().includes(mentionSearch?.toLowerCase() || ''),
 		);
-	}, [members, user?.user_id, mentionSearch]);
+	}, [members, user?.id, mentionSearch]);
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
 		if (mentionPopupOpen) {
@@ -291,7 +291,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 	const isDirect =
 		channel.members.length === 2 &&
 		(!channel.name || channel.name.trim() === '');
-	const displayName = getChannelDisplayName(channel, user?.user_id || '');
+	const displayName = getChannelDisplayName(channel, user?.id || '');
 	const prefix = isDirect ? '@' : '#';
 
 	return (

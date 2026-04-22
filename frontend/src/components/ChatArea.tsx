@@ -81,7 +81,7 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 
 	return (
 		<div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
-			<ChatTopbar channel={channel} currentUserId={user?.user_id ?? ''} />
+			<ChatTopbar channel={channel} currentUserId={user?.id ?? ''} />
 			
 			<ChatMessageFeed messages={messages} channel={channel} />
 
