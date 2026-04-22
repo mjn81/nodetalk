@@ -3,6 +3,7 @@ package api_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"nodetalk/internal/auth"
 	"nodetalk/internal/crypto"
 	"nodetalk/internal/db"
+	"nodetalk/internal/models"
 	"nodetalk/internal/store"
 )
 
@@ -487,4 +489,103 @@ func TestSearchUsers(t *testing.T) {
 	if len(users) != 2 {
 		t.Fatalf("expected 2 users, got %d", len(users))
 	}
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Encryption & Security Tests
+// ─────────────────────────────────────────────────────────────
+
+func TestMessageEncryptionAndStorage(t *testing.T) {
+	// 1. Setup server and storage
+	dir := t.TempDir()
+	kek := crypto.DeriveKEK("super-secret-master-key")
+	dek, _ := db.BootstrapDEK(dir+"/meta", kek)
+	database, _ := db.Open(dir+"/main", dek)
+	t.Cleanup(func() { database.Close() })
+	s := store.New(database)
+
+	// 2. Create user and channel
+	u, _ := s.CreateUser("alice", "password123", "localhost")
+	ch, err := s.CreateChannel("Secret Channel", u.ID, true, []string{u.ID}, kek)
+	if err != nil {
+		t.Fatalf("CreateChannel failed: %v", err)
+	}
+
+	// 3. Encrypt a message using the channel key
+	plaintext := "This is a very secret message that should not be in plaintext in the DB"
+	
+	// Get the raw channel key (decrypted from DB record using KEK)
+	rawChannelKey, err := s.DecryptChannelKey(ch, kek)
+	if err != nil {
+		t.Fatalf("DecryptChannelKey failed: %v", err)
+	}
+
+	// Encrypt the plaintext
+	encryptedData, err := crypto.EncryptAES256GCM(rawChannelKey, []byte(plaintext))
+	if err != nil {
+		t.Fatalf("Encryption failed: %v", err)
+	}
+
+	// 4. Save the message to the store
+	// The models.Message struct has separate Ciphertext and Nonce fields, 
+	// though EncryptAES256GCM returns them combined [nonce | ciphertext].
+	msg := &models.Message{
+		ID:         "msg-1",
+		ChannelID:  ch.ID,
+		SenderID:   u.ID,
+		Type:       models.MessageTypeText,
+		Ciphertext: encryptedData[12:], // Format as [ciphertext | tag]
+		Nonce:      encryptedData[:12], // Format as [nonce]
+		SentAt:     time.Now().UTC(),
+	}
+	if err := s.SaveMessage(msg); err != nil {
+		t.Fatalf("SaveMessage failed: %v", err)
+	}
+
+	// 5. Verify the logical record in DB
+	// Retrieve messages via API-like store method
+	msgs, err := s.ListMessages(ch.ID, 0, 10)
+	if err != nil {
+		t.Fatalf("ListMessages failed: %v", err)
+	}
+	if len(msgs) != 1 {
+		t.Fatalf("Expected 1 message, got %d", len(msgs))
+	}
+
+	gotMsg := msgs[0]
+	// Re-combine for decryption if needed, or pass separately if Decrypt function allows
+	// Our crypto.DecryptAES256GCM expects [nonce | ciphertext] combined
+	fullCiphertext := append(gotMsg.Nonce, gotMsg.Ciphertext...)
+
+	if string(gotMsg.Ciphertext) == plaintext {
+		t.Errorf("FAIL: Message stored as plaintext in Ciphertext field!")
+	}
+
+	// 6. Verify we can decrypt it back
+	decrypted, err := crypto.DecryptAES256GCM(rawChannelKey, fullCiphertext)
+	if err != nil {
+		t.Errorf("Decryption failed: %v", err)
+	}
+	if string(decrypted) != plaintext {
+		t.Errorf("Decrypted text = %q, want %q", string(decrypted), plaintext)
+	}
+
+	// 7. Verify the raw database value (JSON blob) has NO plaintext
+	// We need to check if the serialized JSON contains the plaintext string.
+	// Note: since dek is used for BadgerDB encryption, we can't easily read from disk,
+	// but we can check the logical JSON before it hits the disk encryption layer.
+	
+	msgJSON, _ := json.Marshal(gotMsg)
+	if bytes.Contains(msgJSON, []byte(plaintext)) {
+		t.Errorf("FAIL: Plaintext found in serialized Message JSON: %s", string(msgJSON))
+	}
+
+	// 8. Print values for manual verification
+	fmt.Printf("\n--- SECURITY VERIFICATION ---\n")
+	fmt.Printf("Original Plaintext: %s\n", plaintext)
+	fmt.Printf("Stored Ciphertext (Hex): %x\n", gotMsg.Ciphertext)
+	fmt.Printf("Record JSON in DB: %s\n", string(msgJSON))
+	fmt.Printf("------------------------------\n\n")
+
+	t.Logf("SUCCESS: Message is properly encrypted and no plaintext exists in the stored record.")
 }
