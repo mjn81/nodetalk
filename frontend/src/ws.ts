@@ -4,6 +4,17 @@ import type { Message } from '@/types/api';
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080';
 
+// ── Binary Helpers ───────────────────────────────────────────────────────
+function base64ToBytes(base64: string): Uint8Array {
+	const binString = atob(base64);
+	return Uint8Array.from(binString, (m) => m.codePointAt(0)!);
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+	const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
+	return btoa(binString);
+}
+
 // ── Channel Key Registry ────────────────────────────────────────────────
 // Keys are received from the server over WSS on connect and kept in memory.
 // They are NEVER persisted to disk / localStorage.
@@ -73,8 +84,9 @@ export function wsDisconnect(): void {
 function handleInbound(msg: { type: string; payload: unknown }) {
   switch (msg.type) {
     case 'channel_key': {
-      const { channel_id, aes_key } = msg.payload as { channel_id: string; aes_key: number[] };
-      channelKeys.set(channel_id, new Uint8Array(aes_key));
+      const { channel_id, aes_key } = msg.payload as { channel_id: string; aes_key: string };
+      // Backend (Go) sends bytes as base64 strings
+      channelKeys.set(channel_id, base64ToBytes(aes_key));
       emit('channel_key', { channel_id });
       break;
     }
@@ -146,8 +158,8 @@ export async function wsSendMessage(
     payload: {
       channel_id: channelId,
       type,
-      ciphertext: Array.from(ciphertext),
-      nonce: Array.from(nonce),
+      ciphertext: bytesToBase64(ciphertext),
+      nonce: bytesToBase64(nonce),
     },
   });
 }
@@ -162,8 +174,8 @@ export async function decryptMessage(msg: Message): Promise<string> {
       'raw', key.buffer.slice(key.byteOffset, key.byteOffset + key.byteLength) as ArrayBuffer,
       { name: 'AES-GCM' }, false, ['decrypt'],
     );
-    const nonce = new Uint8Array(msg.nonce);
-    const ct = new Uint8Array(msg.ciphertext);
+    const nonce = base64ToBytes(msg.nonce);
+    const ct = base64ToBytes(msg.ciphertext);
     const decrypted = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: nonce }, cryptoKey, ct,
     );

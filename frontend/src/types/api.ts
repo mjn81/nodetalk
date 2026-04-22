@@ -28,8 +28,8 @@ export interface Message {
 	channel_id: string;
 	sender_id: string;
 	type: 'text' | 'file' | 'voice';
-	ciphertext: number[];
-	nonce: number[];
+	ciphertext: string;
+	nonce: string;
 	sent_at: string;
 }
 
