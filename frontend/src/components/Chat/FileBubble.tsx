@@ -57,7 +57,7 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
                         cryptoKey,
                         thumbCipher as any
                     );
-					const blob = new Blob([decryptedThumb], { type: 'image/jpeg' });
+					const blob = new Blob([decryptedThumb], { type: 'image/webp' });
 					if (currentThumbUrl) URL.revokeObjectURL(currentThumbUrl);
 					currentThumbUrl = URL.createObjectURL(blob);
 					setThumbUrl(currentThumbUrl);
@@ -206,7 +206,7 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
 									<Dialog.Overlay className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100]" />
 									<Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-screen h-screen flex flex-col items-center justify-center p-10 focus:outline-none">
 										<Dialog.Close asChild>
-											<button className="absolute top-6 right-6 text-white/50 hover:text-white transition p-2 bg-white/10 rounded-full">
+											<button className="absolute top-6 right-6 text-white/50 hover:text-white transition-all p-2 bg-white/10 rounded-full z-[105] hover:rotate-90">
 												<X size={32} />
 											</button>
 										</Dialog.Close>
@@ -246,9 +246,9 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
 					)}
 				</div>
 			) : (
-				/* File Info Card - Reverted Style */
+				/* File Info Card - Reverted Style with Hover Slide-in */
 				<div 
-                    className="relative flex items-center gap-4 bg-[#2b2d31] border border-[#1e1f22] rounded-md p-3 w-full hover:bg-[#313338] transition cursor-pointer group" 
+                    className="relative flex items-center gap-4 bg-[#2b2d31] border border-[#1e1f22] rounded-md p-3 w-full hover:bg-[#313338] transition cursor-pointer group overflow-hidden" 
                     onClick={() => handleDownload()}
                 >
 					<div className="w-10 h-10 bg-[#313338] rounded flex items-center justify-center text-[#949ba4] shrink-0">
@@ -262,7 +262,7 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
 							{(meta.size / 1024).toFixed(1)} KB • {meta.mime.split('/')[1]?.toUpperCase() || 'FILE'}
 						</span>
 					</div>
-					<button className="text-[#dbdee1] hover:text-white transition p-1">
+					<button className="text-[#dbdee1] hover:text-white transition p-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-200">
 						<Download size={20} />
 					</button>
 

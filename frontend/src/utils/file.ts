@@ -14,7 +14,7 @@ export async function ensureZstdReady() {
 }
 
 /**
- * Generates a small JPEG thumbnail from an image file.
+ * Generates a small WebP thumbnail from an image file.
  */
 async function generateThumbnail(
 	file: File,
@@ -57,8 +57,8 @@ async function generateThumbnail(
 						};
 						reader.readAsArrayBuffer(blob);
 					},
-					'image/jpeg',
-					0.7,
+					'image/webp',
+					0.8,
 				);
 			};
 			img.src = e.target?.result as string;
@@ -68,7 +68,7 @@ async function generateThumbnail(
 }
 
 /**
- * Generates a small JPEG thumbnail from a video file at 1 second.
+ * Generates a small WebP thumbnail from a video file at 1 second.
  */
 async function generateVideoThumbnail(file: File, maxWidth = 400, maxHeight = 400): Promise<Uint8Array | null> {
 	return new Promise((resolve) => {
@@ -115,7 +115,7 @@ async function generateVideoThumbnail(file: File, maxWidth = 400, maxHeight = 40
 					resolve(new Uint8Array(reader.result as ArrayBuffer));
 				};
 				reader.readAsArrayBuffer(blob);
-			}, 'image/jpeg', 0.7);
+			}, 'image/webp', 0.8);
 		};
 
 		video.onerror = () => {
