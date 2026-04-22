@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { apiLogin, apiRegister, apiLogout, apiMe } from '@/api/client';
+import { apiLogin, apiRegister, apiLogout, apiMe, apiUpdateProfile, apiDeleteAccount } from '@/api/client';
 import type { AuthUser } from '@/types/api';
 
 import { connectWS, disconnectWS } from './ws.manager';
@@ -16,6 +16,8 @@ export interface AuthSlice {
 	login: (u: string, p: string) => Promise<void>;
 	register: (u: string, p: string) => Promise<void>;
 	logout: () => Promise<void>;
+	updateUser: (data: { avatar_id?: string; username?: string }) => Promise<void>;
+	deleteAccount: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthSlice>()(
@@ -29,9 +31,9 @@ export const useAuthStore = create<AuthSlice>()(
 
 				if (saved) {
 					try {
-						// Verify session is still valid on server
-						await apiMe();
-						set({ isAuthLoading: false });
+						// Verify session is still valid on server and get fresh data
+						const fresh = await apiMe();
+						set({ user: fresh, isAuthLoading: false });
 						connectWS();
 						useChannelStore.getState().refreshChannels();
 					} catch {
@@ -63,6 +65,18 @@ export const useAuthStore = create<AuthSlice>()(
 				disconnectWS();
 				useChannelStore.getState().resetChannels();
 
+				set({ user: null });
+			},
+
+			updateUser: async (data) => {
+				const fresh = await apiUpdateProfile(data);
+				set({ user: fresh });
+			},
+
+			deleteAccount: async () => {
+				await apiDeleteAccount();
+				disconnectWS();
+				useChannelStore.getState().resetChannels();
 				set({ user: null });
 			},
 		}),

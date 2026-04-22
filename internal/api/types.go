@@ -51,6 +51,11 @@ type UserResponse struct {
 	Username string `json:"username" example:"alice"`
 	Domain   string `json:"domain" example:"localhost"`
 	Status   string `json:"status" example:"online"`
+	AvatarID string `json:"avatar_id,omitempty"`
+}
+
+type UpdateUserRequest struct {
+	AvatarID string `json:"avatar_id"`
 }
 
 type ErrorResponse struct {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from './store/store';
+import { useAuthStore, useAppStore } from './store/store';
 import LoginPage    from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AppPage      from './pages/AppPage';
@@ -36,6 +36,13 @@ function RequireGuest({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const theme = useAppStore(state => state.theme);
+
+  React.useEffect(() => {
+    document.documentElement.classList.remove('dark', 'light');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
+
   React.useEffect(() => {
     useAuthStore.getState().initAuth();
 

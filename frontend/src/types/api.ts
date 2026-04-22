@@ -1,6 +1,9 @@
 export interface AuthUser {
 	user_id: string;
 	username: string;
+	domain: string;
+	status: string;
+	avatar_id?: string;
 }
 
 export interface Channel {

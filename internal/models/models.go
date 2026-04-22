@@ -14,6 +14,7 @@ type User struct {
 	PwdHash   []byte    `json:"pwd_hash"`   // Argon2id SaltedHash JSON blob
 	Domain    string    `json:"domain"`     // e.g. "localhost" or "chat.example.com"
 	Status    string    `json:"status"`     // "online" | "away" | "offline"
+	AvatarID  string    `json:"avatar_id"`  // Reference to file storage
 	CustomMsg string    `json:"custom_msg"`  // Optional status message
 	PublicKey []byte    `json:"pub_key"`    // Reserved for future E2EE key exchange
 	CreatedAt time.Time `json:"created_at"`

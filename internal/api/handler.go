@@ -51,6 +51,7 @@ func NewRouter(h *Handler, globalRPS, authRPS float64) http.Handler {
 	mux.Handle("POST /api/logout",                       protect(h.Logout))
 	mux.Handle("GET /api/me",                            protect(h.Me))
 	mux.Handle("DELETE /api/users/me",                   protect(h.DeleteAccount))
+	mux.Handle("PATCH /api/users/me",                    protect(h.UpdateProfile))
 	mux.Handle("GET /api/users",                         protect(h.SearchUsers))
 	mux.Handle("GET /api/users/{id}",                    protect(h.GetUser))
 	mux.Handle("GET /api/users/{id}/presence",           protect(h.GetPresence))

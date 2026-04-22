@@ -105,17 +105,15 @@ export async function apiLogout() {
 }
 
 export async function apiMe() {
-	return apiClient.get<{
-		id: string;
-		username: string;
-		domain: string;
-		status: string;
-	}>('/api/me') as unknown as Promise<{
-		id: string;
-		username: string;
-		domain: string;
-		status: string;
-	}>;
+	return apiClient.get<AuthUser>('/api/me') as unknown as Promise<AuthUser>;
+}
+
+export async function apiUpdateProfile(data: { avatar_id?: string }) {
+	return apiClient.patch<AuthUser>('/api/users/me', data) as unknown as Promise<AuthUser>;
+}
+
+export async function apiDeleteAccount() {
+	return apiClient.delete('/api/users/me');
 }
 
 // ─────────────────────────────────────────────

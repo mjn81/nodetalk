@@ -68,7 +68,17 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 	const removeFile = (id: string) => {
 		setFiles((prev) => prev.filter((f) => f.id !== id));
 	};
-
+	const addFiles = (newFiles: File[]) => {
+		setFiles((prev) => [
+			...prev,
+			...newFiles.map((f) => ({
+				file: f,
+				id: Math.random().toString(36).substring(7),
+				status: 'idle' as const,
+				progress: 0,
+			})),
+		]);
+	};
 	const handleSend = useCallback(async () => {
 		const text = inputText.trim();
 		if ((!text && files.length === 0) || sending) return;
@@ -277,18 +287,6 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 			window.removeEventListener('drop', onDrop);
 		};
 	}, []);
-
-	const addFiles = (newFiles: File[]) => {
-		setFiles((prev) => [
-			...prev,
-			...newFiles.map((f) => ({
-				file: f,
-				id: Math.random().toString(36).substring(7),
-				status: 'idle' as const,
-				progress: 0,
-			})),
-		]);
-	};
 
 	const isDirect =
 		channel.members.length === 2 &&

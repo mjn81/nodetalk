@@ -6,6 +6,9 @@
     "settings": "Settings",
     "logout": "Log out"
   },
+  "common": {
+    "save": "Save"
+  },
   "auth": {
     "login": "Sign In",
     "register": "Create Account",
@@ -77,5 +80,27 @@
     "mic_denied": "Microphone access denied",
     "encrypted": "[encrypted]",
     "decryption_failed": "[decryption failed]"
+  },
+  "settings": {
+    "title": "User Settings",
+    "my_account": "My Account",
+    "privacy": "Privacy & Safety",
+    "appearance": "Appearance",
+    "notifications": "Notifications",
+    "logout": "Log Out",
+    "profile_information": "Profile Information",
+    "username": "Username",
+    "edit": "Edit",
+    "account_removal": "Account Removal",
+    "delete_description": "Deleting your account is permanent and cannot be undone. All your data, including messages and contacts, will be anonymized or removed.",
+    "delete_account": "Delete Account",
+    "delete_confirm": "Yes, Delete Account",
+    "cancel": "Cancel",
+    "theme": "Theme",
+    "dark": "Dark",
+    "light": "Light",
+    "language": "Language",
+    "wip_title": "Work in Progress",
+    "wip_description": "These settings are coming in a future update."
   }
 }

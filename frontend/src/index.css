@@ -34,6 +34,37 @@
     
     --radius: 0.5rem;
   }
+
+  .light {
+    color-scheme: light;
+    --background: 0 0% 100%; /* #FFFFFF */
+    --foreground: 240 10% 2%; /* #060607 */
+
+    --card: 220 15% 96%; /* #F2F3F5 */
+    --card-foreground: 240 10% 2%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 2%;
+
+    --primary: 235 86% 65%; /* #5865F2 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 96%; /* #F2F3F5 */
+    --secondary-foreground: 225 6% 32%; /* #4E5058 */
+
+    --muted: 220 15% 96%; /* #F2F3F5 */
+    --muted-foreground: 225 6% 32%; /* #4E5058 */
+
+    --accent: 220 13% 91%; /* #E3E5E8 */
+    --accent-foreground: 240 10% 2%;
+
+    --destructive: 359 83% 66%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%; /* #E3E5E8 */
+    --input: 220 13% 91%;
+    --ring: 235 86% 65%;
+  }
 }
 
 @layer base {

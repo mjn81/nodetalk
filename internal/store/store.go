@@ -138,6 +138,10 @@ func (s *Store) DeleteUser(userID string) error {
 	return nil
 }
 
+// UpdateUser updates a user record in the DB.
+func (s *Store) UpdateUser(u *models.User) error {
+	return s.db.SetUser(u)
+}
 
 // ============================================================
 //  Channels
