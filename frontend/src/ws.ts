@@ -5,13 +5,14 @@ import type { Message } from '@/types/api';
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080';
 
 // ── Binary Helpers ───────────────────────────────────────────────────────
-function base64ToBytes(base64: string): Uint8Array {
+export function base64ToBytes(base64: string): Uint8Array {
 	const binString = atob(base64);
 	return Uint8Array.from(binString, (m) => m.codePointAt(0)!);
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-	const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
+export function bytesToBase64(bytes: Uint8Array): string {
+    // Correct way to handle potential stack issues with larger arrays
+    const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
 	return btoa(binString);
 }
 
@@ -25,7 +26,7 @@ export function getChannelKey(channelId: string): Uint8Array | undefined {
 }
 
 // ── Event Listeners ─────────────────────────────────────────────────────
-type WSEventType = 'message' | 'presence' | 'channel_key' | 'open' | 'close';
+type WSEventType = 'message' | 'presence' | 'channel_key' | 'channel_update' | 'open' | 'close';
 type WSListener = (payload: unknown) => void;
 
 const listeners = new Map<WSEventType, Set<WSListener>>();
@@ -95,6 +96,9 @@ function handleInbound(msg: { type: string; payload: unknown }) {
       break;
     case 'presence':
       emit('presence', msg.payload);
+      break;
+    case 'channel_update':
+      emit('channel_update', msg.payload);
       break;
     default:
       console.debug('[ws-worker] unknown message type', msg.type);
@@ -177,7 +181,7 @@ export async function decryptMessage(msg: Message): Promise<string> {
     const nonce = base64ToBytes(msg.nonce);
     const ct = base64ToBytes(msg.ciphertext);
     const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: nonce }, cryptoKey, ct,
+      { name: 'AES-GCM', iv: nonce as any }, cryptoKey, ct as any,
     );
     return new TextDecoder().decode(decrypted);
   } catch {

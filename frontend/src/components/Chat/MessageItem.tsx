@@ -1,0 +1,95 @@
+import React, { useState, useRef } from 'react';
+import { Avatar } from '../Avatar';
+import { Play, Pause } from 'lucide-react';
+import { type Message, type Channel } from '@/types/api';
+import { FileBubble } from './FileBubble';
+
+interface MessageItemProps {
+	msg: Message & { text?: string };
+	channel: Channel;
+	grouped: boolean;
+	formatTime: (iso: string) => string;
+}
+
+export const MessageItem: React.FC<MessageItemProps> = ({ msg, channel, grouped, formatTime }) => {
+	return (
+		<div
+			className={`group flex mb-0.5 hover:bg-[#2e3035] -mx-4 px-4 py-0.5 ${!grouped ? 'mt-4' : ''}`}
+		>
+			<div className="flex shrink-0 w-[55px] pt-1">
+				{!grouped ? (
+					<Avatar userId={msg.sender_id} size={40} />
+				) : (
+					<div className="w-full text-center text-[10px] text-transparent group-hover:text-[#949ba4] select-none pt-1">
+						{formatTime(msg.sent_at)}
+					</div>
+				)}
+			</div>
+			<div className="flex flex-col min-w-0 flex-1">
+				{!grouped && (
+					<div className="flex items-baseline gap-2 mb-0.5">
+						<span className="font-semibold text-[15px] text-[#f2f3f5] tracking-wide hover:underline cursor-pointer">
+							{channel.member_names?.[msg.sender_id] || msg.sender_id}
+						</span>
+						<span className="text-xs text-[#949ba4]">
+							{formatTime(msg.sent_at)}
+						</span>
+					</div>
+				)}
+				{msg.type === 'text' && (
+					<div className="text-[15px] text-[#dbdee1] leading-[22px] whitespace-pre-wrap break-words" dir="auto">
+						{msg.text ?? '[encrypted]'}
+					</div>
+				)}
+				{msg.type === 'voice' && <VoiceBubble msg={msg} />}
+				{msg.type === 'file' && <FileBubble msg={msg} />}
+			</div>
+		</div>
+	);
+};
+
+function VoiceBubble({ msg }: { msg: Message }) {
+	const [playing, setPlaying] = useState(false);
+	const audioRef = useRef<HTMLAudioElement | null>(null);
+
+	const bars = Array.from(
+		{ length: 28 },
+		(_, i) =>
+			Math.sin(i * 0.8 + (msg.id.charCodeAt(i % msg.id.length) ?? 1)) * 0.5 +
+			0.5,
+	);
+
+	const handlePlay = () => {
+		if (!audioRef.current) return;
+		if (playing) {
+			audioRef.current.pause();
+			setPlaying(false);
+		} else {
+			audioRef.current.play();
+			setPlaying(true);
+		}
+	};
+
+	return (
+		<div className="flex items-center gap-3 bg-[#2b2d31] border border-[#1e1f22] rounded-md p-2 w-max max-w-full mt-1">
+			<button
+				className="w-10 h-10 rounded-full bg-[#4752c4] text-white flex items-center justify-center hover:bg-[#5865f2] transition shrink-0"
+				onClick={handlePlay}
+			>
+				{playing ? <Pause size={18} className="fill-current" /> : <Play size={18} className="fill-current ml-1" />}
+			</button>
+			<div className="flex items-end gap-[2px] h-8 shrink-0 overflow-hidden">
+				{bars.map((h, i) => (
+					<div
+						key={i}
+						className="w-1 bg-[#4f545c] rounded-full"
+						style={{ height: `${Math.max(20, h * 100)}%` }}
+					/>
+				))}
+			</div>
+			<span className="text-xs font-medium text-[#949ba4] px-2 shrink-0">0:00</span>
+		</div>
+	);
+}
+
+

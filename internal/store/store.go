@@ -305,13 +305,15 @@ func (s *Store) GetPresence(userID string) (*models.Presence, error) {
 // ============================================================
 
 // RegisterFile persists file metadata after a successful upload.
-func (s *Store) RegisterFile(ownerID, mime, storagePath string, size int64) (*models.File, error) {
+func (s *Store) RegisterFile(ownerID, mime, storagePath string, size int64, thumbCipher, thumbNonce []byte) (*models.File, error) {
 	f := &models.File{
 		ID:          uuid.New().String(),
 		OwnerID:     ownerID,
 		SizeBytes:   size,
 		MIMEType:    mime,
 		StoragePath: storagePath,
+		ThumbCipher: thumbCipher,
+		ThumbNonce:  thumbNonce,
 		UploadedAt:  time.Now().UTC(),
 	}
 	if err := s.db.SetFile(f); err != nil {

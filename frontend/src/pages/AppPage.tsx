@@ -6,10 +6,27 @@ import {
 import LeftSidebar from '@/components/Layout/LeftSidebar';
 import RightSidebar from '@/components/Layout/RightSidebar';
 import ChatArea from '@/components/ChatArea';
+
+import React from 'react';
 import { useChannelStore } from '@/store/store';
+import { onWS } from '@/ws';
+import { ensureZstdReady } from '@/utils/file';
 
 export default function AppPage() {
 	const activeChannel = useChannelStore((state) => state.activeChannel);
+	const refreshChannels = useChannelStore((state) => state.refreshChannels);
+
+	React.useEffect(() => {
+		// Initialize ZSTD WASM once on app load
+		ensureZstdReady();
+
+		// Listen for realtime channel state updates (e.g. member joins)
+		const unsub = onWS('channel_update', () => {
+			refreshChannels();
+		});
+
+		return () => unsub();
+	}, [refreshChannels]);
 
 	return (
 		<ResizablePanelGroup

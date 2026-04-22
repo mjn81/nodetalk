@@ -3,6 +3,7 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,6 +23,7 @@ import (
 
 type ChannelBroadcaster interface {
 	BroadcastChannelCreated(ch *models.Channel)
+	BroadcastMemberJoined(channelID string, userID string)
 }
 
 // Handler bundles all HTTP handler dependencies.
@@ -500,7 +502,10 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := h.Store.RegisterFile(session.UserID, header.Header.Get("Content-Type"), storagePath, size)
+	thumbCipher, _ := base64.StdEncoding.DecodeString(r.FormValue("thumb_ciphertext"))
+	thumbNonce, _ := base64.StdEncoding.DecodeString(r.FormValue("thumb_nonce"))
+
+	f, err := h.Store.RegisterFile(session.UserID, header.Header.Get("Content-Type"), storagePath, size, thumbCipher, thumbNonce)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to register file metadata")
 		return
@@ -638,6 +643,7 @@ func (h *Handler) JoinChannel(w http.ResponseWriter, r *http.Request) {
 	updated, err := h.Store.GetChannel(ch.ID)
 	if err == nil && h.Hub != nil {
 		h.Hub.BroadcastChannelCreated(updated)
+		h.Hub.BroadcastMemberJoined(ch.ID, session.UserID)
 	}
 
 	writeJSON(w, http.StatusOK, StatusResponse{Status: "joined"})
@@ -693,7 +699,9 @@ func (h *Handler) AddMembers(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	for _, uid := range body.UserIDs {
-		_ = h.Store.AddMemberToChannel(ch.ID, uid)
+		if err := h.Store.AddMemberToChannel(ch.ID, uid); err == nil {
+			h.Hub.BroadcastMemberJoined(ch.ID, uid)
+		}
 	}
 	writeJSON(w, http.StatusOK, StatusResponse{Status: "members added"})
 }

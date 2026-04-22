@@ -88,6 +88,7 @@ type File struct {
 	MIMEType       string    `json:"mime"`             // e.g. "audio/webm", "image/png"
 	StoragePath    string    `json:"storage_path"`
 	ThumbCipher    []byte    `json:"thumb_ciphertext"` // Optional encrypted thumbnail
+	ThumbNonce     []byte    `json:"thumb_nonce"`      // Nonce for thumbnail
 	UploadedAt     time.Time `json:"uploaded_at"`
 }
 

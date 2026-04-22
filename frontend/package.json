@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@bokuweb/zstd-wasm": "^0.0.27",
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
     "@radix-ui/react-avatar": "^1.1.11",

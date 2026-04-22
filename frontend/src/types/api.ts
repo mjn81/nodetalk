@@ -39,10 +39,13 @@ export interface Presence {
 }
 
 export interface UploadedFile {
-	file_id: string;
+	id: string;
+	owner_id: string;
 	size: number;
 	mime: string;
-	uploaded: string;
+	thumb_ciphertext?: string;
+	thumb_nonce?: string;
+	uploaded_at: string;
 }
 
 export interface User {

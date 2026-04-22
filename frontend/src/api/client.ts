@@ -145,18 +145,25 @@ export async function apiListMessages(id: string, limit = 50) {
 // ─────────────────────────────────────────────
 // File Uploads
 // ─────────────────────────────────────────────
-export async function apiUploadFile(file: Blob, mimeType: string) {
+export async function apiUploadFile(
+	file: Blob, 
+	mimeType: string, 
+	thumbCipher?: string, 
+	thumbNonce?: string
+) {
 	const formData = new FormData();
 	formData.append('file', file, `upload.${mimeType.split('/')[1] ?? 'bin'}`);
+	if (thumbCipher) formData.append('thumb_ciphertext', thumbCipher);
+	if (thumbNonce) formData.append('thumb_nonce', thumbNonce);
 
-	return apiClient.post('/api/upload', formData, {
+	return apiClient.post('/api/files', formData, {
 		headers: {
 			'Content-Type': 'multipart/form-data',
 		},
 	});
 }
 
-export function apiFileUrl(fileId: string) {
+export function apiGetFileUrl(fileId: string) {
 	return `${BASE_URL}/api/files/${fileId}`;
 }
 

@@ -231,6 +231,17 @@ func (h *Hub) broadcastPresence(userID, status string) {
 	h.mu.RUnlock()
 }
 
+// BroadcastMemberJoined notifies channel members that a new user has joined.
+func (h *Hub) BroadcastMemberJoined(channelID string, userID string) {
+	payload, _ := json.Marshal(map[string]any{
+		"channel_id": channelID,
+		"user_id":    userID,
+		"type":       "member_joined",
+	})
+	msg := &models.WSMessage{Type: "channel_update", Payload: payload}
+	h.broadcast <- &envelope{channelID: channelID, msg: msg}
+}
+
 // ---- Client Methods -------------------------------------------------------- //
 
 // writeChannelKeys pushes all decrypted AES channel keys to the client so it
