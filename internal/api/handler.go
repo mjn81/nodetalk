@@ -372,22 +372,22 @@ func (h *Handler) CreateChannel(w http.ResponseWriter, r *http.Request) {
 
 	// DM de-duplication: if this is a DM, check if it already exists
 	if body.Name == "" && len(memberSet) == 2 {
-		existing, err := h.Store.ListUserChannels(session.UserID)
+		existingByMe, err := h.Store.ListUserChannels(session.UserID)
 		if err == nil {
-			for _, ex := range existing {
-				// A DM has no name and exactly 2 members
-				if ex.Name == "" && len(ex.Members) == 2 {
-					// Check if it's the same 2 people
+			for _, ex := range existingByMe {
+				if ex.Name != "" { continue }
+				
+				exMembers, _ := h.Store.GetChannelMembers(ex.ID)
+				if len(exMembers) == 2 {
 					matches := 0
 					for _, m1 := range memberSet {
-						for _, m2 := range ex.Members {
-							if m1 == m2 {
+						for _, m2 := range exMembers {
+							if m1 == m2.UserID {
 								matches++
 							}
 						}
 					}
 					if matches == 2 {
-						// Found existing DM, return it instead of creating new
 						writeJSON(w, http.StatusOK, h.toChannelResponse(ex))
 						return
 					}
@@ -429,14 +429,8 @@ func (h *Handler) RequireMember(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		isMember := false
-		for _, m := range ch.Members {
-			if m == session.UserID {
-				isMember = true
-				break
-			}
-		}
-		if !isMember {
+		uc, err := h.Store.GetUserChannel(session.UserID, channelID)
+		if err != nil || uc.Status != models.StatusActive {
 			writeError(w, http.StatusForbidden, "not a member of this channel")
 			return
 		}
@@ -546,10 +540,16 @@ func (h *Handler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) toChannelResponse(ch *models.Channel) ChannelResponse {
 	memberNames := make(map[string]string)
-	for _, mID := range ch.Members {
-		u, err := h.Store.GetUser(mID)
-		if err == nil {
-			memberNames[mID] = u.Username
+	members, err := h.Store.GetChannelMembers(ch.ID)
+	
+	var memberIDs []string
+	if err == nil {
+		for _, m := range members {
+			memberIDs = append(memberIDs, m.UserID)
+			u, err := h.Store.GetUser(m.UserID)
+			if err == nil {
+				memberNames[m.UserID] = u.Username
+			}
 		}
 	}
 
@@ -559,7 +559,7 @@ func (h *Handler) toChannelResponse(ch *models.Channel) ChannelResponse {
 		IsPrivate:   ch.IsPrivate,
 		InviteLink:  ch.InviteLink,
 		CreatorID:   ch.CreatorID,
-		Members:     ch.Members,
+		Members:     memberIDs,
 		MemberNames: memberNames,
 		CreatedAt:   ch.CreatedAt,
 		UnreadCount: ch.UnreadCount,
@@ -589,12 +589,15 @@ func (h *Handler) ExploreChannels(w http.ResponseWriter, r *http.Request) {
 		if ch.IsPrivate {
 			continue // Hide private
 		}
+		
+		members, _ := h.Store.GetChannelMembers(ch.ID)
+
 		if search == "" || strings.Contains(strings.ToLower(ch.Name), searchQuery) {
 			filtered = append(filtered, ExploreChannelResponse{
 				ID:          ch.ID,
 				Name:        ch.Name,
 				InviteLink:  ch.InviteLink,
-				MemberCount: len(ch.Members),
+				MemberCount: len(members),
 				CreatedAt:   ch.CreatedAt,
 			})
 		}
@@ -634,15 +637,13 @@ func (h *Handler) JoinChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.Store.AddMemberToChannel(ch.ID, session.UserID); err != nil {
+	if err := h.Store.AddMemberToChannel(ch.ID, session.UserID, models.RoleMember); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to join channel")
 		return
 	}
 
-	// Broadcast updated channel state (including new member and key) to all members
-	updated, err := h.Store.GetChannel(ch.ID)
-	if err == nil && h.Hub != nil {
-		h.Hub.BroadcastChannelCreated(updated)
+	// Notify members
+	if h.Hub != nil {
 		h.Hub.BroadcastMemberJoined(ch.ID, session.UserID)
 	}
 
@@ -659,9 +660,15 @@ func (h *Handler) JoinChannel(w http.ResponseWriter, r *http.Request) {
 //	@Router      /api/channels/{id}/members [get]
 func (h *Handler) GetChannelMembers(w http.ResponseWriter, r *http.Request) {
 	ch := ChannelFromContext(r.Context())
+	memberList, err := h.Store.GetChannelMembers(ch.ID)
+	if err != nil {
+		writeJSON(w, http.StatusOK, []UserResponse{})
+		return
+	}
+
 	var members []UserResponse
-	for _, uid := range ch.Members {
-		if u, err := h.Store.GetUser(uid); err == nil {
+	for _, m := range memberList {
+		if u, err := h.Store.GetUser(m.UserID); err == nil {
 			members = append(members, UserResponse{
 				ID: u.ID,
 				Username: u.Username,
@@ -669,9 +676,6 @@ func (h *Handler) GetChannelMembers(w http.ResponseWriter, r *http.Request) {
 				Status: u.Status,
 			})
 		}
-	}
-	if members == nil {
-		members = []UserResponse{}
 	}
 	writeJSON(w, http.StatusOK, members)
 }
@@ -699,7 +703,7 @@ func (h *Handler) AddMembers(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	for _, uid := range body.UserIDs {
-		if err := h.Store.AddMemberToChannel(ch.ID, uid); err == nil {
+		if err := h.Store.AddMemberToChannel(ch.ID, uid, models.RoleMember); err == nil {
 			h.Hub.BroadcastMemberJoined(ch.ID, uid)
 		}
 	}
@@ -720,16 +724,41 @@ func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	ch         := ChannelFromContext(r.Context())
 	targetUID  := r.PathValue("uid")
 
-	// Only the creator or the user themselves can remove a member.
-	if ch.CreatorID != session.UserID && session.UserID != targetUID {
-		writeError(w, http.StatusForbidden, "insufficient permissions")
+	// Get actor's role
+	actorUC, err := h.Store.GetUserChannel(session.UserID, ch.ID)
+	if err != nil {
+		writeError(w, http.StatusForbidden, "membership error")
 		return
 	}
-	if err := h.Store.RemoveMemberFromChannel(ch.ID, targetUID); err != nil {
+
+	// Case 1: User leaving voluntarily
+	if session.UserID == targetUID {
+		if err := h.Store.RemoveMemberFromChannel(ch.ID, targetUID, models.StatusLeft); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to leave channel")
+			return
+		}
+		writeJSON(w, http.StatusOK, StatusResponse{Status: "left channel"})
+		return
+	}
+
+	// Case 2: Kick-out (Requires Admin/Owner)
+	if actorUC.Role < models.RoleAdmin {
+		writeError(w, http.StatusForbidden, "insufficient permissions to kick")
+		return
+	}
+
+	// Target role check: cannot kick someone with equal or higher role
+	targetUC, err := h.Store.GetUserChannel(targetUID, ch.ID)
+	if err == nil && targetUC.Role >= actorUC.Role {
+		writeError(w, http.StatusForbidden, "cannot kick user with equal or higher role")
+		return
+	}
+
+	if err := h.Store.RemoveMemberFromChannel(ch.ID, targetUID, models.StatusKicked); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to remove member")
 		return
 	}
-	writeJSON(w, http.StatusOK, StatusResponse{Status: "member removed"})
+	writeJSON(w, http.StatusOK, StatusResponse{Status: "member kicked"})
 }
 
 // ============================

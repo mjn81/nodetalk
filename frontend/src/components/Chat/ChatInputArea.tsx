@@ -66,7 +66,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 					thumb_nonce: processed.thumbnailNonce ? bytesToBase64(processed.thumbnailNonce) : undefined,
 				});
 
-				await wsSendMessage(channel.id, fileMetadata, 'file');
+				await wsSendMessage(channel.id, fileMetadata, 'file', 'zstd');
 				updateFileStatus(f.id, 'done', 100);
 			}
 

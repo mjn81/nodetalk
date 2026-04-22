@@ -62,17 +62,17 @@ func NewHub(s *store.Store, sessions *auth.SessionStore, kek []byte) *Hub {
 func (h *Hub) run() {
 	for env := range h.broadcast {
 		h.mu.RLock()
-		ch, err := h.store.GetChannel(env.channelID)
+		members, err := h.store.GetChannelMembers(env.channelID)
 		if err != nil {
 			h.mu.RUnlock()
 			continue
 		}
-		for _, memberID := range ch.Members {
-			if c, ok := h.clients[memberID]; ok {
+		for _, m := range members {
+			if c, ok := h.clients[m.UserID]; ok {
 				select {
 				case c.send <- env:
 				default:
-					log.Printf("ws: slow receiver %s, message dropped", memberID)
+					log.Printf("ws: slow receiver %s, message dropped", m.UserID)
 				}
 			}
 		}
@@ -200,10 +200,15 @@ func (h *Hub) BroadcastChannelCreated(ch *models.Channel) {
 	msg := &models.WSMessage{Type: "channel_key", Payload: payload}
 	env := &envelope{msg: msg}
 
+	members, err := h.store.GetChannelMembers(ch.ID)
+	if err != nil {
+		return
+	}
+
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	for _, memberID := range ch.Members {
-		if c, ok := h.clients[memberID]; ok {
+	for _, m := range members {
+		if c, ok := h.clients[m.UserID]; ok {
 			select {
 			case c.send <- env:
 			default:
@@ -286,10 +291,11 @@ func (c *Client) handleMessage(ctx context.Context, msg *models.WSMessage) error
 // handleChatMessage persists and broadcasts an incoming encrypted chat message.
 func (c *Client) handleChatMessage(raw *models.WSMessage) error {
 	var body struct {
-		ChannelID  string             `json:"channel_id"`
-		Type       models.MessageType `json:"type"`
-		Ciphertext []byte             `json:"ciphertext"`
-		Nonce      []byte             `json:"nonce"`
+		ChannelID   string             `json:"channel_id"`
+		Type        models.MessageType `json:"type"`
+		Ciphertext  []byte             `json:"ciphertext"`
+		Nonce       []byte             `json:"nonce"`
+		Compression string             `json:"compression"`
 	}
 	if err := json.Unmarshal(raw.Payload, &body); err != nil {
 		return fmt.Errorf("invalid message payload: %w", err)
@@ -300,31 +306,25 @@ func (c *Client) handleChatMessage(raw *models.WSMessage) error {
 	if body.Type == "" {
 		body.Type = models.MessageTypeText
 	}
+	if body.Compression == "" {
+		body.Compression = "none"
+	}
 
 	// Membership check
-	ch, err := c.hub.store.GetChannel(body.ChannelID)
-	if err != nil {
-		return fmt.Errorf("channel not found: %s", body.ChannelID)
-	}
-	isMember := false
-	for _, m := range ch.Members {
-		if m == c.UserID {
-			isMember = true
-			break
-		}
-	}
-	if !isMember {
-		return fmt.Errorf("not a member of channel: %s", body.ChannelID)
+	uc, err := c.hub.store.GetUserChannel(c.UserID, body.ChannelID)
+	if err != nil || uc.Status != models.StatusActive {
+		return fmt.Errorf("not an active member of channel: %s", body.ChannelID)
 	}
 
 	msg := &models.Message{
-		ID:         fmt.Sprintf("%d", time.Now().UnixNano()),
-		ChannelID:  body.ChannelID,
-		SenderID:   c.UserID,
-		Type:       body.Type,
-		Ciphertext: body.Ciphertext,
-		Nonce:      body.Nonce,
-		SentAt:     time.Now().UTC(),
+		ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
+		ChannelID:   body.ChannelID,
+		SenderID:    c.UserID,
+		Type:        body.Type,
+		Ciphertext:  body.Ciphertext,
+		Nonce:       body.Nonce,
+		Compression: body.Compression,
+		SentAt:      time.Now().UTC(),
 	}
 	if err := c.hub.store.SaveMessage(msg); err != nil {
 		return fmt.Errorf("persist message: %w", err)

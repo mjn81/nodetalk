@@ -30,6 +30,7 @@ export interface Message {
 	type: 'text' | 'file' | 'voice';
 	ciphertext: string;
 	nonce: string;
+	compression: string;
 	sent_at: string;
 }
 

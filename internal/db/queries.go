@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	badger "github.com/dgraph-io/badger/v4"
 	"nodetalk/internal/models"
+
+	badger "github.com/dgraph-io/badger/v4"
 )
 
 // ============================================================
@@ -93,9 +93,23 @@ func (d *DB) ListAllChannels() ([]*models.Channel, error) {
 }
 
 // SetUserChannel writes the junction index entry for a user↔channel mapping.
-func (d *DB) SetUserChannel(userID, channelID string) error {
-	uc := models.UserChannel{JoinedAt: time.Now().UTC()}
-	return d.set(ucKey(userID, channelID), uc)
+func (d *DB) SetUserChannel(uc *models.UserChannel) error {
+	if uc.JoinedAt.IsZero() {
+		uc.JoinedAt = time.Now().UTC()
+	}
+	return d.set(ucKey(uc.UserID, uc.ChannelID), uc)
+}
+
+// GetUserChannel retrieves a junction entry.
+func (d *DB) GetUserChannel(userID, channelID string) (*models.UserChannel, error) {
+	var uc models.UserChannel
+	if err := d.get(ucKey(userID, channelID), &uc); err != nil {
+		return nil, err
+	}
+	// Migration/Safety: Ensure IDs are set
+	if uc.UserID == "" { uc.UserID = userID }
+	if uc.ChannelID == "" { uc.ChannelID = channelID }
+	return &uc, nil
 }
 
 // DeleteUserChannel removes the junction index entry for a user↔channel mapping.
@@ -107,13 +121,18 @@ func (d *DB) DeleteUserChannel(userID, channelID string) error {
 
 // UpdateUserChannelReadTime updates the last read timestamp for a user in a channel.
 func (d *DB) UpdateUserChannelReadTime(userID, channelID string, t time.Time) error {
-	var uc models.UserChannel
-	err := d.get(ucKey(userID, channelID), &uc)
+	uc, err := d.GetUserChannel(userID, channelID)
 	if err != nil {
-		uc = models.UserChannel{JoinedAt: time.Now().UTC()}
+		uc = &models.UserChannel{
+			UserID: userID, 
+			ChannelID: channelID, 
+			JoinedAt: time.Now().UTC(),
+			Status: models.StatusActive,
+			Role: models.RoleMember,
+		}
 	}
 	uc.LastReadAt = t
-	return d.set(ucKey(userID, channelID), uc)
+	return d.SetUserChannel(uc)
 }
 
 // CountUnreadMessages counts how many messages in a channel are strictly newer than the user's LastReadAt.
@@ -146,32 +165,34 @@ func (d *DB) CountUnreadMessages(userID, channelID string) (int, error) {
 }
 
 
-// ListUserChannels fetches all channels a user belongs to by scanning the
-// uc:{user_id}: prefix and then resolving each channel record.
+// ListUserChannels fetches all channels a user belongs to and is active in.
 func (d *DB) ListUserChannels(userID string) ([]*models.Channel, error) {
 	prefix := prefixUserChannel + userID + ":"
 	var channels []*models.Channel
 
 	err := d.bdb.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
-		opts.PrefetchValues = false // keys only for the index scan
 		opts.Prefix = []byte(prefix)
 		it := txn.NewIterator(opts)
 		defer it.Close()
 
 		for it.Rewind(); it.Valid(); it.Next() {
-			rawKey := string(it.Item().Key())
-			// Extract channelID from "uc:{uid}:{cid}"
-			parts := strings.SplitN(rawKey, ":", 3)
-			if len(parts) != 3 {
+			var uc models.UserChannel
+			if err := it.Item().Value(func(val []byte) error {
+				return json.Unmarshal(val, &uc)
+			}); err != nil {
+				return err
+			}
+
+			// Only return channels where the user is active
+			if uc.Status != models.StatusActive {
 				continue
 			}
-			channelID := parts[2]
 
 			var ch models.Channel
-			item, err := txn.Get([]byte(channelKey(channelID)))
+			item, err := txn.Get([]byte(channelKey(uc.ChannelID)))
 			if errors.Is(err, badger.ErrKeyNotFound) {
-				continue // Orphan index — skip gracefully.
+				continue // Orphan index
 			}
 			if err != nil {
 				return err
@@ -186,6 +207,35 @@ func (d *DB) ListUserChannels(userID string) ([]*models.Channel, error) {
 		return nil
 	})
 	return channels, err
+}
+
+// ListChannelMembers returns all users currently in a channel.
+func (d *DB) ListChannelMembers(channelID string) ([]*models.UserChannel, error) {
+	var members []*models.UserChannel
+	// Note: uc is indexed by user_id:channel_id, so listing members for a channelID
+	// requires a full scan of uc or a secondary index cid:uid.
+	// For now, NodeTalk uses a small-scale approach, but we should add cid:uid index if scaled.
+	// RE-EVALUATION: Actually, we scan all uc:* keys to find members of this CID.
+	err := d.bdb.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = []byte(prefixUserChannel)
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Rewind(); it.Valid(); it.Next() {
+			var uc models.UserChannel
+			if err := it.Item().Value(func(val []byte) error {
+				return json.Unmarshal(val, &uc)
+			}); err != nil {
+				return err
+			}
+			if uc.ChannelID == channelID && uc.Status == models.StatusActive {
+				members = append(members, &uc)
+			}
+		}
+		return nil
+	})
+	return members, err
 }
 
 // ============================================================

@@ -120,7 +120,7 @@ func (s *Store) DeleteUser(userID string) error {
 	channels, err := s.ListUserChannels(userID)
 	if err == nil {
 		for _, ch := range channels {
-			_ = s.RemoveMemberFromChannel(ch.ID, userID)
+			_ = s.RemoveMemberFromChannel(ch.ID, userID, models.StatusLeft)
 		}
 	}
 
@@ -144,8 +144,7 @@ func (s *Store) DeleteUser(userID string) error {
 // ============================================================
 
 // CreateChannel creates a new channel (DM or group), generates its AES-256
-// channel key, encrypts it with the server KEK, and writes the junction index
-// entries for all initial members.
+// channel key, and writes the junction index entries for all initial members.
 func (s *Store) CreateChannel(name, creatorID string, isPrivate bool, memberIDs []string, kek []byte) (*models.Channel, error) {
 	// Generate a fresh AES-256 key for this channel.
 	rawKey, err := crypto.GenerateAES256Key()
@@ -163,7 +162,6 @@ func (s *Store) CreateChannel(name, creatorID string, isPrivate bool, memberIDs 
 		IsPrivate:       isPrivate,
 		InviteLink:      uuid.New().String()[:12] + uuid.New().String()[24:], // Unique shortish link
 		CreatorID:       creatorID,
-		Members:         memberIDs,
 		AESKeyEncrypted: encKey,
 		CreatedAt:       time.Now().UTC(),
 	}
@@ -171,13 +169,35 @@ func (s *Store) CreateChannel(name, creatorID string, isPrivate bool, memberIDs 
 		return nil, err
 	}
 
-	// Write junction index entries for every member.
+	// Create UserChannel associations
 	for _, uid := range memberIDs {
-		if err := s.db.SetUserChannel(uid, ch.ID); err != nil {
+		role := models.RoleMember
+		if uid == creatorID {
+			role = models.RoleOwner
+		}
+		
+		uc := &models.UserChannel{
+			UserID:    uid,
+			ChannelID: ch.ID,
+			Role:      role,
+			Status:    models.StatusActive,
+			JoinedAt:  time.Now().UTC(),
+		}
+		if err := s.db.SetUserChannel(uc); err != nil {
 			return nil, fmt.Errorf("store: failed to index member %s: %w", uid, err)
 		}
 	}
 	return ch, nil
+}
+
+// GetChannelMembers returns all active members in a channel.
+func (s *Store) GetChannelMembers(channelID string) ([]*models.UserChannel, error) {
+	return s.db.ListChannelMembers(channelID)
+}
+
+// GetUserChannel retrieves the role/status of a user in a channel.
+func (s *Store) GetUserChannel(userID, channelID string) (*models.UserChannel, error) {
+	return s.db.GetUserChannel(userID, channelID)
 }
 
 // GetChannel retrieves a channel by ID.
@@ -199,22 +219,24 @@ func (s *Store) GetChannelByInviteLink(link string) (*models.Channel, error) {
 	return nil, db.ErrNotFound
 }
 
-// AddMemberToChannel adds a user to an existing channel and updates the index.
-func (s *Store) AddMemberToChannel(channelID, userID string) error {
-	ch, err := s.db.GetChannel(channelID)
-	if err != nil {
-		return err
+// AddMemberToChannel adds or reactivates a user in a channel.
+func (s *Store) AddMemberToChannel(channelID, userID string, role int) error {
+	uc, err := s.db.GetUserChannel(userID, channelID)
+	if err == nil {
+		// Existing record, update status to active
+		uc.Status = models.StatusActive
+		uc.Role = role
+		return s.db.SetUserChannel(uc)
 	}
-	for _, m := range ch.Members {
-		if m == userID {
-			return nil // already a member
-		}
-	}
-	ch.Members = append(ch.Members, userID)
-	if err := s.db.SetChannel(ch); err != nil {
-		return err
-	}
-	return s.db.SetUserChannel(userID, channelID)
+
+	// New record
+	return s.db.SetUserChannel(&models.UserChannel{
+		UserID:    userID,
+		ChannelID: channelID,
+		Role:      role,
+		Status:    models.StatusActive,
+		JoinedAt:  time.Now().UTC(),
+	})
 }
 
 // ListUserChannels returns all channels a user belongs to, calculating unread counts for each.
@@ -241,25 +263,14 @@ func (s *Store) ListAllChannels() ([]*models.Channel, error) {
 	return s.db.ListAllChannels()
 }
 
-// RemoveMemberFromChannel removes a user from a channel's member list and
-// deletes the junction index entry.
-func (s *Store) RemoveMemberFromChannel(channelID, userID string) error {
-	ch, err := s.db.GetChannel(channelID)
+// RemoveMemberFromChannel updates a user's status to kicked, left, or banned.
+func (s *Store) RemoveMemberFromChannel(channelID, userID, status string) error {
+	uc, err := s.db.GetUserChannel(userID, channelID)
 	if err != nil {
 		return err
 	}
-	// Filter out the target user.
-	filtered := ch.Members[:0]
-	for _, m := range ch.Members {
-		if m != userID {
-			filtered = append(filtered, m)
-		}
-	}
-	ch.Members = filtered
-	if err := s.db.SetChannel(ch); err != nil {
-		return err
-	}
-	return s.db.DeleteUserChannel(userID, channelID)
+	uc.Status = status
+	return s.db.SetUserChannel(uc)
 }
 
 

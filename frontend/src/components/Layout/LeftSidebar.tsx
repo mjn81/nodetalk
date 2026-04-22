@@ -50,22 +50,24 @@ const RenderChannel = ({
 			{isGroup ? (
 				<Hash className="w-5 h-5 shrink-0 opacity-70" />
 			) : (
-		<Avatar className="w-8 h-8 shrink-0">
+				<Avatar className="w-8 h-8 shrink-0">
 					<AvatarImage
 						src={`data:image/svg+xml;utf8,${encodeURIComponent('<svg></svg>')}`}
 					/>
 					<AvatarFallback className="bg-transparent">
-						<MinidenticonAvatar 
-							userId={isGroup ? ch.id : (ch.members.find(m => m !== user?.user_id) || ch.id)} 
-							size={32} 
+						<MinidenticonAvatar
+							userId={
+								isGroup
+									? ch.id
+									: ch.members.find((m) => m !== user?.user_id) || ch.id
+							}
+							size={32}
 						/>
 					</AvatarFallback>
 				</Avatar>
 			)}
 			<div className="flex-1 min-w-0 flex items-center justify-between">
-				<span className="truncate text-[15px] font-medium leading-none">
-					{display}
-				</span>
+				<span className="truncate text-[15px] font-medium">{display}</span>
 				{!isActive && (ch.unread_count ?? 0) > 0 && (
 					<div className="flex items-center justify-center min-w-[16px] h-4 bg-[#f23f42] rounded-full text-[11px] font-bold text-white px-1 ml-1 opacity-90 shadow-sm shrink-0">
 						{ch.unread_count}

@@ -131,6 +131,7 @@ export async function wsSendMessage(
   channelId: string,
   text: string,
   type: 'text' | 'file' | 'voice' = 'text',
+  compression: string = 'none'
 ): Promise<boolean> {
   const key = channelKeys.get(channelId);
 
@@ -164,6 +165,7 @@ export async function wsSendMessage(
       type,
       ciphertext: bytesToBase64(ciphertext),
       nonce: bytesToBase64(nonce),
+      compression,
     },
   });
 }
