@@ -77,12 +77,13 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   int(h.TokenTTL.Seconds()),
 	})
 	writeJSON(w, http.StatusOK, LoginResponse{
-		ID:        u.ID,
-		Username:  u.Username,
-		Domain:    u.Domain,
-		Status:    u.Status,
-		AvatarID:  u.AvatarID,
-		CustomMsg: u.CustomMsg,
+		ID:               u.ID,
+		Username:         u.Username,
+		Domain:           u.Domain,
+		Status:           u.Status,
+		StatusPreference: u.StatusPreference,
+		AvatarID:         u.AvatarID,
+		CustomMsg:        u.CustomMsg,
 	})
 }
 

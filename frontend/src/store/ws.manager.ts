@@ -40,6 +40,18 @@ export function initWebSocket() {
 			incrementUnread(msg.channel_id);
 		}
 	});
+
+	onWS('presence', () => {
+		// Invalidate queries to refresh status in UI
+		const queryClient = (window as any).queryClient;
+		if (queryClient) {
+			queryClient.invalidateQueries({ queryKey: ['channels'] });
+			const activeChannelId = useChannelStore.getState().activeChannel?.id;
+			if (activeChannelId) {
+				queryClient.invalidateQueries({ queryKey: ['channels', activeChannelId, 'members'] });
+			}
+		}
+	});
 }
 
 export function connectWS() {

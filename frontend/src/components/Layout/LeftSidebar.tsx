@@ -49,16 +49,26 @@ const RenderChannel = ({
 			{isGroup ? (
 				<Hash className="w-5 h-5 shrink-0 opacity-70" />
 			) : (
-				<Avatar
-					userId={ch.members.find((m) => m !== user?.id) || ch.id}
-					avatarId={
-						ch.member_avatars?.[
-							ch.members.find((m) => m !== user?.id) || ''
-						]
-					}
-					size={32}
-					className="shrink-0"
-				/>
+				<div className="relative">
+					<Avatar
+						userId={ch.members.find((m) => m !== user?.id) || ch.id}
+						avatarId={
+							ch.member_avatars?.[
+								ch.members.find((m) => m !== user?.id) || ''
+							]
+						}
+						size={32}
+						className="shrink-0"
+					/>
+					<div
+						className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-[2px] border-[#2b2d31] z-10 ${
+							ch.member_statuses?.[ch.members.find((m) => m !== user?.id) || ''] === 'online' ? 'bg-green-500' :
+							ch.member_statuses?.[ch.members.find((m) => m !== user?.id) || ''] === 'away' ? 'bg-yellow-500' :
+							ch.member_statuses?.[ch.members.find((m) => m !== user?.id) || ''] === 'dnd' ? 'bg-red-500' :
+							'bg-gray-500'
+						}`}
+					/>
+				</div>
 			)}
 			<div className="flex-1 min-w-0 flex items-center justify-between">
 				<span className="truncate text-[15px] font-medium">{display}</span>

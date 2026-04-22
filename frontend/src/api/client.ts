@@ -112,7 +112,7 @@ export async function apiUpdateProfile(data: {
 	avatar_id?: string;
 	username?: string;
 	custom_msg?: string;
-	status?: string;
+	status_preference?: string;
 	password?: string;
 	old_password?: string;
 }) {

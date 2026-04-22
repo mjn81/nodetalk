@@ -23,8 +23,9 @@ export default function RightSidebar() {
 	}
 
 	// Discord typically separates Online from Offline members.
-	const onlineMembers = members.filter((m) => m.status === 'online');
-	const offlineMembers = members.filter((m) => m.status !== 'online');
+	// Discord typically separates Online from Offline members.
+	const onlineMembers = members.filter((m) => m.status !== 'offline');
+	const offlineMembers = members.filter((m) => m.status === 'offline');
 
 	const MemberRow = ({ member }: { member: Member }) => (
 		<div
@@ -39,12 +40,17 @@ export default function RightSidebar() {
 					className="shrink-0" 
 				/>
 				<div
-					className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-[3px] border-[#2b2d31] group-hover:border-[#35373c] transition-colors ${member.status === 'online' ? 'bg-green-500' : 'bg-gray-500'}`}
+					className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-[3px] border-[#2b2d31] group-hover:border-[#35373c] transition-colors ${
+						member.status === 'online' ? 'bg-green-500' :
+						member.status === 'away' ? 'bg-yellow-500' :
+						member.status === 'dnd' ? 'bg-red-500' :
+						'bg-gray-500'
+					}`}
 				/>
 			</div>
 			<div className="flex flex-col flex-1 min-w-0">
 				<span
-					className={`text-[15px] font-medium leading-tight truncate ${member.status === 'online' ? 'text-[#f2f3f5]' : 'text-[#80848E]'}`}
+					className={`text-[15px] font-medium leading-tight truncate ${member.status !== 'offline' ? 'text-[#f2f3f5]' : 'text-[#80848E]'}`}
 				>
 					{member.username}
 				</span>

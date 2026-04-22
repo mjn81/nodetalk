@@ -3,6 +3,7 @@ export interface AuthUser {
 	username: string;
 	domain: string;
 	status: string;
+	status_preference: string;
 	avatar_id?: string;
 	custom_msg?: string;
 }
@@ -17,6 +18,7 @@ export interface Channel {
 	member_names?: Record<string, string>;
 	member_avatars?: Record<string, string>;
 	member_domains?: Record<string, string>;
+	member_statuses?: Record<string, string>;
 	created_at: string;
 	unread_count?: number;
 }

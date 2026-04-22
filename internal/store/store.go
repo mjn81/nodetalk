@@ -58,6 +58,16 @@ func (s *Store) GetUser(id string) (*models.User, error) {
 	return s.db.GetUser(id)
 }
 
+// UpdateUserStatus is a helper to only update the active status in DB.
+func (s *Store) UpdateUserStatus(userID, status string) error {
+	u, err := s.GetUser(userID)
+	if err != nil {
+		return err
+	}
+	u.Status = status
+	return s.db.SetUser(u)
+}
+
 // GetUserByUsername scans all users to find one with a matching username.
 // For production scale, add a username→id secondary index.
 func (s *Store) GetUserByUsername(username string) (*models.User, error) {

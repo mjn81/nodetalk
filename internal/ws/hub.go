@@ -121,7 +121,24 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.register(client)
 	defer h.unregister(client)
 
-	_ = h.store.SetPresence(session.UserID, "online")
+	// Fetch user to check their status preference
+	effectiveStatus := "online"
+	isAuto := true
+	if u, err := h.store.GetUser(session.UserID); err == nil {
+		if u.StatusPreference != "" && u.StatusPreference != "auto" {
+			effectiveStatus = u.StatusPreference
+			isAuto = false
+		}
+	}
+
+	_ = h.store.SetPresence(session.UserID, effectiveStatus)
+	if isAuto {
+		_ = h.store.UpdateUserStatus(session.UserID, effectiveStatus)
+	}
+
+	if effectiveStatus != "offline" {
+		h.BroadcastPresence(session.UserID, effectiveStatus)
+	}
 
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
@@ -161,7 +178,16 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Set presence to offline
 	_ = h.store.SetPresence(session.UserID, "offline")
+
+	// Update DB if auto
+	if u, err := h.store.GetUser(session.UserID); err == nil {
+		if u.StatusPreference == "auto" || u.StatusPreference == "" {
+			_ = h.store.UpdateUserStatus(session.UserID, "offline")
+		}
+	}
+
 	h.BroadcastPresence(session.UserID, "offline")
 	conn.Close(websocket.StatusNormalClosure, "goodbye")
 }

@@ -30,7 +30,8 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		ID:       u.ID,
 		Username: u.Username,
 		Domain:   u.Domain,
-		Status:   u.Status,
+		Status:           u.Status,
+		StatusPreference: u.StatusPreference,
 		AvatarID: u.AvatarID, CustomMsg: u.CustomMsg,
 	})
 }
@@ -122,8 +123,16 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if body.CustomMsg != nil {
 		u.CustomMsg = *body.CustomMsg
 	}
-	if body.Status != nil {
-		u.Status = *body.Status
+	if body.StatusPreference != nil {
+		u.StatusPreference = *body.StatusPreference
+		// If preference is manual, update active status to match
+		if u.StatusPreference != "auto" {
+			u.Status = u.StatusPreference
+		} else {
+			// If setting to auto, assume online while they are making the change
+			u.Status = "online"
+		}
+
 		// Update presence in store
 		_ = h.Store.SetPresence(u.ID, u.Status)
 		// Broadcast to all clients
@@ -141,7 +150,8 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		ID:       u.ID,
 		Username: u.Username,
 		Domain:   u.Domain,
-		Status:   u.Status,
+		Status:           u.Status,
+		StatusPreference: u.StatusPreference,
 		AvatarID: u.AvatarID, CustomMsg: u.CustomMsg,
 	})
 }
@@ -202,7 +212,8 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 		ID:       u.ID,
 		Username: u.Username,
 		Domain:   u.Domain,
-		Status:   u.Status,
+		Status:           u.Status,
+		StatusPreference: u.StatusPreference,
 		AvatarID: u.AvatarID, CustomMsg: u.CustomMsg,
 	})
 }

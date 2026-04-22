@@ -225,27 +225,43 @@ export const AccountTab = () => {
 							</div>
 							<div className="flex gap-2">
 								{[
+									{ id: 'auto', color: 'bg-blue-500', label: 'Auto' },
 									{ id: 'online', color: 'bg-green-500', label: 'Online' },
 									{ id: 'away', color: 'bg-yellow-500', label: 'Idle' },
 									{ id: 'dnd', color: 'bg-red-500', label: 'Do Not Disturb' },
 									{ id: 'offline', color: 'bg-gray-500', label: 'Invisible' },
-								].map((s) => (
-									<button
-										key={s.id}
-										onClick={() => updateUser({ status: s.id })}
-										className={`group relative flex items-center justify-center w-8 h-8 rounded-md transition-all ${
-											user?.status === s.id
-												? 'bg-primary/20 ring-1 ring-primary'
-												: 'bg-secondary/40 hover:bg-secondary/60'
-										}`}
-										title={s.label}
-									>
-										<div className={`w-3 h-3 rounded-full ${s.color}`} />
-										<div className="absolute bottom-full mb-2 px-2 py-1 bg-popover text-popover-foreground text-[10px] rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-xl border border-border">
-											{s.label}
-										</div>
-									</button>
-								))}
+								].map((s) => {
+									const isSelected = (user?.status_preference || 'auto') === s.id;
+									return (
+										<button
+											key={s.id}
+											disabled={isUpdatingStatus}
+											onClick={async () => {
+												setIsUpdatingStatus(true);
+												try {
+													await updateUser({ status_preference: s.id });
+												} finally {
+													setIsUpdatingStatus(false);
+												}
+											}}
+											className={`group relative flex items-center justify-center w-8 h-8 rounded-md transition-all ${
+												isSelected
+													? 'bg-primary/20 ring-1 ring-primary'
+													: 'bg-secondary/40 hover:bg-secondary/60'
+											} ${isUpdatingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
+											title={s.label}
+										>
+											{s.id === 'auto' ? (
+												<span className="text-[10px] font-bold text-blue-500">A</span>
+											) : (
+												<div className={`w-3 h-3 rounded-full ${s.color}`} />
+											)}
+											<div className="absolute bottom-full mb-2 px-2 py-1 bg-popover text-popover-foreground text-[10px] rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-xl border border-border">
+												{s.label}
+											</div>
+										</button>
+									);
+								})}
 							</div>
 						</div>
 
