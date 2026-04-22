@@ -16,7 +16,11 @@ export async function ensureZstdReady() {
 /**
  * Generates a small JPEG thumbnail from an image file.
  */
-async function generateThumbnail(file: File, maxWidth = 400, maxHeight = 400): Promise<Uint8Array | null> {
+async function generateThumbnail(
+	file: File,
+	maxWidth = 400,
+	maxHeight = 400,
+): Promise<Uint8Array | null> {
 	return new Promise((resolve) => {
 		const reader = new FileReader();
 		reader.onload = (e) => {
@@ -44,18 +48,80 @@ async function generateThumbnail(file: File, maxWidth = 400, maxHeight = 400): P
 				if (!ctx) return resolve(null);
 
 				ctx.drawImage(img, 0, 0, width, height);
-				canvas.toBlob((blob) => {
-					if (!blob) return resolve(null);
-					const reader = new FileReader();
-					reader.onloadend = () => {
-						resolve(new Uint8Array(reader.result as ArrayBuffer));
-					};
-					reader.readAsArrayBuffer(blob);
-				}, 'image/jpeg', 0.7);
+				canvas.toBlob(
+					(blob) => {
+						if (!blob) return resolve(null);
+						const reader = new FileReader();
+						reader.onloadend = () => {
+							resolve(new Uint8Array(reader.result as ArrayBuffer));
+						};
+						reader.readAsArrayBuffer(blob);
+					},
+					'image/jpeg',
+					0.7,
+				);
 			};
 			img.src = e.target?.result as string;
 		};
 		reader.readAsDataURL(file);
+	});
+}
+
+/**
+ * Generates a small JPEG thumbnail from a video file at 1 second.
+ */
+async function generateVideoThumbnail(file: File, maxWidth = 400, maxHeight = 400): Promise<Uint8Array | null> {
+	return new Promise((resolve) => {
+		const video = document.createElement('video');
+		const url = URL.createObjectURL(file);
+		video.src = url;
+		video.preload = 'metadata';
+		video.muted = true;
+		video.playsInline = true;
+
+		video.onloadeddata = () => {
+			// Small delay to ensure frames are ready, seek to 1s
+			video.currentTime = Math.min(1, video.duration || 0);
+		};
+
+		video.onseeked = () => {
+			const canvas = document.createElement('canvas');
+			let width = video.videoWidth;
+			let height = video.videoHeight;
+
+			if (width > height) {
+				if (width > maxWidth) {
+					height *= maxWidth / width;
+					width = maxWidth;
+				}
+			} else {
+				if (height > maxHeight) {
+					width *= maxHeight / height;
+					height = maxHeight;
+				}
+			}
+
+			canvas.width = width;
+			canvas.height = height;
+			const ctx = canvas.getContext('2d');
+			if (!ctx) return resolve(null);
+
+			ctx.drawImage(video, 0, 0, width, height);
+			canvas.toBlob((blob) => {
+				URL.revokeObjectURL(url);
+				if (!blob) return resolve(null);
+				const reader = new FileReader();
+				reader.onloadend = () => {
+					resolve(new Uint8Array(reader.result as ArrayBuffer));
+				};
+				reader.readAsArrayBuffer(blob);
+			}, 'image/jpeg', 0.7);
+		};
+
+		video.onerror = () => {
+			URL.revokeObjectURL(url);
+			resolve(null);
+		};
 	});
 }
 
@@ -67,7 +133,7 @@ async function generateThumbnail(file: File, maxWidth = 400, maxHeight = 400): P
  */
 export async function encryptAndCompressFile(
 	file: File,
-	channelKey: Uint8Array
+	channelKey: Uint8Array,
 ): Promise<{
 	ciphertext: Uint8Array;
 	nonce: Uint8Array;
@@ -87,7 +153,7 @@ export async function encryptAndCompressFile(
 		channelKey.buffer as ArrayBuffer,
 		'AES-GCM',
 		false,
-		['encrypt']
+		['encrypt'],
 	);
 
 	// Encrypt main file
@@ -95,7 +161,7 @@ export async function encryptAndCompressFile(
 	const ciphertextBuffer = await crypto.subtle.encrypt(
 		{ name: 'AES-GCM', iv: nonce as any },
 		cryptoKey,
-		compressed as any
+		compressed as any,
 	);
 
 	const result: any = {
@@ -105,15 +171,34 @@ export async function encryptAndCompressFile(
 		originalSize: file.size,
 	};
 
-	// Optional thumbnail
-	if (file.type.startsWith('image/')) {
+	// thumbnail (exclude HEIC/HEIF as browsers can't render them natively)
+	if (
+		file.type.startsWith('image/') &&
+		!file.type.includes('heic') &&
+		!file.type.includes('heif')
+	) {
 		const thumb = await generateThumbnail(file);
 		if (thumb) {
 			const thumbNonce = crypto.getRandomValues(new Uint8Array(12));
 			const thumbCipher = await crypto.subtle.encrypt(
 				{ name: 'AES-GCM', iv: thumbNonce as any },
 				cryptoKey,
-				thumb as any
+				thumb as any,
+			);
+			result.thumbnailCipher = new Uint8Array(thumbCipher);
+			result.thumbnailNonce = thumbNonce;
+		}
+	}
+
+	// thumbnail for videos
+	if (file.type.startsWith('video/')) {
+		const thumb = await generateVideoThumbnail(file);
+		if (thumb) {
+			const thumbNonce = crypto.getRandomValues(new Uint8Array(12));
+			const thumbCipher = await crypto.subtle.encrypt(
+				{ name: 'AES-GCM', iv: thumbNonce as any },
+				cryptoKey,
+				thumb as any,
 			);
 			result.thumbnailCipher = new Uint8Array(thumbCipher);
 			result.thumbnailNonce = thumbNonce;
@@ -131,7 +216,7 @@ export async function encryptAndCompressFile(
 export async function decryptAndDecompressFile(
 	ciphertext: Uint8Array,
 	nonce: Uint8Array,
-	channelKey: Uint8Array
+	channelKey: Uint8Array,
 ): Promise<Uint8Array> {
 	await ensureZstdReady();
 
@@ -140,13 +225,13 @@ export async function decryptAndDecompressFile(
 		channelKey.buffer as ArrayBuffer,
 		'AES-GCM',
 		false,
-		['decrypt']
+		['decrypt'],
 	);
 
 	const decrypted = await crypto.subtle.decrypt(
 		{ name: 'AES-GCM', iv: nonce as any },
 		cryptoKey,
-		ciphertext as any
+		ciphertext as any,
 	);
 
 	const decompressed = decompress(new Uint8Array(decrypted));

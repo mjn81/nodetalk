@@ -48,6 +48,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, currentUs
 				// formatted as JSON and then encrypted.
 				const fileMetadata = JSON.stringify({
 					file_id: (res as any).id,
+					name: f.file.name,
 					mime: processed.mimeType,
 					size: processed.originalSize,
 					nonce: bytesToBase64(processed.nonce),

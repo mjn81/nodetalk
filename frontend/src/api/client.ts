@@ -68,23 +68,36 @@ apiClient.interceptors.response.use(
 
 		logger.error('API error', { status, url, data });
 		throw new APIError(status, message, data);
-	}
+	},
 );
 
-import type { AuthUser, Channel, ExploreChannel, Message, Presence, User } from '@/types/api';
+import type {
+	AuthUser,
+	Channel,
+	ExploreChannel,
+	Message,
+	Presence,
+	User,
+} from '@/types/api';
 
 // ─────────────────────────────────────────────
 // Auth API
 // ─────────────────────────────────────────────
 export async function apiRegister(username: string, password: string) {
-	return apiClient.post<{ id: string; username: string }>('/api/register', { username, password }) as unknown as Promise<{ id: string; username: string }>;
+	return apiClient.post<{ id: string; username: string }>('/api/register', {
+		username,
+		password,
+	}) as unknown as Promise<{ id: string; username: string }>;
 }
 
 export async function apiLogin(
 	username: string,
 	password: string,
 ): Promise<AuthUser> {
-	return apiClient.post('/api/login', { username, password }) as unknown as Promise<AuthUser>;
+	return apiClient.post('/api/login', {
+		username,
+		password,
+	}) as unknown as Promise<AuthUser>;
 }
 
 export async function apiLogout() {
@@ -97,26 +110,47 @@ export async function apiMe() {
 		username: string;
 		domain: string;
 		status: string;
-	}>('/api/me') as unknown as Promise<{ id: string; username: string; domain: string; status: string }>;
+	}>('/api/me') as unknown as Promise<{
+		id: string;
+		username: string;
+		domain: string;
+		status: string;
+	}>;
 }
 
 // ─────────────────────────────────────────────
 // Channels
 // ─────────────────────────────────────────────
 export async function apiListChannels() {
-	return apiClient.get<Channel[]>('/api/channels').then(r => (r as unknown as Channel[]) || []);
+	return apiClient
+		.get<Channel[]>('/api/channels')
+		.then((r) => (r as unknown as Channel[]) || []);
 }
 
 export async function apiExploreChannels(query: string) {
-	return apiClient.get<ExploreChannel[]>(`/api/channels/explore?q=${encodeURIComponent(query)}`).then(r => (r as unknown as ExploreChannel[]) || []);
+	return apiClient
+		.get<
+			ExploreChannel[]
+		>(`/api/channels/explore?q=${encodeURIComponent(query)}`)
+		.then((r) => (r as unknown as ExploreChannel[]) || []);
 }
 
-export async function apiCreateChannel(name: string, memberIds: string[], isPrivate: boolean) {
-	return apiClient.post<Channel>('/api/channels', { name, members: memberIds, is_private: isPrivate }) as unknown as Promise<Channel>;
+export async function apiCreateChannel(
+	name: string,
+	memberIds: string[],
+	isPrivate: boolean,
+) {
+	return apiClient.post<Channel>('/api/channels', {
+		name,
+		members: memberIds,
+		is_private: isPrivate,
+	}) as unknown as Promise<Channel>;
 }
 
 export async function apiGetChannel(id: string) {
-	return apiClient.get<Channel>(`/api/channels/${id}`) as unknown as Promise<Channel>;
+	return apiClient.get<Channel>(
+		`/api/channels/${id}`,
+	) as unknown as Promise<Channel>;
 }
 
 export async function apiJoinChannel(link: string) {
@@ -124,32 +158,40 @@ export async function apiJoinChannel(link: string) {
 }
 
 export async function apiAddMember(channelId: string, userIds: string[]) {
-	return apiClient.post(`/api/channels/${channelId}/members`, { user_ids: userIds });
+	return apiClient.post(`/api/channels/${channelId}/members`, {
+		user_ids: userIds,
+	});
 }
 
 export async function apiGetChannelMembers(channelId: string) {
-	return apiClient.get<User[]>(`/api/channels/${channelId}/members`).then(r => (r as unknown as User[]) || []);
+	return apiClient
+		.get<User[]>(`/api/channels/${channelId}/members`)
+		.then((r) => (r as unknown as User[]) || []);
 }
 
 export async function apiSearchUsers(query: string) {
-	return apiClient.get<User[]>(`/api/users?q=${encodeURIComponent(query)}`).then(r => (r as unknown as User[]) || []);
+	return apiClient
+		.get<User[]>(`/api/users?q=${encodeURIComponent(query)}`)
+		.then((r) => (r as unknown as User[]) || []);
 }
 
 // ─────────────────────────────────────────────
 // Messages
 // ─────────────────────────────────────────────
 export async function apiListMessages(id: string, limit = 50) {
-	return apiClient.get<Message[]>(`/api/channels/${id}/messages?limit=${limit}`).then(r => (r as unknown as Message[]) || []);
+	return apiClient
+		.get<Message[]>(`/api/channels/${id}/messages?limit=${limit}`)
+		.then((r) => (r as unknown as Message[]) || []);
 }
 
 // ─────────────────────────────────────────────
 // File Uploads
 // ─────────────────────────────────────────────
 export async function apiUploadFile(
-	file: Blob, 
-	mimeType: string, 
-	thumbCipher?: string, 
-	thumbNonce?: string
+	file: Blob,
+	mimeType: string,
+	thumbCipher?: string,
+	thumbNonce?: string,
 ) {
 	const formData = new FormData();
 	formData.append('file', file, `upload.${mimeType.split('/')[1] ?? 'bin'}`);
@@ -167,16 +209,24 @@ export function apiGetFileUrl(fileId: string) {
 	return `${BASE_URL}/api/files/${fileId}`;
 }
 
+export async function apiGetFile(fileId: string): Promise<ArrayBuffer> {
+	return apiClient.get(`/api/files/${fileId}`, {
+		responseType: 'arraybuffer',
+	}) as Promise<ArrayBuffer>;
+}
+
 // ─────────────────────────────────────────────
 // Presence
 // ─────────────────────────────────────────────
 export async function apiGetPresence(userId: string) {
-	return apiClient.get<Presence>(`/api/users/${userId}/presence`) as unknown as Promise<Presence>;
+	return apiClient.get<Presence>(
+		`/api/users/${userId}/presence`,
+	) as unknown as Promise<Presence>;
 }
 
 export async function apiGetVersion() {
-	return apiClient.get<{version: string}>('/api/version').catch((err) => {
+	return apiClient.get<{ version: string }>('/api/version').catch((err) => {
 		logger.error('Version fetch error', err);
 		throw err;
-	}) as unknown as Promise<{version: string}>;
+	}) as unknown as Promise<{ version: string }>;
 }
