@@ -52,7 +52,11 @@ export const useChannelStore = create<ChannelSlice>((set,) => ({
 
 	createChannel: async (name, memberIds, isPrivate) => {
 		const ch = await apiCreateChannel(name, memberIds, isPrivate);
-		set((s) => ({ channels: [ch, ...s.channels] }));
+		set((s) => {
+			const exists = s.channels.some((c) => c.id === ch.id);
+			if (exists) return s;
+			return { channels: [ch, ...s.channels] };
+		});
 		return ch;
 	},
 
