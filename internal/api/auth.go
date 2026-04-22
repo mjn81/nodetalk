@@ -25,16 +25,16 @@ import (
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var body RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		writeError(w, http.StatusBadRequest, "auth.errors.invalid_json")
 		return
 	}
 	if body.Username == "" || len(body.Password) < 8 {
-		writeError(w, http.StatusBadRequest, "username required and password must be ≥8 chars")
+		writeError(w, http.StatusBadRequest, "auth.errors.password_length")
 		return
 	}
 	u, err := h.Store.CreateUser(body.Username, body.Password, "localhost")
 	if err != nil {
-		writeError(w, http.StatusConflict, "username already taken or server error")
+		writeError(w, http.StatusConflict, "auth.errors.username_taken")
 		return
 	}
 	writeJSON(w, http.StatusCreated, RegisterResponse{ID: u.ID, Username: u.Username})
@@ -53,17 +53,17 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var body LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		writeError(w, http.StatusBadRequest, "auth.errors.invalid_json")
 		return
 	}
 	u, err := h.Store.AuthenticateUser(body.Username, body.Password)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "invalid credentials")
+		writeError(w, http.StatusUnauthorized, "auth.errors.invalid_credentials")
 		return
 	}
 	token, err := h.Sessions.Create(u.ID, u.Username)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "session creation failed")
+		writeError(w, http.StatusInternalServerError, "auth.errors.session_failed")
 		return
 	}
 	_ = h.Store.SetPresence(u.ID, "online")

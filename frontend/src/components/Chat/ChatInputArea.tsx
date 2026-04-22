@@ -1,5 +1,20 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Plus, X, FileIcon, Loader2, Smile, SendHorizontal, Lock, AtSign } from 'lucide-react';
+import React, {
+	useState,
+	useRef,
+	useCallback,
+	useEffect,
+	useMemo,
+} from 'react';
+import {
+	Plus,
+	X,
+	FileIcon,
+	Loader2,
+	Smile,
+	SendHorizontal,
+	Lock,
+	AtSign,
+} from 'lucide-react';
 import { useAuthStore, getChannelDisplayName } from '@/store/store';
 import { apiGetChannelMembers } from '@/api/client';
 import { Avatar } from '../Avatar';
@@ -16,29 +31,42 @@ interface ChatInputAreaProps {
 	channelKey: Uint8Array;
 }
 
-export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKey }) => {
+export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
+	channel,
+	channelKey,
+}) => {
 	const user = useAuthStore((state) => state.user);
 	const [inputText, setInputText] = useState('');
 	const [sending, setSending] = useState(false);
 	const [showEmoji, setShowEmoji] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
-	const [files, setFiles] = useState<{ 
-		file: File; 
-		id: string; 
-		status: 'idle' | 'encrypting' | 'uploading' | 'done'; 
-		progress: number 
-	}[]>([]);
+	const [files, setFiles] = useState<
+		{
+			file: File;
+			id: string;
+			status: 'idle' | 'encrypting' | 'uploading' | 'done';
+			progress: number;
+		}[]
+	>([]);
 
-	const [members, setMembers] = useState<{ id: string; username: string }[]>([]);
+	const [members, setMembers] = useState<{ id: string; username: string }[]>(
+		[],
+	);
 	const [mentionSearch, setMentionSearch] = useState<string | null>(null);
 	const [mentionPopupOpen, setMentionPopupOpen] = useState(false);
 	const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
-	
+
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const updateFileStatus = (id: string, status: any, progress: number = 0) => {
-		setFiles(prev => prev.map(f => f.id === id ? { ...f, status, progress } : f));
+		setFiles((prev) =>
+			prev.map((f) => (f.id === id ? { ...f, status, progress } : f)),
+		);
+	};
+
+	const removeFile = (id: string) => {
+		setFiles((prev) => prev.filter((f) => f.id !== id));
 	};
 
 	const handleSend = useCallback(async () => {
@@ -51,18 +79,24 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 			for (const f of files) {
 				updateFileStatus(f.id, 'encrypting', 30);
 				const processed = await encryptAndCompressFile(f.file, channelKey);
-				
+
 				updateFileStatus(f.id, 'uploading', 0);
-				
+
 				const res = await apiUploadFile(
 					new Blob([processed.ciphertext as any], { type: processed.mimeType }),
 					processed.mimeType,
-					processed.thumbnailCipher ? bytesToBase64(processed.thumbnailCipher) : undefined,
-					processed.thumbnailNonce ? bytesToBase64(processed.thumbnailNonce) : undefined,
+					processed.thumbnailCipher
+						? bytesToBase64(processed.thumbnailCipher)
+						: undefined,
+					processed.thumbnailNonce
+						? bytesToBase64(processed.thumbnailNonce)
+						: undefined,
 					(progressEvent) => {
-						const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+						const percent = Math.round(
+							(progressEvent.loaded * 100) / progressEvent.total,
+						);
 						updateFileStatus(f.id, 'uploading', percent);
-					}
+					},
 				);
 
 				const fileMetadata = JSON.stringify({
@@ -71,8 +105,12 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 					mime: processed.mimeType,
 					size: processed.originalSize,
 					nonce: bytesToBase64(processed.nonce),
-					thumb_ciphertext: processed.thumbnailCipher ? bytesToBase64(processed.thumbnailCipher) : undefined,
-					thumb_nonce: processed.thumbnailNonce ? bytesToBase64(processed.thumbnailNonce) : undefined,
+					thumb_ciphertext: processed.thumbnailCipher
+						? bytesToBase64(processed.thumbnailCipher)
+						: undefined,
+					thumb_nonce: processed.thumbnailNonce
+						? bytesToBase64(processed.thumbnailNonce)
+						: undefined,
 				});
 
 				await wsSendMessage(channel.id, fileMetadata, 'file', 'zstd');
@@ -93,47 +131,62 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 		}
 	}, [inputText, files, sending, channel.id, channelKey]);
 
-	const insertMention = useCallback((username: string) => {
-		const cursor = inputRef.current?.selectionStart || 0;
-		const textBeforeCursor = inputText.substring(0, cursor);
-		const textAfterCursor = inputText.substring(cursor);
-		const lastAt = textBeforeCursor.lastIndexOf('@');
-		
-		const newText = textBeforeCursor.substring(0, lastAt) + '@' + username + ' ' + textAfterCursor;
-		setInputText(newText);
-		setMentionPopupOpen(false);
-		setMentionSearch(null);
-		
-		// Focus back and set cursor
-		setTimeout(() => {
-			if (inputRef.current) {
-				const newPos = lastAt + username.length + 2;
-				inputRef.current.focus();
-				inputRef.current.setSelectionRange(newPos, newPos);
-			}
-		}, 0);
-	}, [inputText]);
+	const insertMention = useCallback(
+		(username: string) => {
+			const cursor = inputRef.current?.selectionStart || 0;
+			const textBeforeCursor = inputText.substring(0, cursor);
+			const textAfterCursor = inputText.substring(cursor);
+			const lastAt = textBeforeCursor.lastIndexOf('@');
+
+			const newText =
+				textBeforeCursor.substring(0, lastAt) +
+				'@' +
+				username +
+				' ' +
+				textAfterCursor;
+			setInputText(newText);
+			setMentionPopupOpen(false);
+			setMentionSearch(null);
+
+			// Focus back and set cursor
+			setTimeout(() => {
+				if (inputRef.current) {
+					const newPos = lastAt + username.length + 2;
+					inputRef.current.focus();
+					inputRef.current.setSelectionRange(newPos, newPos);
+				}
+			}, 0);
+		},
+		[inputText],
+	);
+
+	const filteredMembers = useMemo(() => {
+		return members.filter(
+			(m) =>
+				m.id !== user?.user_id &&
+				m.username.toLowerCase().includes(mentionSearch?.toLowerCase() || ''),
+		);
+	}, [members, user?.user_id, mentionSearch]);
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
 		if (mentionPopupOpen) {
-			const filtered = members.filter(m => 
-				m.username.toLowerCase().includes(mentionSearch?.toLowerCase() || '')
-			);
-
 			if (e.key === 'ArrowDown') {
 				e.preventDefault();
-				setSelectedMentionIndex(prev => (prev + 1) % filtered.length);
+				setSelectedMentionIndex((prev) => (prev + 1) % filteredMembers.length);
 				return;
 			}
 			if (e.key === 'ArrowUp') {
 				e.preventDefault();
-				setSelectedMentionIndex(prev => (prev - 1 + filtered.length) % filtered.length);
+				setSelectedMentionIndex(
+					(prev) =>
+						(prev - 1 + filteredMembers.length) % filteredMembers.length,
+				);
 				return;
 			}
 			if (e.key === 'Enter' || e.key === 'Tab') {
-				if (filtered[selectedMentionIndex]) {
+				if (filteredMembers[selectedMentionIndex]) {
 					e.preventDefault();
-					insertMention(filtered[selectedMentionIndex].username);
+					insertMention(filteredMembers[selectedMentionIndex].username);
 					return;
 				}
 			}
@@ -226,18 +279,20 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 	}, []);
 
 	const addFiles = (newFiles: File[]) => {
-		setFiles(prev => [
+		setFiles((prev) => [
 			...prev,
-			...newFiles.map(f => ({
+			...newFiles.map((f) => ({
 				file: f,
 				id: Math.random().toString(36).substring(7),
 				status: 'idle' as const,
-				progress: 0
-			}))
+				progress: 0,
+			})),
 		]);
 	};
 
-	const isDirect = channel.members.length === 2 && (!channel.name || channel.name.trim() === '');
+	const isDirect =
+		channel.members.length === 2 &&
+		(!channel.name || channel.name.trim() === '');
 	const displayName = getChannelDisplayName(channel, user?.user_id || '');
 	const prefix = isDirect ? '@' : '#';
 
@@ -248,35 +303,42 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 				<div className="fixed inset-0 bg-[#4752c4]/20 border-4 border-dashed border-[#4752c4] z-[999] flex items-center justify-center backdrop-blur-sm pointer-events-none transition-all animate-in fade-in duration-200">
 					<div className="bg-[#313338] p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-2 border border-[#4752c4]/30">
 						<Plus size={48} className="text-[#4752c4]" />
-						<span className="text-white font-bold text-xl">Upload to {prefix}{displayName}</span>
+						<span className="text-white font-bold text-xl">
+							Upload to {prefix}
+							{displayName}
+						</span>
 					</div>
 				</div>
 			)}
 
 			<div className="bg-[#383a40] rounded-lg flex flex-col relative focus-within:ring-0 transition-all overflow-hidden border-none text-flat">
-				
 				{/* File Previews - Reverted Style */}
 				{files.length > 0 && (
 					<div className="flex gap-3 p-3 overflow-x-auto border-b border-[#2e3035]">
 						{files.map((f) => (
-							<div key={f.id} className="relative w-24 h-24 bg-[#2b2d31] rounded-md flex flex-col items-center justify-center p-2 group shrink-0">
-								<button 
+							<div
+								key={f.id}
+								className="relative w-24 h-24 bg-[#2b2d31] rounded-md flex flex-col items-center justify-center p-2 group shrink-0"
+							>
+								<button
 									onClick={() => removeFile(f.id)}
 									className="absolute -top-1 -right-1 bg-[#da373c] text-white rounded-full p-0.5 shadow-lg z-20 opacity-0 group-hover:opacity-100 transition-opacity"
 								>
 									<X size={14} />
 								</button>
-								
+
 								{f.file.type.startsWith('image/') ? (
-									<img 
-										src={URL.createObjectURL(f.file)} 
-										alt="preview" 
+									<img
+										src={URL.createObjectURL(f.file)}
+										alt="preview"
 										className={`w-full h-full object-cover rounded ${f.status !== 'idle' && f.status !== 'done' ? 'blur-sm opacity-50' : ''}`}
 									/>
 								) : (
 									<div className="flex flex-col items-center gap-1">
 										<FileIcon size={32} className="text-[#949ba4]" />
-										<span className="text-[10px] text-[#949ba4] truncate w-20 text-center">{f.file.name}</span>
+										<span className="text-[10px] text-[#949ba4] truncate w-20 text-center">
+											{f.file.name}
+										</span>
 									</div>
 								)}
 
@@ -284,14 +346,17 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 								{f.status !== 'idle' && f.status !== 'done' && (
 									<div className="absolute inset-0 bg-[#313338]/80 rounded-md flex flex-col items-center justify-center p-2">
 										{f.status === 'encrypting' ? (
-											<Lock size={16} className="text-[#4752c4] animate-pulse" />
+											<Lock
+												size={16}
+												className="text-[#4752c4] animate-pulse"
+											/>
 										) : (
 											<Loader2 size={16} className="text-white animate-spin" />
 										)}
 										<div className="w-full bg-black/40 h-1 rounded-full mt-2 overflow-hidden">
-											<div 
-												className="bg-[#4752c4] h-full transition-all duration-300" 
-												style={{ width: `${f.progress}%` }} 
+											<div
+												className="bg-[#4752c4] h-full transition-all duration-300"
+												style={{ width: `${f.progress}%` }}
 											/>
 										</div>
 									</div>
@@ -302,18 +367,20 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 				)}
 
 				<div className="flex items-start px-4 py-2.5 gap-3">
-					<button 
+					<button
 						onClick={() => fileInputRef.current?.click()}
 						className="mt-0.5 text-[#b5bac1] hover:text-[#dbdee1] transition"
 					>
 						<Plus className="bg-[#b5bac1]/10 rounded-full p-1 w-6 h-6 hover:bg-[#b5bac1]/20" />
 					</button>
-					<input 
-						type="file" 
-						ref={fileInputRef} 
-						className="hidden" 
-						multiple 
-						onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))}
+					<input
+						type="file"
+						ref={fileInputRef}
+						className="hidden"
+						multiple
+						onChange={(e) =>
+							e.target.files && addFiles(Array.from(e.target.files))
+						}
 					/>
 
 					<textarea
@@ -326,16 +393,22 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 						rows={1}
 						dir="auto"
 					/>
-					
+
 					<div className="flex items-center gap-3 shrink-0 h-6">
 						<VoiceRecorder channelId={channel.id} />
 						<div className="relative flex items-center justify-center">
-							<button onClick={() => setShowEmoji((v) => !v)} className="text-[#b5bac1] hover:text-[#dbdee1] transition flex items-center">
+							<button
+								onClick={() => setShowEmoji((v) => !v)}
+								className="text-[#b5bac1] hover:text-[#dbdee1] transition flex items-center"
+							>
 								<Smile size={24} />
 							</button>
 							{showEmoji && (
 								<div className="absolute bottom-10 right-0 z-50">
-									<EmojiPicker onSelect={handleEmojiSelect} onClickOutside={() => setShowEmoji(false)} />
+									<EmojiPicker
+										onSelect={handleEmojiSelect}
+										onClickOutside={() => setShowEmoji(false)}
+									/>
 								</div>
 							)}
 						</div>
@@ -344,7 +417,11 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 							disabled={(!inputText.trim() && files.length === 0) || sending}
 							className="text-[#b5bac1] hover:text-[#dbdee1] disabled:opacity-50 transition"
 						>
-							{sending ? <Loader2 size={24} className="animate-spin" /> : <SendHorizontal size={24} />}
+							{sending ? (
+								<Loader2 size={24} className="animate-spin" />
+							) : (
+								<SendHorizontal size={24} />
+							)}
 						</button>
 					</div>
 				</div>
@@ -358,22 +435,22 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 						Members matching "{mentionSearch}"
 					</div>
 					<div className="max-h-60 overflow-y-auto py-1">
-						{members
-							.filter(m => m.username.toLowerCase().includes(mentionSearch?.toLowerCase() || ''))
-							.map((m, i) => (
-								<button
-									key={m.id}
-									onClick={() => insertMention(m.username)}
-									onMouseEnter={() => setSelectedMentionIndex(i)}
-									className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
-										i === selectedMentionIndex ? 'bg-[#4752c4] text-white' : 'text-[#dbdee1] hover:bg-[#35373c]'
-									}`}
-								>
-									<Avatar userId={m.id} size={24} />
-									<span className="font-medium">{m.username}</span>
-								</button>
-							))}
-						{members.filter(m => m.username.toLowerCase().includes(mentionSearch?.toLowerCase() || '')).length === 0 && (
+						{filteredMembers.map((m, i) => (
+							<button
+								key={m.id}
+								onClick={() => insertMention(m.username)}
+								onMouseEnter={() => setSelectedMentionIndex(i)}
+								className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
+									i === selectedMentionIndex
+										? 'bg-[#4752c4] text-white'
+										: 'text-[#dbdee1] hover:bg-[#35373c]'
+								}`}
+							>
+								<Avatar userId={m.id} size={24} />
+								<span className="font-medium">{m.username}</span>
+							</button>
+						))}
+						{filteredMembers.length === 0 && (
 							<div className="px-4 py-3 text-[#949ba4] text-sm italic">
 								No members found
 							</div>

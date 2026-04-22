@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiListMessages } from '@/api/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { useMessages } from '@/hooks/useMessages';
 import type { Message, Channel } from '@/types/api';
 import { onWS, decryptMessage } from '@/ws';
 import { useAuthStore, useCryptoStore } from '@/store/store';
@@ -31,33 +31,31 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 		});
 	}, []);
 
-	const { data: messages = [] } = useQuery({
-		queryKey: ['messages', channel.id],
-		queryFn: async () => {
-			const msgs = await apiListMessages(channel.id, 50);
-			const decrypted = await Promise.all(
-				msgs.reverse().map(async (m) => ({
-					...m,
-					text: m.type === 'text' ? await decryptMessage(m) : undefined,
-				})),
-			);
-			setTimeout(scrollToBottom, 50);
-			return decrypted;
-		},
-		staleTime: 60000,
-	});
+	const { data: messages = [] } = useMessages(channel.id, scrollToBottom);
+
+	// Automatically scroll to bottom when messages change
+	useEffect(() => {
+		if (messages.length > 0) {
+			scrollToBottom();
+		}
+	}, [messages.length, scrollToBottom]);
 
 	// Decrypt and set a message via cache
 	const addMessage = useCallback(
 		async (msg: Message) => {
+			// Avoid duplicates if we just fetched from REST
 			const text = msg.type === 'text' ? await decryptMessage(msg) : undefined;
 			queryClient.setQueryData<DecryptedMessage[]>(
 				['messages', channel.id],
-				(old = []) => [...old, { ...msg, text }]
+				(old) => {
+					if (!old) return [{ ...msg, text }];
+					// Check if message already exists (e.g. from a concurrent REST fetch)
+					if (old.some(m => m.id === msg.id)) return old;
+					return [...old, { ...msg, text }];
+				}
 			);
-			scrollToBottom();
 		},
-		[scrollToBottom, queryClient, channel.id],
+		[queryClient, channel.id],
 	);
 
 	// Subscribe to incoming messages for this channel

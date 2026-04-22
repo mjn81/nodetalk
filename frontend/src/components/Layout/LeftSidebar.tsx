@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Avatar as MinidenticonAvatar } from '@/components/Avatar';
 import NewChannelModal from '@/components/NewChannelModal';
 import SettingsModal from '@/components/SettingsModal';
-import { useQuery } from '@tanstack/react-query';
-import { apiExploreChannels, apiJoinChannel } from '@/api/client';
+import { useExploreChannels } from '@/hooks/useChannels';
+import { apiJoinChannel } from '@/api/client';
 import { Settings, LogOut, Plus, Hash, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -105,11 +105,7 @@ export default function LeftSidebar() {
 		return () => clearTimeout(handler);
 	}, [search]);
 
-	const { data: exploreChannels = [], isFetching: isExploring } = useQuery({
-		queryKey: ['channels', 'explore', debouncedSearch],
-		queryFn: () => apiExploreChannels(debouncedSearch),
-		enabled: debouncedSearch.length > 0,
-	});
+	const { data: exploreChannels = [], isFetching: isExploring } = useExploreChannels(debouncedSearch);
 
 	const handleJoinChannel = async (link: string, id: string) => {
 		if (isJoining) return;

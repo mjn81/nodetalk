@@ -33,7 +33,7 @@ export default function LoginPage() {
 		try {
 			await login(username, password);
 		} catch (err: unknown) {
-			setError((err as Error).message ?? t('auth.errors.login_failed'));
+			setError(t((err as Error).message) || t('auth.errors.login_failed'));
 		} finally {
 			setLoading(false);
 		}

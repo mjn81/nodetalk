@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { apiGetChannelMembers } from '@/api/client';
+import { useChannelMembers } from '@/hooks/useChannels';
 import { Avatar as MinidenticonAvatar } from '@/components/Avatar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -15,30 +14,9 @@ interface Member {
 
 export default function RightSidebar() {
 	const activeChannel = useChannelStore((state) => state.activeChannel);
-	const [members, setMembers] = useState<Member[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
-
-	useEffect(() => {
-		if (!activeChannel) {
-			setMembers([]);
-		return;
-		}
-
-		let cancelled = false;
-		setIsLoading(true);
-		apiGetChannelMembers(activeChannel.id)
-			.then((res) => {
-				if (!cancelled) setMembers(res);
-			})
-			.catch(console.error)
-			.finally(() => {
-				if (!cancelled) setIsLoading(false);
-			});
-
-		return () => {
-			cancelled = true;
-		};
-	}, [activeChannel]);
+	const { data: members = [], isLoading } = useChannelMembers(
+		activeChannel?.id,
+	);
 
 	if (!activeChannel) {
 		return <div className="h-full bg-[#2b2d31]"></div>;

@@ -43,7 +43,7 @@ export default function RegisterPage() {
 			setSuccess(true);
 			setTimeout(() => navigate('/login'), 2000);
 		} catch (err: unknown) {
-			setError((err as Error).message ?? t('auth.errors.register_failed'));
+			setError(t((err as Error).message) || t('auth.errors.register_failed'));
 		} finally {
 			setLoading(false);
 		}

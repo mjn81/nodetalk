@@ -20,8 +20,12 @@
     "sign_in": "Sign in",
     "errors": {
       "required": "Username and password are required",
-      "min_password": "Password must be at least 8 characters",
+      "password_length": "Password must be at least 8 characters",
       "passwords_mismatch": "Passwords do not match",
+      "invalid_credentials": "The username or password you entered is incorrect",
+      "username_taken": "That username is already taken",
+      "invalid_json": "Invalid request format",
+      "session_failed": "Failed to create session. Please try again.",
       "login_failed": "Login failed",
       "register_failed": "Registration failed"
     }

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useUserSearch } from '@/hooks/useUsers';
 import { useAuthStore, useChannelStore } from '@/store/store';
-import { apiSearchUsers } from '@/api/client';
 import {
 	Dialog,
 	DialogContent,
@@ -45,12 +44,7 @@ export default function NewChannelModal({
 		return () => clearTimeout(handler);
 	}, [searchQuery]);
 
-	const { data: searchResults = [], isFetching: isSearching } = useQuery({
-		queryKey: ['users', 'search', debouncedQuery],
-		queryFn: () => apiSearchUsers(debouncedQuery),
-		enabled: debouncedQuery.length > 0,
-		select: (data) => data.filter((u) => u.username !== user?.username),
-	});
+	const { data: searchResults = [], isFetching: isSearching } = useUserSearch(debouncedQuery, user?.username);
 
 	const [error, setError] = useState('');
 	const [loading, setLoading] = useState(false);
