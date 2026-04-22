@@ -14,6 +14,7 @@ import (
 	"nodetalk/internal/config"
 	"nodetalk/internal/crypto"
 	"nodetalk/internal/db"
+	"nodetalk/internal/storage"
 	"nodetalk/internal/store"
 	"nodetalk/internal/ws"
 	"nodetalk/internal/middleware"
@@ -91,13 +92,21 @@ func (a *App) Startup(ctx context.Context) {
 	a.apiPort = listener.Addr().(*net.TCPAddr).Port
 	log.Printf("[nodetalk] Backend listening on 127.0.0.1:%d", a.apiPort)
 
+	var blobStorage storage.BlobStorage
+	if cfg.Storage.S3 != nil && cfg.Storage.S3.Enabled {
+		blobStorage = &storage.FileSystemStorage{BaseDir: cfg.Storage.UploadDir}
+	} else {
+		blobStorage = &storage.FileSystemStorage{BaseDir: cfg.Storage.UploadDir}
+	}
+
 	apiHandler := &api.Handler{
-		Store:     a.store,
-		Sessions:  a.sessions,
-		Hub:       a.hub,
-		KEK:       a.kek,
-		UploadDir: "./data/uploads",
-		TokenTTL:  tokenTTL,
+		Store:         a.store,
+		Sessions:      a.sessions,
+		Hub:           a.hub,
+		KEK:           a.kek,
+		Storage:       blobStorage,
+		TokenTTL:      tokenTTL,
+		MaxFileSizeMB: cfg.Server.MaxFileSizeMB,
 	}
 
 	rootMux := http.NewServeMux()

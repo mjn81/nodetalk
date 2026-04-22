@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +14,7 @@ import (
 	"nodetalk/internal/auth"
 	"nodetalk/internal/middleware"
 	"nodetalk/internal/models"
+	"nodetalk/internal/storage"
 	"nodetalk/internal/store"
 
 	"github.com/google/uuid"
@@ -29,10 +28,11 @@ type ChannelBroadcaster interface {
 type Handler struct {
 	Store       *store.Store
 	Sessions    *auth.SessionStore
-	Hub         ChannelBroadcaster
-	KEK         []byte
-	UploadDir   string
-	TokenTTL    time.Duration
+	Hub           ChannelBroadcaster
+	KEK           []byte
+	Storage       storage.BlobStorage
+	TokenTTL      time.Duration
+	MaxFileSizeMB int
 }
 
 // NewRouter wires the full HTTP API with rate limiting.
@@ -71,7 +71,7 @@ func NewRouter(h *Handler, globalRPS, authRPS float64) http.Handler {
 	mux.Handle("DELETE /api/channels/{id}/members/{uid}", protectMember(h.RemoveMember))
 	mux.Handle("GET /api/channels/{id}/messages",        protectMember(h.ListMessages))
 	
-	mux.Handle("POST /api/upload",                       protect(h.UploadFile))
+	mux.Handle("POST /api/files",                        protect(h.UploadFile))
 	mux.Handle("GET /api/files/{id}",                    protect(h.DownloadFile))
 
 	return middleware.CORS(mux)
@@ -471,6 +471,74 @@ func (h *Handler) ListChannels(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// ---- Files ----------------------------------------------------------------- //
+
+// UploadFile handles encrypted binary uploads.
+func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
+	session := auth.SessionFromContext(r.Context())
+
+	// Limit upload size
+	maxBytes := int64(h.MaxFileSizeMB) << 20
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+
+	if err := r.ParseMultipartForm(maxBytes); err != nil {
+		writeError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf("file too large (max %dMB)", h.MaxFileSizeMB))
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "missing file in multipart form")
+		return
+	}
+	defer file.Close()
+
+	fileID := uuid.New().String()
+	storagePath, size, err := h.Storage.Save(fileID, file)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to save file")
+		return
+	}
+
+	f, err := h.Store.RegisterFile(session.UserID, header.Header.Get("Content-Type"), storagePath, size)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to register file metadata")
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, f)
+}
+
+// DownloadFile retrieves raw encrypted bytes.
+func (h *Handler) DownloadFile(w http.ResponseWriter, r *http.Request) {
+	fileID := r.PathValue("id")
+	f, err := h.Store.GetFile(fileID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "file not found")
+		return
+	}
+
+	rc, err := h.Storage.Open(f.StoragePath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to open file storage")
+		return
+	}
+	defer rc.Close()
+
+	// Use http.ServeContent or io.Copy. ServeContent is better for range requests.
+	// But ServeContent needs an io.ReadSeeker.
+	// For now, simple Copy or ServeFile (if it's FS).
+	
+	if _, ok := h.Storage.(*storage.FileSystemStorage); ok {
+		http.ServeFile(w, r, f.StoragePath)
+		return
+	}
+
+	w.Header().Set("Content-Type", f.MIMEType)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", f.SizeBytes))
+	io.Copy(w, rc)
+}
+
 func (h *Handler) toChannelResponse(ch *models.Channel) ChannelResponse {
 	memberNames := make(map[string]string)
 	for _, mID := range ch.Members {
@@ -696,95 +764,6 @@ func (h *Handler) ListMessages(w http.ResponseWriter, r *http.Request) {
 		msgs = []*models.Message{}
 	}
 	writeJSON(w, http.StatusOK, msgs)
-}
-
-// ============================
-//  File Handlers
-// ============================
-
-const maxUploadSize = 50 << 20 // 50 MB
-
-// UploadFile godoc
-//	@Summary     Upload a file or voice note
-//	@Tags        files
-//	@Accept      mpfd
-//	@Produce     json
-//	@Security    BearerAuth
-//	@Param       file formData file true "File to upload (max 50 MB)"
-//	@Success     201 {object} UploadFileResponse
-//	@Router      /api/upload [post]
-func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
-	session := auth.SessionFromContext(r.Context())
-	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		writeError(w, http.StatusBadRequest, "file too large or malformed request")
-		return
-	}
-
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "missing file field")
-		return
-	}
-	defer file.Close()
-
-	ext    := filepath.Ext(header.Filename)
-	fileID := uuid.New().String()
-	dstPath := filepath.Join(h.UploadDir, fileID+ext)
-
-	if err := os.MkdirAll(h.UploadDir, 0755); err != nil {
-		writeError(w, http.StatusInternalServerError, "upload dir error")
-		return
-	}
-	dst, err := os.Create(dstPath)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not save file")
-		return
-	}
-	defer dst.Close()
-
-	written, err := io.Copy(dst, file)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "file write error")
-		return
-	}
-
-	mime := header.Header.Get("Content-Type")
-	if mime == "" {
-		mime = "application/octet-stream"
-	}
-
-	f, err := h.Store.RegisterFile(session.UserID, mime, dstPath, written)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to register file")
-		return
-	}
-	writeJSON(w, http.StatusCreated, UploadFileResponse{
-		FileID:   f.ID,
-		Size:     f.SizeBytes,
-		Mime:     f.MIMEType,
-		Uploaded: f.UploadedAt.Format(time.RFC3339),
-	})
-}
-
-// DownloadFile godoc
-//	@Summary     Download a file by ID
-//	@Tags        files
-//	@Produce     application/octet-stream
-//	@Security    BearerAuth
-//	@Param       id path string true "File ID"
-//	@Success     200 "File content"
-//	@Router      /api/files/{id} [get]
-func (h *Handler) DownloadFile(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	f, err := h.Store.GetFile(id)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "file not found")
-		return
-	}
-	w.Header().Set("Content-Type", f.MIMEType)
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filepath.Base(f.StoragePath)))
-	http.ServeFile(w, r, f.StoragePath)
 }
 
 // ============================

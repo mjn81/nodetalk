@@ -40,9 +40,10 @@ import (
 	"nodetalk/internal/config"
 	"nodetalk/internal/crypto"
 	"nodetalk/internal/db"
+	"nodetalk/internal/middleware"
+	"nodetalk/internal/storage"
 	"nodetalk/internal/store"
 	"nodetalk/internal/ws"
-	"nodetalk/internal/middleware"
 )
 
 func main() {
@@ -89,13 +90,22 @@ func main() {
 	sessions  := auth.NewSessionStore(tokenTTL)
 
 	// ── 6. HTTP router + WebSocket Hub ────────────────────────────────────
-	uploadDir := "./data/uploads"
+	var blobStorage storage.BlobStorage
+	if cfg.Storage.S3 != nil && cfg.Storage.S3.Enabled {
+		// TODO: Implement S3Storage
+		log.Println("ws: S3 storage requested but not yet implemented, falling back to FileSystem")
+		blobStorage = &storage.FileSystemStorage{BaseDir: cfg.Storage.UploadDir}
+	} else {
+		blobStorage = &storage.FileSystemStorage{BaseDir: cfg.Storage.UploadDir}
+	}
+
 	apiHandler := &api.Handler{
-		Store:     dataStore,
-		Sessions:  sessions,
-		KEK:       kek,
-		UploadDir: uploadDir,
-		TokenTTL:  tokenTTL,
+		Store:         dataStore,
+		Sessions:      sessions,
+		KEK:           kek,
+		Storage:       blobStorage,
+		TokenTTL:      tokenTTL,
+		MaxFileSizeMB: cfg.Server.MaxFileSizeMB,
 	}
 	hub := ws.NewHub(dataStore, sessions, kek)
 	apiHandler.Hub = hub

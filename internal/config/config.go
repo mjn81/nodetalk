@@ -14,13 +14,15 @@ type Config struct {
 	Server    ServerConfig    `toml:"server"`
 	Security  SecurityConfig  `toml:"security"`
 	Database  DatabaseConfig  `toml:"database"`
+	Storage   StorageConfig   `toml:"storage"`
 	RateLimit RateLimitConfig `toml:"rate_limit"`
 }
 
 type ServerConfig struct {
-	Domain   string `toml:"domain"`
-	HTTPPort int    `toml:"http_port"`
-	UDPPort  int    `toml:"udp_port"`
+	Domain        string `toml:"domain"`
+	HTTPPort      int    `toml:"http_port"`
+	UDPPort       int    `toml:"udp_port"`
+	MaxFileSizeMB int    `toml:"max_file_size_mb"`
 }
 
 type SecurityConfig struct {
@@ -30,6 +32,20 @@ type SecurityConfig struct {
 
 type DatabaseConfig struct {
 	Path string `toml:"path"`
+}
+
+type StorageConfig struct {
+	UploadDir string    `toml:"upload_dir"`
+	S3        *S3Config `toml:"s3"`
+}
+
+type S3Config struct {
+	Enabled   bool   `toml:"enabled"`
+	Endpoint  string `toml:"endpoint"`
+	Region    string `toml:"region"`
+	Bucket    string `toml:"bucket"`
+	AccessKey string `toml:"access_key"`
+	SecretKey string `toml:"secret_key"`
 }
 
 type RateLimitConfig struct {
@@ -45,9 +61,10 @@ const configPath = "config.toml"
 func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
-			Domain:   "localhost",
-			HTTPPort: 8080,
-			UDPPort:  9090,
+			Domain:        "localhost",
+			HTTPPort:      8080,
+			UDPPort:       9090,
+			MaxFileSizeMB: 100, // Default 100MB
 		},
 		Security: SecurityConfig{
 			MasterPassword:   "",
@@ -55,6 +72,12 @@ func Load() (*Config, error) {
 		},
 		Database: DatabaseConfig{
 			Path: "./data/db",
+		},
+		Storage: StorageConfig{
+			UploadDir: "./data/uploads",
+			S3: &S3Config{
+				Enabled: false,
+			},
 		},
 		RateLimit: RateLimitConfig{
 			GlobalRPS: 100,

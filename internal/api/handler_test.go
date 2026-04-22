@@ -15,6 +15,7 @@ import (
 	"nodetalk/internal/crypto"
 	"nodetalk/internal/db"
 	"nodetalk/internal/models"
+	"nodetalk/internal/storage"
 	"nodetalk/internal/store"
 )
 
@@ -48,11 +49,12 @@ func testServer(t *testing.T) *httptest.Server {
 	uploadDir := dir + "/uploads"
 	tokenTTL := 24 * time.Hour
 	handler := &api.Handler{
-		Store:     store.New(database),
-		Sessions:  auth.NewSessionStore(tokenTTL),
-		KEK:       kek,
-		UploadDir: uploadDir,
-		TokenTTL:  tokenTTL,
+		Store:         store.New(database),
+		Sessions:      auth.NewSessionStore(tokenTTL),
+		KEK:           kek,
+		Storage:       &storage.FileSystemStorage{BaseDir: uploadDir},
+		TokenTTL:      tokenTTL,
+		MaxFileSizeMB: 10,
 	}
 	router := api.NewRouter(handler, 1000, 1000) // high limits for testing
 	return httptest.NewServer(router)
