@@ -16,13 +16,14 @@ export function bytesToBase64(bytes: Uint8Array): string {
 	return btoa(binString);
 }
 
+import { useCryptoStore } from '@/store/crypto.slice';
+
 // ── Channel Key Registry ────────────────────────────────────────────────
 // Keys are received from the server over WSS on connect and kept in memory.
 // They are NEVER persisted to disk / localStorage.
-const channelKeys = new Map<string, Uint8Array>();
 
 export function getChannelKey(channelId: string): Uint8Array | undefined {
-  return channelKeys.get(channelId);
+  return useCryptoStore.getState().channelKeys.get(channelId);
 }
 
 // ── Event Listeners ─────────────────────────────────────────────────────
@@ -78,7 +79,7 @@ export function wsConnect(): void {
 export function wsDisconnect(): void {
   worker?.port.postMessage({ cmd: 'DISCONNECT' });
   worker = null;
-  channelKeys.clear();
+  useCryptoStore.getState().clearKeys();
 }
 
 // ── Inbound Handler ──────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ function handleInbound(msg: { type: string; payload: unknown }) {
     case 'channel_key': {
       const { channel_id, aes_key } = msg.payload as { channel_id: string; aes_key: string };
       // Backend (Go) sends bytes as base64 strings
-      channelKeys.set(channel_id, base64ToBytes(aes_key));
+      useCryptoStore.getState().setChannelKey(channel_id, base64ToBytes(aes_key));
       emit('channel_key', { channel_id });
       break;
     }
@@ -133,7 +134,7 @@ export async function wsSendMessage(
   type: 'text' | 'file' | 'voice' = 'text',
   compression: string = 'none'
 ): Promise<boolean> {
-  const key = channelKeys.get(channelId);
+  const key = useCryptoStore.getState().channelKeys.get(channelId);
 
   let ciphertext: Uint8Array;
   let nonce: Uint8Array;
@@ -172,7 +173,7 @@ export async function wsSendMessage(
 
 // ── Decryption Helper ────────────────────────────────────────────────────
 export async function decryptMessage(msg: Message): Promise<string> {
-  const key = channelKeys.get(msg.channel_id);
+  const key = useCryptoStore.getState().channelKeys.get(msg.channel_id);
   if (!key) return '[encrypted]';
 
   try {

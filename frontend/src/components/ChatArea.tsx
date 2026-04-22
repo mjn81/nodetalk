@@ -2,8 +2,8 @@ import { useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiListMessages } from '@/api/client';
 import type { Message, Channel } from '@/types/api';
-import { onWS, decryptMessage, getChannelKey } from '@/ws';
-import { useAuthStore } from '@/store/store';
+import { onWS, decryptMessage } from '@/ws';
+import { useAuthStore, useCryptoStore } from '@/store/store';
 
 import { ChatTopbar } from './Chat/ChatTopbar';
 import { ChatMessageFeed } from './Chat/ChatMessageFeed';
@@ -70,7 +70,16 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 		});
 	}, [channel.id, addMessage]);
 
-	const channelKey = getChannelKey(channel.id);
+	// Invalidate messages if the channel key arrives late
+	useEffect(() => {
+		return onWS('channel_key', (payload: any) => {
+			if (payload.channel_id === channel.id) {
+				queryClient.invalidateQueries({ queryKey: ['messages', channel.id] });
+			}
+		});
+	}, [channel.id, queryClient]);
+
+	const channelKey = useCryptoStore((state) => state.channelKeys.get(channel.id));
 
 	return (
 		<div className="flex flex-col h-full w-full bg-background relative overflow-hidden">

@@ -4,6 +4,7 @@ import type { Channel } from '@/types/api';
 export { useAuthStore } from './auth.slice';
 export { useChannelStore } from './channels.slice';
 export { useAppStore } from './app.slice';
+export { useCryptoStore } from './crypto.slice';
 
 export function getChannelDisplayName(
 	ch: Channel,

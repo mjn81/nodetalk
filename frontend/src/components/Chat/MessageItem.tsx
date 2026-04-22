@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
+import { useAuthStore } from '@/store/store';
 import { Avatar } from '../Avatar';
 import { Play, Pause } from 'lucide-react';
 import { type Message, type Channel } from '@/types/api';
@@ -12,9 +13,47 @@ interface MessageItemProps {
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({ msg, channel, grouped, formatTime }) => {
+	const user = useAuthStore((state) => state.user);
+	
+	const isMentioned = useMemo(() => {
+		if (!user || !msg.text) return false;
+		// Simple check for @username. In a real app we might use regex for boundaries.
+		return msg.text.includes(`@${user.username}`);
+	}, [user, msg.text]);
+
+	const renderText = (text: string) => {
+		if (!text) return text;
+		const parts = text.split(/(@\w+)/g);
+		return parts.map((part, i) => {
+			if (part.startsWith('@')) {
+				const username = part.substring(1);
+				const isMe = user?.username === username;
+				return (
+					<span 
+						key={i} 
+						className={`rounded-[3px] px-[2px] font-medium transition-colors cursor-pointer ${
+							isMe 
+								? 'bg-[#5865f24d] text-[#e0e1e5] hover:bg-[#5865f2]' 
+								: 'text-[#00aff4] hover:underline'
+						}`}
+					>
+						{part}
+					</span>
+				);
+			}
+			return part;
+		});
+	};
+
 	return (
 		<div
-			className={`group flex mb-0.5 hover:bg-[#2e3035] -mx-4 px-4 py-0.5 ${!grouped ? 'mt-4' : ''}`}
+			className={`group flex mb-0.5 -mx-4 px-4 py-0.5 transition-colors ${
+				!grouped ? 'mt-4' : ''
+			} ${
+				isMentioned 
+					? 'bg-[#392c1c] border-l-2 border-[#f0b132] hover:bg-[#40321f]' 
+					: 'hover:bg-[#2e3035] border-l-2 border-transparent'
+			}`}
 		>
 			<div className="flex shrink-0 w-[55px] pt-1">
 				{!grouped ? (
@@ -38,7 +77,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ msg, channel, grouped,
 				)}
 				{msg.type === 'text' && (
 					<div className="text-[15px] text-[#dbdee1] leading-[22px] whitespace-pre-wrap break-words" dir="auto">
-						{msg.text ?? '[encrypted]'}
+						{msg.text ? renderText(msg.text) : '[encrypted]'}
 					</div>
 				)}
 				{msg.type === 'voice' && <VoiceBubble msg={msg} />}

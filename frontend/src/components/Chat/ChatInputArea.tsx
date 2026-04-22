@@ -1,5 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Plus, X, FileIcon, Loader2, Smile, SendHorizontal, Lock } from 'lucide-react';
+import { Plus, X, FileIcon, Loader2, Smile, SendHorizontal, Lock, AtSign } from 'lucide-react';
+import { useAuthStore, getChannelDisplayName } from '@/store/store';
+import { apiGetChannelMembers } from '@/api/client';
+import { Avatar } from '../Avatar';
 import EmojiPicker from '../EmojiPicker';
 import VoiceRecorder from '../VoiceRecorder';
 import type { Channel } from '@/types/api';
@@ -14,6 +17,7 @@ interface ChatInputAreaProps {
 }
 
 export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKey }) => {
+	const user = useAuthStore((state) => state.user);
 	const [inputText, setInputText] = useState('');
 	const [sending, setSending] = useState(false);
 	const [showEmoji, setShowEmoji] = useState(false);
@@ -24,6 +28,11 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 		status: 'idle' | 'encrypting' | 'uploading' | 'done'; 
 		progress: number 
 	}[]>([]);
+
+	const [members, setMembers] = useState<{ id: string; username: string }[]>([]);
+	const [mentionSearch, setMentionSearch] = useState<string | null>(null);
+	const [mentionPopupOpen, setMentionPopupOpen] = useState(false);
+	const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
 	
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -84,7 +93,57 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 		}
 	}, [inputText, files, sending, channel.id, channelKey]);
 
+	const insertMention = useCallback((username: string) => {
+		const cursor = inputRef.current?.selectionStart || 0;
+		const textBeforeCursor = inputText.substring(0, cursor);
+		const textAfterCursor = inputText.substring(cursor);
+		const lastAt = textBeforeCursor.lastIndexOf('@');
+		
+		const newText = textBeforeCursor.substring(0, lastAt) + '@' + username + ' ' + textAfterCursor;
+		setInputText(newText);
+		setMentionPopupOpen(false);
+		setMentionSearch(null);
+		
+		// Focus back and set cursor
+		setTimeout(() => {
+			if (inputRef.current) {
+				const newPos = lastAt + username.length + 2;
+				inputRef.current.focus();
+				inputRef.current.setSelectionRange(newPos, newPos);
+			}
+		}, 0);
+	}, [inputText]);
+
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		if (mentionPopupOpen) {
+			const filtered = members.filter(m => 
+				m.username.toLowerCase().includes(mentionSearch?.toLowerCase() || '')
+			);
+
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				setSelectedMentionIndex(prev => (prev + 1) % filtered.length);
+				return;
+			}
+			if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				setSelectedMentionIndex(prev => (prev - 1 + filtered.length) % filtered.length);
+				return;
+			}
+			if (e.key === 'Enter' || e.key === 'Tab') {
+				if (filtered[selectedMentionIndex]) {
+					e.preventDefault();
+					insertMention(filtered[selectedMentionIndex].username);
+					return;
+				}
+			}
+			if (e.key === 'Escape') {
+				e.preventDefault();
+				setMentionPopupOpen(false);
+				return;
+			}
+		}
+
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			handleSend();
@@ -98,10 +157,47 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 	};
 
 	const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-		setInputText(e.target.value);
+		const value = e.target.value;
+		setInputText(value);
 		e.target.style.height = 'auto';
 		e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px';
+
+		// Mention logic
+		const cursor = e.target.selectionStart;
+		const textBeforeCursor = value.substring(0, cursor);
+		const lastAt = textBeforeCursor.lastIndexOf('@');
+
+		if (lastAt !== -1) {
+			const query = textBeforeCursor.substring(lastAt + 1);
+			// Only trigger if @ is at start or preceded by space
+			if (lastAt === 0 || textBeforeCursor[lastAt - 1] === ' ') {
+				if (!query.includes(' ')) {
+					setMentionSearch(query);
+					setMentionPopupOpen(true);
+					setSelectedMentionIndex(0);
+					return;
+				}
+			}
+		}
+		setMentionPopupOpen(false);
+		setMentionSearch(null);
 	};
+
+	useEffect(() => {
+		if (channel.id) {
+			apiGetChannelMembers(channel.id).then(setMembers).catch(console.error);
+		}
+	}, [channel.id]);
+
+	useEffect(() => {
+		const handleClickOutside = (e: MouseEvent) => {
+			if (mentionPopupOpen && !inputRef.current?.contains(e.target as Node)) {
+				setMentionPopupOpen(false);
+			}
+		};
+		window.addEventListener('mousedown', handleClickOutside);
+		return () => window.removeEventListener('mousedown', handleClickOutside);
+	}, [mentionPopupOpen]);
 
 	useEffect(() => {
 		const onDragOver = (e: DragEvent) => {
@@ -141,9 +237,9 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 		]);
 	};
 
-	const removeFile = (id: string) => {
-		setFiles(prev => prev.filter(f => f.id !== id));
-	};
+	const isDirect = channel.members.length === 2 && (!channel.name || channel.name.trim() === '');
+	const displayName = getChannelDisplayName(channel, user?.user_id || '');
+	const prefix = isDirect ? '@' : '#';
 
 	return (
 		<div className="px-4 pb-6 pt-2 shrink-0 relative">
@@ -152,7 +248,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 				<div className="fixed inset-0 bg-[#4752c4]/20 border-4 border-dashed border-[#4752c4] z-[999] flex items-center justify-center backdrop-blur-sm pointer-events-none transition-all animate-in fade-in duration-200">
 					<div className="bg-[#313338] p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-2 border border-[#4752c4]/30">
 						<Plus size={48} className="text-[#4752c4]" />
-						<span className="text-white font-bold text-xl">Upload to #{channel.name}</span>
+						<span className="text-white font-bold text-xl">Upload to {prefix}{displayName}</span>
 					</div>
 				</div>
 			)}
@@ -223,7 +319,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 					<textarea
 						ref={inputRef}
 						className="flex-1 bg-transparent border-none outline-none text-[#dbdee1] text-[15px] leading-6 resize-none min-h-[24px] max-h-[140px] placeholder-[#80848e] py-0 shadow-none ring-0 focus:ring-0"
-						placeholder={`Message #${channel.name}`}
+						placeholder={`Message ${prefix}${displayName}`}
 						value={inputText}
 						onChange={handleInput}
 						onKeyDown={handleKeyDown}
@@ -253,6 +349,38 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({ channel, channelKe
 					</div>
 				</div>
 			</div>
+
+			{/* Mention Popup */}
+			{mentionPopupOpen && (
+				<div className="absolute bottom-full left-4 mb-2 w-64 bg-[#232428] rounded-lg shadow-2xl border border-[#1e1f22] overflow-hidden z-[100] animate-in slide-in-from-bottom-2 duration-150">
+					<div className="p-2 border-b border-[#1e1f22] flex items-center gap-2 text-[#949ba4] text-xs font-bold uppercase tracking-wider">
+						<AtSign size={14} />
+						Members matching "{mentionSearch}"
+					</div>
+					<div className="max-h-60 overflow-y-auto py-1">
+						{members
+							.filter(m => m.username.toLowerCase().includes(mentionSearch?.toLowerCase() || ''))
+							.map((m, i) => (
+								<button
+									key={m.id}
+									onClick={() => insertMention(m.username)}
+									onMouseEnter={() => setSelectedMentionIndex(i)}
+									className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
+										i === selectedMentionIndex ? 'bg-[#4752c4] text-white' : 'text-[#dbdee1] hover:bg-[#35373c]'
+									}`}
+								>
+									<Avatar userId={m.id} size={24} />
+									<span className="font-medium">{m.username}</span>
+								</button>
+							))}
+						{members.filter(m => m.username.toLowerCase().includes(mentionSearch?.toLowerCase() || '')).length === 0 && (
+							<div className="px-4 py-3 text-[#949ba4] text-sm italic">
+								No members found
+							</div>
+						)}
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };
