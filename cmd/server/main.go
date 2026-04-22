@@ -98,6 +98,7 @@ func main() {
 		TokenTTL:  tokenTTL,
 	}
 	hub := ws.NewHub(dataStore, sessions, kek)
+	apiHandler.Hub = hub
 
 	rootMux := http.NewServeMux()
 	rootMux.Handle("/ws", hub)

@@ -187,6 +187,32 @@ func (h *Hub) unregister(c *Client) {
 }
 
 // broadcastPresence notifies all connected clients of a user's status change.
+func (h *Hub) BroadcastChannelCreated(ch *models.Channel) {
+	rawKey, err := h.store.DecryptChannelKey(ch, h.kek)
+	if err != nil {
+		log.Printf("ws: cannot decrypt key for new channel %s: %v", ch.ID, err)
+		return
+	}
+	payload, _ := json.Marshal(map[string]any{
+		"channel_id": ch.ID,
+		"aes_key":    rawKey,
+	})
+	msg := &models.WSMessage{Type: "channel_key", Payload: payload}
+	env := &envelope{msg: msg}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for _, memberID := range ch.Members {
+		if c, ok := h.clients[memberID]; ok {
+			select {
+			case c.send <- env:
+			default:
+			}
+		}
+	}
+}
+
+// broadcastPresence notifies all connected clients of a user's status change.
 func (h *Hub) broadcastPresence(userID, status string) {
 	payload, _ := json.Marshal(map[string]string{
 		"user_id": userID,

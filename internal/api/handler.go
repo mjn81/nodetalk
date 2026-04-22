@@ -21,13 +21,18 @@ import (
 	"github.com/google/uuid"
 )
 
+type ChannelBroadcaster interface {
+	BroadcastChannelCreated(ch *models.Channel)
+}
+
 // Handler bundles all HTTP handler dependencies.
 type Handler struct {
-	Store     *store.Store
-	Sessions  *auth.SessionStore
-	KEK       []byte
-	UploadDir string
-	TokenTTL  time.Duration
+	Store       *store.Store
+	Sessions    *auth.SessionStore
+	Hub         ChannelBroadcaster
+	KEK         []byte
+	UploadDir   string
+	TokenTTL    time.Duration
 }
 
 // NewRouter wires the full HTTP API with rate limiting.
@@ -393,6 +398,11 @@ func (h *Handler) CreateChannel(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "channel creation failed")
 		return
+	}
+
+	// Notify all members via WebSocket
+	if h.Hub != nil {
+		h.Hub.BroadcastChannelCreated(ch)
 	}
 
 	writeJSON(w, http.StatusCreated, h.toChannelResponse(ch))

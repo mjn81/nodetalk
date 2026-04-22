@@ -79,9 +79,9 @@ func (a *App) Startup(ctx context.Context) {
 	}()
 
 	tokenTTL := time.Duration(cfg.Security.TokenExpireHours) * time.Hour
-	a.store    = store.New(database)
+	a.store = store.New(database)
 	a.sessions = auth.NewSessionStore(tokenTTL)
-	a.hub      = ws.NewHub(a.store, a.sessions, a.kek)
+	a.hub = ws.NewHub(a.store, a.sessions, a.kek)
 
 	// ── HTTP server on random available port ───────────────────────────────
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -94,6 +94,7 @@ func (a *App) Startup(ctx context.Context) {
 	apiHandler := &api.Handler{
 		Store:     a.store,
 		Sessions:  a.sessions,
+		Hub:       a.hub,
 		KEK:       a.kek,
 		UploadDir: "./data/uploads",
 		TokenTTL:  tokenTTL,
