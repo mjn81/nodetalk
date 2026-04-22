@@ -24,6 +24,7 @@ import (
 type ChannelBroadcaster interface {
 	BroadcastChannelCreated(ch *models.Channel)
 	BroadcastMemberJoined(channelID string, userID string)
+	SendChannelKey(channelID, userID string)
 }
 
 // Handler bundles all HTTP handler dependencies.

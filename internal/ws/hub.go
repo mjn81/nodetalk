@@ -217,6 +217,36 @@ func (h *Hub) BroadcastChannelCreated(ch *models.Channel) {
 	}
 }
 
+// SendChannelKey pushes a specific channel's AES key to a specific user.
+func (h *Hub) SendChannelKey(channelID, userID string) {
+	ch, err := h.store.GetChannel(channelID)
+	if err != nil {
+		return
+	}
+
+	rawKey, err := h.store.DecryptChannelKey(ch, h.kek)
+	if err != nil {
+		log.Printf("ws: cannot decrypt key for channel %s: %v", channelID, err)
+		return
+	}
+
+	payload, _ := json.Marshal(map[string]any{
+		"channel_id": ch.ID,
+		"aes_key":    rawKey,
+	})
+	msg := &models.WSMessage{Type: "channel_key", Payload: payload}
+	env := &envelope{msg: msg}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if c, ok := h.clients[userID]; ok {
+		select {
+		case c.send <- env:
+		default:
+		}
+	}
+}
+
 // broadcastPresence notifies all connected clients of a user's status change.
 func (h *Hub) broadcastPresence(userID, status string) {
 	payload, _ := json.Marshal(map[string]string{
@@ -236,7 +266,8 @@ func (h *Hub) broadcastPresence(userID, status string) {
 	h.mu.RUnlock()
 }
 
-// BroadcastMemberJoined notifies channel members that a new user has joined.
+// BroadcastMemberJoined notifies channel members that a new user has joined,
+// and ensures the new member receives the channel's AES key.
 func (h *Hub) BroadcastMemberJoined(channelID string, userID string) {
 	payload, _ := json.Marshal(map[string]any{
 		"channel_id": channelID,
@@ -245,6 +276,9 @@ func (h *Hub) BroadcastMemberJoined(channelID string, userID string) {
 	})
 	msg := &models.WSMessage{Type: "channel_update", Payload: payload}
 	h.broadcast <- &envelope{channelID: channelID, msg: msg}
+
+	// Also send the AES key to the joining user immediately.
+	h.SendChannelKey(channelID, userID)
 }
 
 // ---- Client Methods -------------------------------------------------------- //
