@@ -26,7 +26,16 @@ export const useChannelStore = create<ChannelSlice>((set,) => ({
 
 		try {
 			const list = await apiListChannels();
-			set({ channels: list });
+			set((state) => {
+				const active = state.activeChannel;
+				let nextActive = active;
+				if (active) {
+					// Update the active channel object to reflect new members/metadata
+					const updated = list.find((c) => c.id === active.id);
+					if (updated) nextActive = updated;
+				}
+				return { channels: list, activeChannel: nextActive };
+			});
 		} finally {
 			set({ isChannelsLoading: false });
 		}

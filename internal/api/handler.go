@@ -565,6 +565,13 @@ func (h *Handler) JoinChannel(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to join channel")
 		return
 	}
+
+	// Broadcast updated channel state (including new member and key) to all members
+	updated, err := h.Store.GetChannel(ch.ID)
+	if err == nil && h.Hub != nil {
+		h.Hub.BroadcastChannelCreated(updated)
+	}
+
 	writeJSON(w, http.StatusOK, StatusResponse{Status: "joined"})
 }
 

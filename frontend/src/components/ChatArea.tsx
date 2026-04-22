@@ -7,7 +7,7 @@ import { onWS, wsSendMessage, decryptMessage } from '@/ws';
 import { Avatar } from './Avatar';
 import EmojiPicker from './EmojiPicker';
 import VoiceRecorder from './VoiceRecorder';
-import { Search, Users as UsersIcon, Smile, SendHorizontal, Play, Pause } from 'lucide-react';
+import { Search, SlidersHorizontal, Smile, SendHorizontal, Play, Pause } from 'lucide-react';
 
 import { getChannelDisplayName, useAuthStore } from '@/store/store';
 
@@ -175,7 +175,7 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 							{getChannelDisplayName(channel, user?.user_id ?? '')}
 						</div>
 						<div className="text-[13px] text-[#949ba4] leading-tight">
-							{channel.members.length === 2
+							{channel.members.length === 2 && (!channel.name || channel.name.trim() === '')
 								? 'Direct Message'
 								: `${channel.members.length} members`}
 						</div>
@@ -185,8 +185,8 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 					<button className="hover:text-[#dbdee1] transition" title="Search">
 						<Search size={22} className="opacity-80 hover:opacity-100" />
 					</button>
-					<button className="hover:text-[#dbdee1] transition" title="Members">
-						<UsersIcon size={22} className="opacity-80 hover:opacity-100" />
+					<button className="hover:text-[#dbdee1] transition" title="Settings">
+						<SlidersHorizontal size={22} className="opacity-80 hover:opacity-100" />
 					</button>
 				</div>
 			</div>
