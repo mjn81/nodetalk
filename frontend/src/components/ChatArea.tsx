@@ -80,7 +80,6 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 
 			<ChatInputArea 
 				channel={channel} 
-				currentUser={user} 
 				channelKey={channelKey ?? new Uint8Array(32)} // Fallback in case key isn't loaded
 			/>
 		</div>

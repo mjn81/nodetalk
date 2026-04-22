@@ -24,6 +24,7 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
 	const [meta, setMeta] = useState<FileMetadata | null>(null);
 	const [thumbUrl, setThumbUrl] = useState<string | null>(null);
 	const [isDecrypting, setIsDecrypting] = useState(false);
+	const [progress, setProgress] = useState(0);
     const [fullUrl, setFullUrl] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
@@ -62,7 +63,7 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
 					setThumbUrl(currentThumbUrl);
 				}
 			} catch (err) {
-				console.error('FileBubble decryption error:', err);
+				console.error('FileBubble error:', err);
 				setError('Failed to load file preview');
 			}
 		};
@@ -87,10 +88,15 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
 		const key = getChannelKey(msg.channel_id);
 		if (!meta || !key || isDecrypting) return;
 		setIsDecrypting(true);
+		setProgress(0);
 		setError(null);
 
 		try {
-			const encryptedBuffer = await apiGetFile(meta.file_id);
+			const encryptedBuffer = await apiGetFile(meta.file_id, (pe) => {
+				const pct = Math.round((pe.loaded * 100) / pe.total);
+				setProgress(pct);
+			});
+			
 			const decrypted = await decryptAndDecompressFile(
 				new Uint8Array(encryptedBuffer),
 				base64ToBytes(meta.nonce),
@@ -111,19 +117,24 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
 			setError('Download failed');
 		} finally {
 			setIsDecrypting(false);
+			setProgress(0);
 		}
 	};
 
     const handleFullscreen = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (fullUrl) return; // Already loaded
+        if (fullUrl) return;
 
         const key = getChannelKey(msg.channel_id);
 		if (!meta || !key || isDecrypting) return;
 		setIsDecrypting(true);
+		setProgress(0);
 
         try {
-            const encryptedBuffer = await apiGetFile(meta.file_id);
+            const encryptedBuffer = await apiGetFile(meta.file_id, (pe) => {
+				const pct = Math.round((pe.loaded * 100) / pe.total);
+				setProgress(pct);
+			});
 			const decrypted = await decryptAndDecompressFile(
 				new Uint8Array(encryptedBuffer),
 				base64ToBytes(meta.nonce),
@@ -133,18 +144,18 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
 			const url = URL.createObjectURL(blob);
             setFullUrl(url);
         } catch (err) {
-            console.error('Fullscreen load error:', err);
-            setError('Failed to load full image');
+            console.error('Fullscreen error:', err);
+            setError('Failed to load full content');
         } finally {
             setIsDecrypting(false);
+			setProgress(0);
         }
     };
 
 	if (!meta) {
 		return (
-			<div className="mt-2 flex items-center gap-2 p-3 bg-[#2b2d31] border border-[#1e1f22] rounded-md animate-pulse max-w-[200px]">
-				<Loader2 size={16} className="animate-spin text-[#949ba4]" />
-				<span className="text-sm text-[#949ba4]">Decrypting...</span>
+			<div className="mt-2 flex items-center gap-2 text-[#949ba4] text-sm animate-pulse italic">
+				<Loader2 size={14} className="animate-spin" /> Decrypting metadata...
 			</div>
 		);
 	}
@@ -158,7 +169,7 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
 		<div className="mt-2 group/bubble max-w-[400px]">
 			{hasPreview ? (
 				<div 
-					className="relative rounded-lg overflow-hidden bg-[#2b2d31] border border-[#1e1f22] transition group"
+					className="relative rounded-lg overflow-hidden bg-[#2b2d31] border border-[#1e1f22] cursor-pointer hover:border-[#4752c4] transition group"
 				>
 					{thumbUrl ? (
 						<img 
@@ -169,77 +180,79 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
 					) : (
 						<div className="w-full h-[200px] flex flex-col items-center justify-center text-[#949ba4] gap-2 bg-[#232428]">
 							{isVideo ? <Film size={48} /> : <ImageIcon size={48} />}
-							<span className="text-xs uppercase font-bold tracking-wider opacity-50">
-								{isDecrypting ? 'Decrypting...' : 'View Preview'}
-							</span>
 						</div>
 					)}
 					
-					{/* Overlay Actions */}
-					<div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-4">
-                        <Dialog.Root onOpenChange={(open) => { if (open) handleFullscreen(({ stopPropagation: () => {} } as any)) }}>
-                            <Dialog.Trigger asChild>
-                                <button className="bg-[#313338] p-3 rounded-full shadow-2xl hover:scale-110 transition cursor-pointer text-white">
-                                    <Expand size={24} />
-                                </button>
-                            </Dialog.Trigger>
-                            <Dialog.Portal>
-                                <Dialog.Overlay className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] animate-in fade-in duration-200" />
-                                <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-screen h-screen flex flex-col items-center justify-center p-10 focus:outline-none">
-                                    <Dialog.Close asChild>
-                                        <button className="absolute top-6 right-6 text-white/50 hover:text-white transition p-2 bg-white/10 rounded-full z-[102]">
-                                            <X size={32} />
-                                        </button>
-                                    </Dialog.Close>
-                                    
-                                    <div className="relative w-full h-full flex flex-col items-center justify-center">
-                                        {fullUrl ? (
-                                            isImage ? (
-                                                <img src={fullUrl} className="max-w-full max-h-full object-contain shadow-2xl" alt="fullscreen" />
-                                            ) : (
-                                                <video src={fullUrl} controls autoPlay className="max-w-full max-h-full" />
-                                            )
-                                        ) : (
-                                            <div className="flex flex-col items-center gap-4">
-                                                <Loader2 size={48} className="text-white animate-spin" />
-                                                <span className="text-white text-lg font-medium">Decrypting Full Content...</span>
-                                            </div>
-                                        )}
-                                        
-                                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/60 px-6 py-3 rounded-full border border-white/10">
-                                            <div className="flex flex-col">
-                                                <span className="text-white font-medium text-sm truncate max-w-[200px]">{meta.name || 'File'}</span>
-                                                <span className="text-white/50 text-xs uppercase">{(meta.size/1024).toFixed(1)} KB</span>
-                                            </div>
-                                            <div className="w-[1px] h-6 bg-white/20" />
-                                            <button 
-                                                onClick={handleDownload}
-                                                className="flex items-center gap-2 text-white bg-[#5865f2] hover:bg-[#4752c4] px-4 py-2 rounded-md font-bold transition text-sm"
-                                            >
-                                                <Download size={18} /> Download
-                                            </button>
-                                        </div>
-                                    </div>
-                                </Dialog.Content>
-                            </Dialog.Portal>
-                        </Dialog.Root>
+					{/* Progress bar overlay for images */}
+					{isDecrypting && (
+						<div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-4">
+							<Loader2 size={24} className="text-white animate-spin mb-2" />
+							<div className="w-full bg-white/20 h-1 rounded-full overflow-hidden">
+								<div className="bg-[#4752c4] h-full transition-all" style={{ width: `${progress}%` }} />
+							</div>
+						</div>
+					)}
 
-						<button 
-                            onClick={handleDownload}
-                            className="bg-[#313338] p-3 rounded-full shadow-2xl hover:scale-110 transition cursor-pointer text-white"
-                        >
-							<Download size={24} />
-						</button>
-					</div>
+					{/* Overlay Actions */}
+					{!isDecrypting && (
+						<div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-4">
+							<Dialog.Root onOpenChange={(open) => { if (open) handleFullscreen(({ stopPropagation: () => {} } as any)) }}>
+								<Dialog.Trigger asChild>
+									<button className="bg-[#313338] p-3 rounded-full shadow-2xl hover:scale-110 transition cursor-pointer text-white">
+										<Expand size={24} />
+									</button>
+								</Dialog.Trigger>
+								<Dialog.Portal>
+									<Dialog.Overlay className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100]" />
+									<Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-screen h-screen flex flex-col items-center justify-center p-10 focus:outline-none">
+										<Dialog.Close asChild>
+											<button className="absolute top-6 right-6 text-white/50 hover:text-white transition p-2 bg-white/10 rounded-full">
+												<X size={32} />
+											</button>
+										</Dialog.Close>
+										
+										<div className="relative w-full h-full flex flex-col items-center justify-center">
+											{fullUrl ? (
+												isImage ? (
+													<img src={fullUrl} className="max-w-full max-h-full object-contain" alt="fullscreen" />
+												) : (
+													<video src={fullUrl} controls autoPlay className="max-w-full max-h-full" />
+												)
+											) : (
+												<div className="flex flex-col items-center gap-4">
+													<Loader2 size={48} className="text-[#4752c4] animate-spin" />
+													<div className="w-48 bg-white/20 h-1 rounded-full">
+														<div className="bg-[#4752c4] h-full" style={{ width: `${progress}%` }} />
+													</div>
+												</div>
+											)}
+											<div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/60 px-6 py-3 rounded-full border border-white/10 backdrop-blur-md">
+												<div className="text-white text-sm font-medium">
+													{meta.name || 'File'} • {(meta.size/1024).toFixed(1)} KB
+												</div>
+												<button onClick={handleDownload} className="text-white bg-[#5865f2] hover:bg-[#4752c4] px-4 py-1.5 rounded font-bold transition flex items-center gap-2">
+													<Download size={18} /> Download
+												</button>
+											</div>
+										</div>
+									</Dialog.Content>
+								</Dialog.Portal>
+							</Dialog.Root>
+
+							<button onClick={handleDownload} className="bg-[#313338] p-3 rounded-full shadow-2xl hover:scale-110 transition cursor-pointer text-white">
+								<Download size={24} />
+							</button>
+						</div>
+					)}
 				</div>
 			) : (
-				/* File Info Card (Generic) */
+				/* File Info Card - Reverted Style */
 				<div 
-                    className="flex items-center gap-4 bg-[#2b2d31] border border-[#1e1f22] rounded-md p-3 w-full hover:bg-[#313338] transition cursor-pointer group" 
+                    className="relative flex items-center gap-4 bg-[#2b2d31] border border-[#1e1f22] rounded-md p-3 w-full hover:bg-[#313338] transition cursor-pointer group" 
                     onClick={() => handleDownload()}
                 >
 					<div className="w-10 h-10 bg-[#313338] rounded flex items-center justify-center text-[#949ba4] shrink-0">
-						{isDecrypting ? <Loader2 size={20} className="animate-spin" /> : <FileIcon size={20} />}
+						{isDecrypting ? <Loader2 size={20} className="animate-spin text-[#4752c4]" /> : <FileIcon size={20} />}
 					</div>
 					<div className="flex flex-col min-w-0 flex-1">
 						<span className="text-[14px] text-white font-medium truncate">
@@ -249,13 +262,20 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
 							{(meta.size / 1024).toFixed(1)} KB • {meta.mime.split('/')[1]?.toUpperCase() || 'FILE'}
 						</span>
 					</div>
-					<button className="text-[#dbdee1] hover:text-[#5865f2] transition p-2 bg-[#1e1f22] rounded-full opacity-0 group-hover:opacity-100 shadow-lg translate-x-2 group-hover:translate-x-0 transition-all">
+					<button className="text-[#dbdee1] hover:text-white transition p-1">
 						<Download size={20} />
 					</button>
+
+					{/* Tiny progress bar for card */}
+					{isDecrypting && (
+						<div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#4752c4]/20 rounded-b-md">
+							<div className="h-full bg-[#4752c4] transition-all" style={{ width: `${progress}%` }} />
+						</div>
+					)}
 				</div>
 			)}
 
-			{error && <div className="text-[#f23f43] text-xs mt-1 bg-[#f23f43]/10 px-2 py-1 rounded border border-[#f23f43]/20">{error}</div>}
+			{error && <div className="text-[#f23f43] text-xs mt-1">{error}</div>}
 		</div>
 	);
 };

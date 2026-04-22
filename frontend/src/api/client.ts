@@ -192,6 +192,7 @@ export async function apiUploadFile(
 	mimeType: string,
 	thumbCipher?: string,
 	thumbNonce?: string,
+	onUploadProgress?: (progressEvent: any) => void
 ) {
 	const formData = new FormData();
 	formData.append('file', file, `upload.${mimeType.split('/')[1] ?? 'bin'}`);
@@ -202,6 +203,7 @@ export async function apiUploadFile(
 		headers: {
 			'Content-Type': 'multipart/form-data',
 		},
+		onUploadProgress
 	});
 }
 
@@ -209,9 +211,10 @@ export function apiGetFileUrl(fileId: string) {
 	return `${BASE_URL}/api/files/${fileId}`;
 }
 
-export async function apiGetFile(fileId: string): Promise<ArrayBuffer> {
+export async function apiGetFile(fileId: string, onDownloadProgress?: (progressEvent: any) => void): Promise<ArrayBuffer> {
 	return apiClient.get(`/api/files/${fileId}`, {
 		responseType: 'arraybuffer',
+		onDownloadProgress,
 	}) as Promise<ArrayBuffer>;
 }
 
