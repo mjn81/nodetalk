@@ -67,6 +67,7 @@ type UpdateUserRequest struct {
 	OldPassword string  `json:"old_password,omitempty"`
 	AvatarID    *string `json:"avatar_id,omitempty"`
 	CustomMsg   *string `json:"custom_msg,omitempty"`
+	Status      *string `json:"status,omitempty"`
 }
 
 type ErrorResponse struct {

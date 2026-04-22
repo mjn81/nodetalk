@@ -15,6 +15,7 @@ import (
 type ChannelBroadcaster interface {
 	BroadcastChannelCreated(ch *models.Channel)
 	BroadcastMemberJoined(channelID string, userID string)
+	BroadcastPresence(userID string, status string)
 	SendChannelKey(channelID, userID string)
 }
 

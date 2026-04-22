@@ -16,7 +16,7 @@ export interface AuthSlice {
 	login: (u: string, p: string) => Promise<void>;
 	register: (u: string, p: string) => Promise<void>;
 	logout: () => Promise<void>;
-	updateUser: (data: { avatar_id?: string; username?: string; custom_msg?: string; password?: string; old_password?: string }) => Promise<void>;
+	updateUser: (data: { avatar_id?: string; username?: string; custom_msg?: string; status?: string; password?: string; old_password?: string }) => Promise<void>;
 	deleteAccount: () => Promise<void>;
 }
 

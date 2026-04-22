@@ -122,6 +122,15 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if body.CustomMsg != nil {
 		u.CustomMsg = *body.CustomMsg
 	}
+	if body.Status != nil {
+		u.Status = *body.Status
+		// Update presence in store
+		_ = h.Store.SetPresence(u.ID, u.Status)
+		// Broadcast to all clients
+		if h.Hub != nil {
+			h.Hub.BroadcastPresence(u.ID, u.Status)
+		}
+	}
 
 	if err := h.Store.UpdateUser(u); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update profile")

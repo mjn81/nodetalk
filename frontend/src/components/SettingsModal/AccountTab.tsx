@@ -218,6 +218,37 @@ export const AccountTab = () => {
 							</Button>
 						</div>
 
+						{/* Online Status */}
+						<div className="pt-4 border-t border-border/30 mb-4">
+							<div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
+								Online Status
+							</div>
+							<div className="flex gap-2">
+								{[
+									{ id: 'online', color: 'bg-green-500', label: 'Online' },
+									{ id: 'away', color: 'bg-yellow-500', label: 'Idle' },
+									{ id: 'dnd', color: 'bg-red-500', label: 'Do Not Disturb' },
+									{ id: 'offline', color: 'bg-gray-500', label: 'Invisible' },
+								].map((s) => (
+									<button
+										key={s.id}
+										onClick={() => updateUser({ status: s.id })}
+										className={`group relative flex items-center justify-center w-8 h-8 rounded-md transition-all ${
+											user?.status === s.id
+												? 'bg-primary/20 ring-1 ring-primary'
+												: 'bg-secondary/40 hover:bg-secondary/60'
+										}`}
+										title={s.label}
+									>
+										<div className={`w-3 h-3 rounded-full ${s.color}`} />
+										<div className="absolute bottom-full mb-2 px-2 py-1 bg-popover text-popover-foreground text-[10px] rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-xl border border-border">
+											{s.label}
+										</div>
+									</button>
+								))}
+							</div>
+						</div>
+
 						{/* Custom Status / Bio */}
 						<div className="pt-4 border-t border-border/30">
 							<div className="flex items-center justify-between mb-2">

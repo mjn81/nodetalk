@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MessageSquare, Hash, Search, Lock, Globe } from 'lucide-react';
 import { Avatar as MinidenticonAvatar } from '@/components/Avatar';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface NewChannelModalProps {
 	initialTab?: 'dm' | 'channel';
@@ -44,7 +43,10 @@ export default function NewChannelModal({
 		return () => clearTimeout(handler);
 	}, [searchQuery]);
 
-	const { data: searchResults = [], isFetching: isSearching } = useUserSearch(debouncedQuery, user?.username);
+	const { data: searchResults = [], isFetching: isSearching } = useUserSearch(
+		debouncedQuery,
+		user?.username,
+	);
 
 	const [error, setError] = useState('');
 	const [loading, setLoading] = useState(false);
@@ -141,10 +143,10 @@ export default function NewChannelModal({
 													onClick={() => handleCreateDM(u.id)}
 													className="flex items-center gap-3 px-3 py-2 hover:bg-[#3f4147] cursor-pointer transition-colors"
 												>
-													<MinidenticonAvatar 
-														userId={u.id} 
-														avatarId={u.avatar_id} 
-														size={32} 
+													<MinidenticonAvatar
+														userId={u.id}
+														avatarId={u.avatar_id}
+														size={32}
 													/>
 													<div className="flex flex-col flex-1">
 														<span className="text-sm font-bold text-white">
@@ -187,34 +189,40 @@ export default function NewChannelModal({
 								</div>
 
 								<div className="bg-[#2b2d31] rounded-md overflow-hidden">
-									<div 
+									<div
 										className="flex items-center justify-between p-3 cursor-pointer hover:bg-[#35373c] transition-colors"
 										onClick={() => setIsPrivate(!isPrivate)}
 									>
 										<div className="flex items-center gap-3">
-											{isPrivate ? <Lock size={20} className="text-[#f23f42]" /> : <Globe size={20} className="text-[#23a559]" />}
+											{isPrivate ? (
+												<Lock size={20} className="text-[#f23f42]" />
+											) : (
+												<Globe size={20} className="text-[#23a559]" />
+											)}
 											<div className="flex flex-col">
 												<span className="text-sm font-bold text-white">
 													{isPrivate ? 'Private Channel' : 'Public Channel'}
 												</span>
 												<span className="text-xs text-[#949ba4]">
-													{isPrivate 
-														? 'Only invited members can find and join.' 
-														: 'Anyone can find and join this channel.'
-													}
+													{isPrivate
+														? 'Only invited members can find and join.'
+														: 'Anyone can find and join this channel.'}
 												</span>
 											</div>
 										</div>
-										<div className={`w-10 h-5 rounded-full relative transition-colors ${isPrivate ? 'bg-[#5865F2]' : 'bg-[#4e5058]'}`}>
-											<div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isPrivate ? 'right-1' : 'left-1'}`} />
+										<div
+											className={`w-10 h-5 rounded-full relative transition-colors ${isPrivate ? 'bg-[#5865F2]' : 'bg-[#4e5058]'}`}
+										>
+											<div
+												className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isPrivate ? 'right-1' : 'left-1'}`}
+											/>
 										</div>
 									</div>
 									<div className="px-3 pb-3">
 										<p className="text-[11px] text-[#949ba4] bg-[#1e1f22] p-2 rounded italic">
-											{isPrivate 
-												? 'Note: This channel will not appear in the discoverable "Explore" list.' 
-												: 'Note: This channel will be visible to everyone on the server via search.'
-											}
+											{isPrivate
+												? 'Note: This channel will not appear in the discoverable "Explore" list.'
+												: 'Note: This channel will be visible to everyone on the server via search.'}
 										</p>
 									</div>
 								</div>

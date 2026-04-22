@@ -298,7 +298,12 @@ export default function LeftSidebar() {
 									size={32}
 									className="shrink-0"
 								/>
-								<div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-[2px] border-[#232428] z-10" />
+								<div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-[2px] border-[#232428] z-10 ${
+									user?.status === 'online' ? 'bg-green-500' :
+									user?.status === 'away' ? 'bg-yellow-500' :
+									user?.status === 'dnd' ? 'bg-red-500' :
+									'bg-gray-500'
+								}`} />
 							</div>
 							<div className="flex flex-col flex-1 min-w-0 leading-tight">
 								<span className="text-[13px] font-bold text-white truncate">

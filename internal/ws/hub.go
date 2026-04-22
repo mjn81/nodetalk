@@ -162,7 +162,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = h.store.SetPresence(session.UserID, "offline")
-	h.broadcastPresence(session.UserID, "offline")
+	h.BroadcastPresence(session.UserID, "offline")
 	conn.Close(websocket.StatusNormalClosure, "goodbye")
 }
 
@@ -247,8 +247,8 @@ func (h *Hub) SendChannelKey(channelID, userID string) {
 	}
 }
 
-// broadcastPresence notifies all connected clients of a user's status change.
-func (h *Hub) broadcastPresence(userID, status string) {
+// BroadcastPresence notifies all connected clients of a user's status change.
+func (h *Hub) BroadcastPresence(userID, status string) {
 	payload, _ := json.Marshal(map[string]string{
 		"user_id": userID,
 		"status":  status,
