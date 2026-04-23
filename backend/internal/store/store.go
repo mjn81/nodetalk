@@ -333,9 +333,24 @@ func (s *Store) SaveMessage(msg *models.Message) error {
 	return s.db.SetMessage(msg)
 }
 
+// GetMessage retrieves a specific message.
+func (s *Store) GetMessage(channelID string, messageID string) (*models.Message, error) {
+	return s.db.GetMessage(channelID, messageID)
+}
+
+// UpdateMessage persists an existing message with its updated timestamp.
+func (s *Store) UpdateMessage(msg *models.Message) error {
+	return s.db.SetMessage(msg)
+}
+
+// DeleteMessage removes a message from the DB.
+func (s *Store) DeleteMessage(channelID string, messageID string) error {
+	return s.db.DeleteMessage(channelID, messageID)
+}
+
 // ListMessages returns recent messages for a channel, newest-first, up to limit.
-// If before is > 0, it returns messages older than that timestamp.
-func (s *Store) ListMessages(channelID string, before int64, limit int) ([]*models.Message, error) {
+// If before is provided, it returns messages older than that ID.
+func (s *Store) ListMessages(channelID string, before string, limit int) ([]*models.Message, error) {
 	return s.db.ListMessages(channelID, before, limit)
 }
 

@@ -89,6 +89,7 @@ type Message struct {
 	Compression string      `json:"compression"` // "none", "zstd", etc.
 	Sig         []byte      `json:"sig"`         // Reserved: future sender signature
 	SentAt      time.Time   `json:"sent_at"`
+	EditedAt    *time.Time  `json:"edited_at,omitempty"`
 }
 
 // ---- Presence -------------------------------------------------------------- //

@@ -32,6 +32,10 @@ export class NodeTalkDB extends Dexie {
 		return this.messages.bulkPut(msgs);
 	}
 
+	async deleteMessage(id: string) {
+		return this.messages.delete(id);
+	}
+
 	async getCachedMessages(channelId: string, limit: number = 50): Promise<CachedMessage[]> {
 		return this.messages
 			.where('channel_id')

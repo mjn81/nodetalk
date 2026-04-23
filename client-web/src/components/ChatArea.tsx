@@ -86,13 +86,51 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 
 	// Subscribe to incoming messages for this channel
 	useEffect(() => {
-		return onWS('message', (payload) => {
+		const unsubMsg = onWS('message', (payload) => {
 			const msg = payload as Message;
 			if (msg.channel_id === channel.id) {
 				addMessage(msg);
 			}
 		});
-	}, [channel.id, addMessage]);
+
+		const unsubUpdate = onWS('message_update', async (payload) => {
+			const msg = payload as Message;
+			if (msg.channel_id === channel.id) {
+				const text = msg.type === 'text' ? await decryptMessage(msg) : undefined;
+				const fullMsg = { ...msg, text };
+				
+				await db.cacheMessages([fullMsg]);
+				
+				queryClient.setQueryData<DecryptedMessage[]>(
+					['messages', channel.id],
+					(old) => {
+						if (!old) return [fullMsg];
+						return old.map(m => m.id === msg.id ? fullMsg : m);
+					}
+				);
+			}
+		});
+
+		const unsubDelete = onWS('message_delete', (payload: any) => {
+			const { channel_id, message_id } = payload;
+			if (channel_id === channel.id) {
+				db.deleteMessage(message_id);
+				queryClient.setQueryData<DecryptedMessage[]>(
+					['messages', channel.id],
+					(old) => {
+						if (!old) return [];
+						return old.filter(m => m.id !== message_id);
+					}
+				);
+			}
+		});
+
+		return () => {
+			unsubMsg();
+			unsubUpdate();
+			unsubDelete();
+		};
+	}, [channel.id, addMessage, queryClient]);
 
 	// Invalidate messages if the channel key arrives late
 	useEffect(() => {

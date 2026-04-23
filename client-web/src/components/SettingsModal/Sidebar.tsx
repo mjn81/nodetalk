@@ -9,9 +9,13 @@ interface SidebarProps {
 	setActiveTab: (tab: SettingsTab) => void;
 }
 
+import { useState } from 'react';
+import { ConfirmModal } from '../ConfirmModal';
+
 export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
 	const { t } = useTranslation();
 	const logout = useAuthStore((state) => state.logout);
+	const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
 	return (
 		<div className="w-[220px] bg-secondary p-4 flex flex-col pt-8 border-r border-border/50">
@@ -63,12 +67,22 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
 				<div className="pt-4 mt-auto">
 					<div className="h-[1px] bg-border mb-4 mx-2" />
 					<button
-						onClick={logout}
+						onClick={() => setShowLogoutConfirm(true)}
 						className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-destructive hover:bg-destructive/10 transition-all text-sm font-medium"
 					>
 						<LogOut size={18} />
 						{t('settings.logout')}
 					</button>
+
+					<ConfirmModal
+						isOpen={showLogoutConfirm}
+						onClose={() => setShowLogoutConfirm(false)}
+						onConfirm={logout}
+						title="Logout"
+						message="Are you sure you want to log out? You will need to sign in again to access your messages."
+						confirmText="Logout"
+						variant="danger"
+					/>
 				</div>
 			</div>
 		</div>

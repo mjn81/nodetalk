@@ -14,6 +14,7 @@ import (
 	"nodetalk/backend/internal/auth"
 	"nodetalk/backend/internal/models"
 	"nodetalk/backend/internal/store"
+	"github.com/segmentio/ksuid"
 )
 
 // Hub manages all active WebSocket connections and broadcasts messages.
@@ -339,6 +340,10 @@ func (c *Client) handleMessage(ctx context.Context, msg *models.WSMessage) error
 	switch msg.Type {
 	case "message":
 		return c.handleChatMessage(msg)
+	case "message_edit":
+		return c.handleEditMessage(msg)
+	case "message_delete":
+		return c.handleDeleteMessage(msg)
 	case "read_receipt":
 		return c.handleReadReceipt(msg)
 	case "ping":
@@ -376,15 +381,16 @@ func (c *Client) handleChatMessage(raw *models.WSMessage) error {
 		return fmt.Errorf("not an active member of channel: %s", body.ChannelID)
 	}
 
+	now := time.Now().UTC()
 	msg := &models.Message{
-		ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
+		ID:          ksuid.New().String(),
 		ChannelID:   body.ChannelID,
 		SenderID:    c.UserID,
 		Type:        body.Type,
 		Ciphertext:  body.Ciphertext,
 		Nonce:       body.Nonce,
 		Compression: body.Compression,
-		SentAt:      time.Now().UTC(),
+		SentAt:      now,
 	}
 	if err := c.hub.store.SaveMessage(msg); err != nil {
 		return fmt.Errorf("persist message: %w", err)
@@ -392,6 +398,82 @@ func (c *Client) handleChatMessage(raw *models.WSMessage) error {
 
 	outPayload, _ := json.Marshal(msg)
 	outMsg := &models.WSMessage{Type: "message", Payload: outPayload}
+	c.hub.broadcast <- &envelope{
+		channelID: body.ChannelID,
+		senderID:  c.UserID,
+		msg:       outMsg,
+	}
+	return nil
+}
+
+// handleEditMessage updates an existing message's ciphertext.
+func (c *Client) handleEditMessage(raw *models.WSMessage) error {
+	var body struct {
+		ChannelID  string `json:"channel_id"`
+		MessageID  string `json:"message_id"`
+		Ciphertext []byte `json:"ciphertext"`
+		Nonce      []byte `json:"nonce"`
+	}
+	if err := json.Unmarshal(raw.Payload, &body); err != nil {
+		return fmt.Errorf("invalid message_edit payload: %w", err)
+	}
+
+	msg, err := c.hub.store.GetMessage(body.ChannelID, body.MessageID)
+	if err != nil {
+		return fmt.Errorf("message not found")
+	}
+
+	if msg.SenderID != c.UserID {
+		return fmt.Errorf("permission denied: cannot edit someone else's message")
+	}
+
+	now := time.Now().UTC()
+	msg.Ciphertext = body.Ciphertext
+	msg.Nonce = body.Nonce
+	msg.EditedAt = &now
+
+	if err := c.hub.store.UpdateMessage(msg); err != nil {
+		return fmt.Errorf("update message: %w", err)
+	}
+
+	outPayload, _ := json.Marshal(msg)
+	outMsg := &models.WSMessage{Type: "message_update", Payload: outPayload}
+	c.hub.broadcast <- &envelope{
+		channelID: body.ChannelID,
+		senderID:  c.UserID,
+		msg:       outMsg,
+	}
+	return nil
+}
+
+// handleDeleteMessage removes a message from the DB and notifies clients.
+func (c *Client) handleDeleteMessage(raw *models.WSMessage) error {
+	var body struct {
+		ChannelID string `json:"channel_id"`
+		MessageID string `json:"message_id"`
+	}
+	if err := json.Unmarshal(raw.Payload, &body); err != nil {
+		return fmt.Errorf("invalid message_delete payload: %w", err)
+	}
+
+	msg, err := c.hub.store.GetMessage(body.ChannelID, body.MessageID)
+	if err != nil {
+		return fmt.Errorf("message not found")
+	}
+
+	if msg.SenderID != c.UserID {
+		return fmt.Errorf("permission denied: cannot delete someone else's message")
+	}
+
+	if err := c.hub.store.DeleteMessage(body.ChannelID, body.MessageID); err != nil {
+		return fmt.Errorf("delete message: %w", err)
+	}
+
+	outPayload, _ := json.Marshal(map[string]any{
+		"channel_id": body.ChannelID,
+		"message_id": body.MessageID,
+	})
+	outMsg := &models.WSMessage{Type: "message_delete", Payload: outPayload}
 	c.hub.broadcast <- &envelope{
 		channelID: body.ChannelID,
 		senderID:  c.UserID,

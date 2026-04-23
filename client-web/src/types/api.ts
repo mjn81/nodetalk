@@ -41,6 +41,7 @@ export interface Message {
 	nonce: string;
 	compression: string;
 	sent_at: string;
+	edited_at?: string;
 }
 
 export interface Presence {

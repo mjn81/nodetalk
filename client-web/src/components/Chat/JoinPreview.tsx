@@ -15,8 +15,6 @@ export const JoinPreview: React.FC<JoinPreviewProps> = ({ inviteCode }) => {
 	const [error, setError] = useState<string | null>(null);
 	const refreshChannels = useChannelStore((state) => state.refreshChannels);
 	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
-	const channels = useChannelStore((state) => state.channels);
-
 	const handleJoin = async () => {
 		setLoading(true);
 		setError(null);

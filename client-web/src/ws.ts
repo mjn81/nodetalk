@@ -27,7 +27,7 @@ export function getChannelKey(channelId: string): Uint8Array | undefined {
 }
 
 // ── Event Listeners ─────────────────────────────────────────────────────
-type WSEventType = 'message' | 'presence' | 'channel_key' | 'channel_update' | 'open' | 'close';
+type WSEventType = 'message' | 'message_update' | 'message_delete' | 'presence' | 'channel_key' | 'channel_update' | 'open' | 'close';
 type WSListener = (payload: unknown) => void;
 
 const listeners = new Map<WSEventType, Set<WSListener>>();
@@ -94,6 +94,12 @@ function handleInbound(msg: { type: string; payload: unknown }) {
     }
     case 'message':
       emit('message', msg.payload as Message);
+      break;
+    case 'message_update':
+      emit('message_update', msg.payload as Message);
+      break;
+    case 'message_delete':
+      emit('message_delete', msg.payload as { channel_id: string; message_id: string });
       break;
     case 'presence':
       emit('presence', msg.payload);
@@ -167,6 +173,45 @@ export async function wsSendMessage(
       ciphertext: bytesToBase64(ciphertext),
       nonce: bytesToBase64(nonce),
       compression,
+    },
+  });
+}
+
+export async function wsEditMessage(
+  channelId: string,
+  messageId: string,
+  text: string
+): Promise<boolean> {
+  const key = useCryptoStore.getState().channelKeys.get(channelId);
+  if (!key) return false;
+
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw', key.buffer.slice(key.byteOffset, key.byteOffset + key.byteLength) as ArrayBuffer,
+    { name: 'AES-GCM' }, false, ['encrypt'],
+  );
+  const encoded = new TextEncoder().encode(text);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv }, cryptoKey, encoded,
+  );
+
+  return wsSend({
+    type: 'message_edit',
+    payload: {
+      channel_id: channelId,
+      message_id: messageId,
+      ciphertext: bytesToBase64(new Uint8Array(encrypted)),
+      nonce: bytesToBase64(iv),
+    },
+  });
+}
+
+export function wsDeleteMessage(channelId: string, messageId: string): boolean {
+  return wsSend({
+    type: 'message_delete',
+    payload: {
+      channel_id: channelId,
+      message_id: messageId,
     },
   });
 }

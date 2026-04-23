@@ -14,6 +14,8 @@ import { type Channel } from '@/types/api';
 import { apiUpdateChannel, apiDeleteChannel } from '@/api/client';
 import { useChannelStore } from '@/store/store';
 
+import { ConfirmModal } from '../ConfirmModal';
+
 interface GroupSettingsModalProps {
 	channel: Channel;
 	onClose: () => void;
@@ -29,6 +31,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 	const [isPrivate, setIsPrivate] = useState(channel.is_private);
 	const [loading, setLoading] = useState(false);
 	const [copied, setCopied] = useState(false);
+	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
 	const handleSave = async () => {
 		const trimmedName = name.trim();
@@ -50,14 +53,6 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 	};
 
 	const handleDelete = async () => {
-		if (
-			!window.confirm(
-				'Are you sure you want to delete this group? This action cannot be undone.',
-			)
-		) {
-			return;
-		}
-
 		setLoading(true);
 		try {
 			await apiDeleteChannel(channel.id);
@@ -166,14 +161,26 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 						</Button>
 
 						{isOwner && (
-							<Button
-								variant="ghost"
-								className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive font-bold gap-2"
-								onClick={handleDelete}
-								disabled={loading}
-							>
-								<Trash2 size={16} /> Delete Channel
-							</Button>
+							<>
+								<Button
+									variant="ghost"
+									className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive font-bold gap-2"
+									onClick={() => setShowDeleteConfirm(true)}
+									disabled={loading}
+								>
+									<Trash2 size={16} /> Delete Channel
+								</Button>
+
+								<ConfirmModal
+									isOpen={showDeleteConfirm}
+									onClose={() => setShowDeleteConfirm(false)}
+									onConfirm={handleDelete}
+									title="Delete Channel"
+									message={`Are you sure you want to delete "${channel.name}"? All messages and data associated with this channel will be permanently removed. This action cannot be undone.`}
+									confirmText="Delete Channel"
+									variant="danger"
+								/>
+							</>
 						)}
 					</div>
 				</div>

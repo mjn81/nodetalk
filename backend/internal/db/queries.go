@@ -247,9 +247,25 @@ func (d *DB) ListChannelMembers(channelID string) ([]*models.UserChannel, error)
 //  Messages
 // ============================================================
 
+// GetMessage retrieves a single message by its channel ID and its formatted ID string.
+func (d *DB) GetMessage(channelID string, messageID string) (*models.Message, error) {
+	key := fmt.Sprintf("%s%s:%s", prefixMessage, channelID, messageID)
+	var msg models.Message
+	if err := d.get(key, &msg); err != nil {
+		return nil, err
+	}
+	return &msg, nil
+}
+
+// DeleteMessage removes a single message record.
+func (d *DB) DeleteMessage(channelID string, messageID string) error {
+	key := fmt.Sprintf("%s%s:%s", prefixMessage, channelID, messageID)
+	return d.delete(key)
+}
+
 // SetMessage writes a message record to BadgerDB using a time-ordered key.
 func (d *DB) SetMessage(msg *models.Message) error {
-	key := fmt.Sprintf("%s%s:%019d", prefixMessage, msg.ChannelID, msg.SentAt.UnixNano())
+	key := fmt.Sprintf("%s%s:%s", prefixMessage, msg.ChannelID, msg.ID)
 	return d.set(key, msg)
 }
 
@@ -271,8 +287,8 @@ func (d *DB) DeleteChannelMessages(channelID string) error {
 }
 
 // ListMessages returns up to `limit` messages for a channel, newest-first.
-// If before > 0, it strictly returns messages older than that Unix timestamp.
-func (d *DB) ListMessages(channelID string, before int64, limit int) ([]*models.Message, error) {
+// If before is provided, it strictly returns messages older than that ID.
+func (d *DB) ListMessages(channelID string, before string, limit int) ([]*models.Message, error) {
 	prefix := []byte(fmt.Sprintf("%s%s:", prefixMessage, channelID))
 	var msgs []*models.Message
 
@@ -284,17 +300,27 @@ func (d *DB) ListMessages(channelID string, before int64, limit int) ([]*models.
 		defer it.Close()
 
 		var seekKey []byte
-		if before > 0 {
-			// To get messages strictly older than 'before', we seek to before-1
-			seekKey = []byte(fmt.Sprintf("%s%s:%019d", prefixMessage, channelID, before-1))
+		if before != "" {
+			seekKey = []byte(fmt.Sprintf("%s%s:%s", prefixMessage, channelID, before))
 		} else {
-			// Seed with the lexicographically largest key in this prefix range
+			// Start from the very end of the channel's messages
 			seekKey = append(append([]byte{}, prefix...), 0xFF)
 		}
 
+		isFirst := true
 		for it.Seek(seekKey); it.Valid() && len(msgs) < limit; it.Next() {
+			item := it.Item()
+			key := string(item.Key())
+
+			// If we provided a 'before' cursor, skip the message that matches the cursor exactly
+			if isFirst && before != "" && key == string(seekKey) {
+				isFirst = false
+				continue
+			}
+			isFirst = false
+
 			var m models.Message
-			if err := it.Item().Value(func(val []byte) error {
+			if err := item.Value(func(val []byte) error {
 				return json.Unmarshal(val, &m)
 			}); err != nil {
 				return err

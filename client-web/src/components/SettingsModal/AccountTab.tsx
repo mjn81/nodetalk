@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { apiUploadFile, apiGetFileUrl } from '@/api/client';
+import { ConfirmModal } from '../ConfirmModal';
 
 export const AccountTab = () => {
 	const { t } = useTranslation();
@@ -367,37 +368,24 @@ export const AccountTab = () => {
 				<p className="text-xs text-muted-foreground mb-4 leading-relaxed">
 					{t('settings.delete_description')}
 				</p>
-				{showDeleteConfirm ? (
-					<div className="p-4 bg-destructive/10 rounded-md border border-destructive/20 animate-in fade-in zoom-in-95 duration-200">
-						<p className="text-sm font-bold text-destructive mb-3">
-							Are you absolutely sure?
-						</p>
-						<div className="flex gap-3">
-							<Button
-								variant="destructive"
-								className="font-bold h-9 px-6"
-								onClick={handleDeleteAccount}
-							>
-								{t('settings.delete_confirm')}
-							</Button>
-							<Button
-								variant="ghost"
-								className="text-foreground hover:bg-accent h-9 px-6 font-medium"
-								onClick={() => setShowDeleteConfirm(false)}
-							>
-								{t('settings.cancel')}
-							</Button>
-						</div>
-					</div>
-				) : (
-					<Button
-						variant="destructive"
-						className="font-bold h-9 px-6 transition-all"
-						onClick={() => setShowDeleteConfirm(true)}
-					>
-						{t('settings.delete_account')}
-					</Button>
-				)}
+				
+				<Button
+					variant="destructive"
+					className="font-bold h-9 px-6 transition-all"
+					onClick={() => setShowDeleteConfirm(true)}
+				>
+					{t('settings.delete_account')}
+				</Button>
+
+				<ConfirmModal
+					isOpen={showDeleteConfirm}
+					onClose={() => setShowDeleteConfirm(false)}
+					onConfirm={handleDeleteAccount}
+					title="Delete Account"
+					message="Are you absolutely sure you want to delete your account? This will permanently remove your profile, channels you own, and all your messages. This action is irreversible."
+					confirmText="Delete Account"
+					variant="danger"
+				/>
 			</div>
 		</div>
 	);
