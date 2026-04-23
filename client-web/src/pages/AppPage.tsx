@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
 	ResizableHandle,
 	ResizablePanel,
@@ -7,7 +7,6 @@ import {
 import LeftSidebar from '@/components/Layout/LeftSidebar';
 import RightSidebar from '@/components/Layout/RightSidebar';
 import ChatArea from '@/components/ChatArea';
-
 
 import { useChannelStore, useAuthStore } from '@/store/store';
 import { onWS } from '@/ws';
@@ -33,7 +32,7 @@ export default function AppPage() {
 						window.history.replaceState({}, '', '/');
 						// Find newly joined channel in the refreshed list
 						const allChannels = useChannelStore.getState().channels;
-						const ch = allChannels.find(c => c.id === res.id);
+						const ch = allChannels.find((c) => c.id === res.id);
 						if (ch) setActiveChannel(ch);
 					} catch (err) {
 						console.error('Auto-join failed:', err);
@@ -61,7 +60,9 @@ export default function AppPage() {
 				if (user && payload.user_id === user.id) {
 					useAuthStore.getState().updateStatus(payload.status);
 				}
-				useChannelStore.getState().updateMemberStatus(payload.user_id, payload.status);
+				useChannelStore
+					.getState()
+					.updateMemberStatus(payload.user_id, payload.status);
 			}
 		});
 
@@ -82,6 +83,8 @@ export default function AppPage() {
 		};
 	}, [refreshChannels]);
 
+	const [isRightCollapsed, setIsRightCollapsed] = useState(false);
+
 	return (
 		<ResizablePanelGroup
 			direction="horizontal"
@@ -89,9 +92,9 @@ export default function AppPage() {
 		>
 			{/* Left Sidebar Pane */}
 			<ResizablePanel
-				defaultSize={250}
-				minSize={200}
-				maxSize={300}
+				defaultSize="20%"
+				minSize="15%"
+				maxSize="20%"
 				className="bg-secondary flex flex-col border-r border-border overflow-hidden"
 			>
 				<LeftSidebar />
@@ -101,8 +104,7 @@ export default function AppPage() {
 
 			{/* Center Chat Pane */}
 			<ResizablePanel
-				defaultSize={60}
-				minSize={40}
+				minSize="40%"
 				className="flex flex-col bg-background relative"
 			>
 				{activeChannel ? (
@@ -122,14 +124,16 @@ export default function AppPage() {
 
 			<ResizableHandle withHandle className="bg-border" />
 
-			{/* Right Sidebar Pane */}
 			<ResizablePanel
-				defaultSize={250}
-				minSize={200}
-				maxSize={300}
-				className="bg-secondary flex flex-col border-l border-border"
+				defaultSize="20%"
+				minSize="15%"
+				maxSize="25%"
+				collapsible={true}
+				collapsedSize="64px"
+				onResize={(panelSize) => setIsRightCollapsed(panelSize.inPixels <= 64)}
+				className="bg-secondary flex flex-col border-l border-border transition-all duration-300 ease-in-out"
 			>
-				<RightSidebar />
+				<RightSidebar isCollapsed={isRightCollapsed} />
 			</ResizablePanel>
 		</ResizablePanelGroup>
 	);
