@@ -2,8 +2,8 @@ import { useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMessages } from '@/hooks/useMessages';
 import type { Message, Channel } from '@/types/api';
-import { onWS, decryptMessage } from '@/ws';
-import { useAuthStore, useCryptoStore } from '@/store/store';
+import { onWS, decryptMessage, wsSendReadReceipt } from '@/ws';
+import { useAuthStore, useCryptoStore, useChannelStore } from '@/store/store';
 import { db } from '@/lib/db';
 
 import { ChatTopbar } from './Chat/ChatTopbar';
@@ -22,6 +22,7 @@ interface DecryptedMessage extends Message {
 export default function ChatArea({ channel }: ChatAreaProps) {
 	const user = useAuthStore((state) => state.user);
 	const queryClient = useQueryClient();
+	const refreshChannels = useChannelStore((state) => state.refreshChannels);
 
 	// Scroll to bottom helper
 	const scrollToBottom = useCallback(() => {
@@ -34,6 +35,13 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 	}, []);
 
 	const { data: messages = [] } = useMessages(channel.id, scrollToBottom);
+
+	// Send read receipt when opening channel or new messages arrive
+	useEffect(() => {
+		wsSendReadReceipt(channel.id);
+		// Optionally refresh channels to clear local unread count in sidebar immediately
+		refreshChannels();
+	}, [channel.id, messages.length, refreshChannels]);
 
 	// Automatically scroll to bottom when messages change
 	useEffect(() => {

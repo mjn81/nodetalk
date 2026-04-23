@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"nodetalk/backend/internal/models"
+	"github.com/segmentio/ksuid"
 
 	badger "github.com/dgraph-io/badger/v4"
 )
@@ -144,28 +145,47 @@ func (d *DB) UpdateUserChannelReadTime(userID, channelID string, t time.Time) er
 func (d *DB) CountUnreadMessages(userID, channelID string) (int, error) {
 	var uc models.UserChannel
 	if err := d.get(ucKey(userID, channelID), &uc); err != nil {
-		return 0, nil // If no index exists, 0 unread.
+		return 0, nil
 	}
-	// If never read, consider all as unread, but we only scan up to what Badger finds.
-	var lastReadUnix int64 = 0
-	if !uc.LastReadAt.IsZero() {
-		lastReadUnix = uc.LastReadAt.UnixNano()
-	}
-
+	
 	count := 0
 	prefix := []byte(fmt.Sprintf("%s%s:", prefixMessage, channelID))
+	
 	err := d.bdb.View(func(txn *badger.Txn) error {
-		opts := badger.DefaultIteratorOptions
-		opts.Prefix = prefix
-		it := txn.NewIterator(opts)
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
 
-		seekKey := []byte(fmt.Sprintf("%s%s:%019d", prefixMessage, channelID, lastReadUnix+1))
-		for it.Seek(seekKey); it.Valid(); it.Next() {
-			count++
+		// Optimize: Create a KSUID with the last read timestamp to seek directly to unread messages.
+		// Since KSUIDs are K-Sortable, this will skip most read messages.
+		startKey := prefix
+		if !uc.LastReadAt.IsZero() {
+			// We seek to just after the last read timestamp.
+			// NewRandomWithTime creates a KSUID with the provided timestamp.
+			k, _ := ksuid.NewRandomWithTime(uc.LastReadAt.Add(time.Nanosecond))
+			startKey = []byte(fmt.Sprintf("%s%s:%s", prefixMessage, channelID, k.String()))
+		}
+
+		for it.Seek(startKey); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			var m models.Message
+			err := item.Value(func(val []byte) error {
+				return json.Unmarshal(val, &m)
+			})
+			if err != nil {
+				continue
+			}
+
+			if m.SenderID == userID {
+				continue
+			}
+
+			if m.SentAt.After(uc.LastReadAt) {
+				count++
+			}
 		}
 		return nil
 	})
+	
 	return count, err
 }
 

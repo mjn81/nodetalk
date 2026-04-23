@@ -308,6 +308,17 @@ func (h *Hub) BroadcastMemberJoined(channelID string, userID string) {
 	h.SendChannelKey(channelID, userID)
 }
 
+// BroadcastMemberLeft notifies channel members that a user has left or been kicked.
+func (h *Hub) BroadcastMemberLeft(channelID string, userID string) {
+	payload, _ := json.Marshal(map[string]any{
+		"channel_id": channelID,
+		"user_id":    userID,
+		"type":       "member_left",
+	})
+	msg := &models.WSMessage{Type: "channel_update", Payload: payload}
+	h.broadcast <- &envelope{channelID: channelID, msg: msg}
+}
+
 // ---- Client Methods -------------------------------------------------------- //
 
 // writeChannelKeys pushes all decrypted AES channel keys to the client so it

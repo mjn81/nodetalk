@@ -352,11 +352,13 @@ func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Case 1: User leaving voluntarily
 	if session.UserID == targetUID {
 		if err := h.Store.RemoveMemberFromChannel(ch.ID, targetUID, models.StatusLeft); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to leave channel")
 			return
+		}
+		if h.Hub != nil {
+			h.Hub.BroadcastMemberLeft(ch.ID, targetUID)
 		}
 		writeJSON(w, http.StatusOK, StatusResponse{Status: "left channel"})
 		return
@@ -378,6 +380,9 @@ func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.RemoveMemberFromChannel(ch.ID, targetUID, models.StatusKicked); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to remove member")
 		return
+	}
+	if h.Hub != nil {
+		h.Hub.BroadcastMemberLeft(ch.ID, targetUID)
 	}
 	writeJSON(w, http.StatusOK, StatusResponse{Status: "member kicked"})
 }
