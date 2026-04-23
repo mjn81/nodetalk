@@ -187,7 +187,7 @@ export const MessageItem = memo(
 											replyTarget.sender_id
 										: 'Unknown User'}
 								</span>
-								<span className="text-[13px] truncate text-muted-foreground/80 hover:text-foreground cursor-pointer italic">
+								<span className="text-[13px] truncate text-muted-foreground/80 hover:text-foreground cursor-pointer italic max-w-[60%]">
 									{replyTarget
 										? replyTarget.type === 'text'
 											? replyTarget.text
