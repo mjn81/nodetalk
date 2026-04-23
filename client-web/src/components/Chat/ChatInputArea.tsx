@@ -14,13 +14,14 @@ import {
 	SendHorizontal,
 	Lock,
 	AtSign,
+	Reply as ReplyIcon,
 } from 'lucide-react';
 import { useAuthStore, getChannelDisplayName, useAppStore } from '@/store/store';
 import { apiGetChannelMembers } from '@/api/client';
 import { Avatar } from '../Avatar';
 import EmojiPicker from '../EmojiPicker';
 import VoiceRecorder from '../VoiceRecorder';
-import type { Channel } from '@/types/api';
+import type { Channel, Message } from '@/types/api';
 import { apiUploadFile } from '@/api/client';
 import { encryptAndCompressFile } from '@/utils/file';
 import { wsSendMessage } from '@/ws';
@@ -30,11 +31,17 @@ import { isDirectMessage } from '@/utils/channel';
 interface ChatInputAreaProps {
 	channel: Channel;
 	channelKey: Uint8Array;
+	replyTo?: (Message & { text?: string }) | null;
+	onCancelReply?: () => void;
+	messages: (Message & { text?: string })[];
 }
 
 export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 	channel,
 	channelKey,
+	replyTo,
+	onCancelReply,
+	messages,
 }) => {
 	const user = useAuthStore((state) => state.user);
 	const theme = useAppStore((state) => state.theme);
@@ -130,18 +137,19 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 			}
 
 			if (text) {
-				await wsSendMessage(channel.id, text, 'text');
+				await wsSendMessage(channel.id, text, 'text', 'none', replyTo?.id);
 			}
 
 			setInputText('');
 			setFiles([]);
+			if (replyTo) onCancelReply?.();
 		} catch (err) {
 			console.error('Failed to send messages:', err);
 		} finally {
 			setSending(false);
 			inputRef.current?.focus();
 		}
-	}, [inputText, files, sending, channel.id, channelKey]);
+	}, [inputText, files, sending, channel.id, channelKey, replyTo, onCancelReply]);
 
 	const insertMention = useCallback(
 		(username: string) => {
@@ -209,6 +217,27 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 			}
 		}
 
+		if (e.key === 'Escape' && replyTo) {
+			e.preventDefault();
+			onCancelReply?.();
+			return;
+		}
+
+		if (e.key === 'ArrowUp' && inputText === '' && !mentionPopupOpen) {
+			e.preventDefault();
+			const lastOwnMessage = [...messages]
+				.reverse()
+				.find((m) => m.sender_id === user?.id && m.type === 'text');
+			if (lastOwnMessage) {
+				window.dispatchEvent(
+					new CustomEvent('edit-message', {
+						detail: { messageId: lastOwnMessage.id },
+					}),
+				);
+			}
+			return;
+		}
+
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			handleSend();
@@ -253,6 +282,12 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 			apiGetChannelMembers(channel.id).then(setMembers).catch(console.error);
 		}
 	}, [channel.id]);
+
+	useEffect(() => {
+		if (replyTo || channel.id) {
+			inputRef.current?.focus();
+		}
+	}, [replyTo, channel.id]);
 
 	useEffect(() => {
 		const handleClickOutside = (e: MouseEvent) => {
@@ -309,7 +344,34 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 				</div>
 			)}
 
-			<div className="bg-secondary/50 rounded-lg flex flex-col relative focus-within:ring-0 transition-all overflow-hidden border border-border text-flat">
+			{/* Reply Preview */}
+			{replyTo && (
+				<div className="bg-background/40 backdrop-blur-md border-x border-t border-border rounded-t-lg px-4 py-2 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-2 duration-150">
+					<div className="flex items-center gap-2 min-w-0">
+						<div className="flex items-center justify-center">
+							<ReplyIcon size={14} className="text-muted-foreground shrink-0" />
+						</div>
+						<span className="text-[13px] text-muted-foreground">
+							Replying to{' '}
+							<span className="font-bold text-foreground hover:underline cursor-pointer">
+								{channel.member_names?.[replyTo.sender_id] || replyTo.sender_id}
+							</span>
+						</span>
+						<span className="text-[13px] text-muted-foreground/70 truncate italic border-l border-border pl-2">
+							{replyTo.text || `[${replyTo.type}]`}
+						</span>
+					</div>
+					<button
+						onClick={onCancelReply}
+						className="p-1 hover:bg-destructive/10 rounded-full transition-colors text-muted-foreground hover:text-destructive group"
+						title="Cancel Reply"
+					>
+						<X size={14} className="group-hover:scale-110 transition-transform" />
+					</button>
+				</div>
+			)}
+
+			<div className={`bg-secondary/50 rounded-lg flex flex-col relative focus-within:ring-0 transition-all overflow-hidden border border-border text-flat ${replyTo ? 'rounded-t-none border-t-0' : ''}`}>
 				{/* File Previews - Reverted Style */}
 				{files.length > 0 && (
 					<div className="flex gap-3 p-3 overflow-x-auto border-b border-border">

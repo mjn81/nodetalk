@@ -17,6 +17,7 @@ func (c *Client) handleChatMessage(raw *models.WSMessage) error {
 		Ciphertext  []byte             `json:"ciphertext"`
 		Nonce       []byte             `json:"nonce"`
 		Compression string             `json:"compression"`
+		ReplyToID   string             `json:"reply_to_id"`
 	}
 	if err := json.Unmarshal(raw.Payload, &body); err != nil {
 		return fmt.Errorf("invalid message payload: %w", err)
@@ -46,6 +47,7 @@ func (c *Client) handleChatMessage(raw *models.WSMessage) error {
 		Ciphertext:  body.Ciphertext,
 		Nonce:       body.Nonce,
 		Compression: body.Compression,
+		ReplyToID:   body.ReplyToID,
 		SentAt:      now,
 	}
 	if err := c.hub.store.SaveMessage(msg); err != nil {

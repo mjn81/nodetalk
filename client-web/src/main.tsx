@@ -1,4 +1,15 @@
+import './wdyr';
+import { scan } from 'react-scan';
 import { StrictMode } from 'react';
+import { isPerfEnabled } from './utils/profiler';
+
+if (typeof window !== 'undefined' && import.meta.env.DEV && isPerfEnabled()) {
+  scan({
+    enabled: true,
+    log: true,
+  });
+}
+
 import { createRoot } from 'react-dom/client';
 import './i18n/index'; // must be imported before App
 import './index.css';

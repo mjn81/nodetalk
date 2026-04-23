@@ -1,10 +1,12 @@
-import React, { useRef, useMemo } from 'react';
+import { useRef, useMemo, memo } from 'react';
+
 import { type Message, type Channel } from '@/types/api';
 import { MessageItem } from './MessageItem';
 
 interface ChatMessageFeedProps {
 	messages: (Message & { text?: string })[];
 	channel: Channel;
+	onReply?: (msg: Message & { text?: string }) => void;
 }
 
 // Group consecutive messages from the same sender
@@ -13,6 +15,8 @@ function isGrouped(
 	curr: Message & { text?: string },
 ): boolean {
 	if (!prev) return false;
+	// Replies never get grouped for better UI
+	if (curr.reply_to_id) return false;
 	return (
 		prev.sender_id === curr.sender_id &&
 		new Date(curr.sent_at).getTime() - new Date(prev.sent_at).getTime() <
@@ -41,7 +45,7 @@ function formatDate(iso: string): string {
 	});
 }
 
-export const ChatMessageFeed: React.FC<ChatMessageFeedProps> = ({ messages, channel }) => {
+export const ChatMessageFeed = memo(({ messages, channel, onReply }: ChatMessageFeedProps) => {
 	const feedRef = useRef<HTMLDivElement>(null);
 
 	const renderedItems = useMemo(() => {
@@ -80,6 +84,8 @@ export const ChatMessageFeed: React.FC<ChatMessageFeedProps> = ({ messages, chan
 					);
 				}
 				
+				const replyTarget = item.msg.reply_to_id ? messages.find(m => m.id === item.msg.reply_to_id) : undefined;
+
 				return (
 					<MessageItem 
 						key={item.msg.id}
@@ -87,10 +93,14 @@ export const ChatMessageFeed: React.FC<ChatMessageFeedProps> = ({ messages, chan
 						channel={channel}
 						grouped={item.grouped}
 						formatTime={formatTime}
+						onReply={onReply}
+						replyTarget={replyTarget}
 					/>
 				);
 			})}
 			<div className="h-4 shrink-0"></div>
 		</div>
 	);
-};
+});
+
+ChatMessageFeed.displayName = 'ChatMessageFeed';

@@ -148,46 +148,56 @@ export function wsSendReadReceipt(channelId: string) {
  * to be wired in Phase 4 with the Web Crypto API.
  */
 export async function wsSendMessage(
-  channelId: string,
-  text: string,
-  type: 'text' | 'file' | 'voice' = 'text',
-  compression: string = 'none'
+	channelId: string,
+	text: string,
+	type: 'text' | 'file' | 'voice' = 'text',
+	compression: string = 'none',
+	replyToId?: string,
 ): Promise<boolean> {
-  const key = useCryptoStore.getState().channelKeys.get(channelId);
+	const key = useCryptoStore.getState().channelKeys.get(channelId);
 
-  let ciphertext: Uint8Array;
-  let nonce: Uint8Array;
+	let ciphertext: Uint8Array;
+	let nonce: Uint8Array;
 
-  if (key) {
-    // Full AES-256-GCM encryption using the Web Crypto API
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw', key.buffer.slice(key.byteOffset, key.byteOffset + key.byteLength) as ArrayBuffer,
-      { name: 'AES-GCM' }, false, ['encrypt'],
-    );
-    const encoded = new TextEncoder().encode(text);
-    const encrypted = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv }, cryptoKey, encoded,
-    );
-    nonce = iv;
-    ciphertext = new Uint8Array(encrypted);
-  } else {
-    // No key yet — encode as plaintext bytes (development fallback)
-    console.warn('[ws] no channel key for', channelId, '— sending unencrypted');
-    ciphertext = new TextEncoder().encode(text);
-    nonce = new Uint8Array(12);
-  }
+	if (key) {
+		// Full AES-256-GCM encryption using the Web Crypto API
+		const iv = crypto.getRandomValues(new Uint8Array(12));
+		const cryptoKey = await crypto.subtle.importKey(
+			'raw',
+			key.buffer.slice(
+				key.byteOffset,
+				key.byteOffset + key.byteLength,
+			) as ArrayBuffer,
+			{ name: 'AES-GCM' },
+			false,
+			['encrypt'],
+		);
+		const encoded = new TextEncoder().encode(text);
+		const encrypted = await crypto.subtle.encrypt(
+			{ name: 'AES-GCM', iv },
+			cryptoKey,
+			encoded,
+		);
+		nonce = iv;
+		ciphertext = new Uint8Array(encrypted);
+	} else {
+		// No key yet — encode as plaintext bytes (development fallback)
+		console.warn('[ws] no channel key for', channelId, '— sending unencrypted');
+		ciphertext = new TextEncoder().encode(text);
+		nonce = new Uint8Array(12);
+	}
 
-  return wsSend({
-    type: 'message',
-    payload: {
-      channel_id: channelId,
-      type,
-      ciphertext: bytesToBase64(ciphertext),
-      nonce: bytesToBase64(nonce),
-      compression,
-    },
-  });
+	return wsSend({
+		type: 'message',
+		payload: {
+			channel_id: channelId,
+			type,
+			ciphertext: bytesToBase64(ciphertext),
+			nonce: bytesToBase64(nonce),
+			compression,
+			reply_to_id: replyToId,
+		},
+	});
 }
 
 export async function wsEditMessage(

@@ -43,6 +43,7 @@ export interface Message {
 	compression: string;
 	sent_at: string;
 	edited_at?: string;
+	reply_to_id?: string;
 }
 
 export interface Presence {

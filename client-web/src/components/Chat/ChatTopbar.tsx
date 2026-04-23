@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, Profiler } from 'react';
+import { logProfiler } from '@/utils/profiler';
+
 import { Avatar } from '../Avatar';
 import { Search, SlidersHorizontal, Hash, X } from 'lucide-react';
 import { type Channel } from '@/types/api';
@@ -29,92 +31,96 @@ export const ChatTopbar: React.FC<ChatTopbarProps> = ({
 	const canManage = !isDM && channel.user_role >= 10;
 
 	return (
-		<div className="flex items-center justify-between px-4 h-12 border-b border-border shrink-0 shadow-sm relative z-10 bg-background">
-			<div className="flex items-center gap-3">
-				{isDM ? (
-					<Avatar
-						userId={otherMemberId}
-						avatarId={channel.member_avatars?.[otherMemberId]}
-						size={32}
-					/>
-				) : (
-					<div className="w-8 h-8 flex items-center justify-center text-muted-foreground shrink-0">
-						<Hash size={24} className="opacity-70" />
-					</div>
-				)}
-				<div className="flex flex-col min-w-0">
-					<div className="text-[15px] font-bold text-foreground leading-tight truncate">
-						{getChannelDisplayName(channel, currentUserId)}
-					</div>
-					<div className="text-[13px] text-muted-foreground leading-tight">
-						{isDM ? 'Direct Message' : `${channel.members.length} members`}
+		<Profiler id="ChatTopbar" onRender={logProfiler}>
+			<div className="flex items-center justify-between px-4 h-12 border-b border-border shrink-0 shadow-sm relative z-10 bg-background">
+				<div className="flex items-center gap-3">
+					{isDM ? (
+						<Avatar
+							userId={otherMemberId}
+							avatarId={channel.member_avatars?.[otherMemberId]}
+							size={32}
+						/>
+					) : (
+						<div className="w-8 h-8 flex items-center justify-center text-muted-foreground shrink-0">
+							<Hash size={24} className="opacity-70" />
+						</div>
+					)}
+					<div className="flex flex-col min-w-0">
+						<div className="text-[15px] font-bold text-foreground leading-tight truncate">
+							{getChannelDisplayName(channel, currentUserId)}
+						</div>
+						<div className="text-[13px] text-muted-foreground leading-tight">
+							{isDM ? 'Direct Message' : `${channel.members.length} members`}
+						</div>
 					</div>
 				</div>
-			</div>
-			<div className="flex items-center gap-4 text-muted-foreground">
-				<div className={`flex items-center bg-secondary/50 rounded-lg px-2 transition-all duration-200 ${isSearching || searchQuery ? 'w-48 ring-1 ring-primary/20' : 'w-9 bg-transparent'}`}>
-					<button 
-						onClick={() => setIsSearching(!isSearching)}
-						className="hover:text-foreground transition p-1" 
-						title="Search"
-					>
-						<Search size={20} className={`${(isSearching || searchQuery) ? 'text-primary opacity-100' : 'opacity-70'}`} />
-					</button>
-					{(isSearching || searchQuery) && (
-						<>
-							<input
-								autoFocus
-								type="text"
-								placeholder="Search..."
-								value={searchQuery}
-								onChange={(e) => onSearchChange(e.target.value)}
-								onKeyDown={(e) => {
-									if (e.key === 'Escape') {
-										onSearchChange('');
-										setIsSearching(false);
-									}
-								}}
-								className="bg-transparent border-none outline-none text-sm w-full ml-1 text-foreground placeholder:text-muted-foreground/50"
-								onBlur={() => {
-									if (!searchQuery) setIsSearching(false);
-								}}
+				<div className="flex items-center gap-4 text-muted-foreground">
+					<div className={`flex items-center bg-secondary/50 rounded-lg px-2 transition-all duration-200 ${isSearching || searchQuery ? 'w-48 ring-1 ring-primary/20' : 'w-9 bg-transparent'}`}>
+						<button 
+							onClick={() => setIsSearching(!isSearching)}
+							className="hover:text-foreground transition p-1" 
+							title="Search"
+						>
+							<Search size={20} className={`${(isSearching || searchQuery) ? 'text-primary opacity-100' : 'opacity-70'}`} />
+						</button>
+						{(isSearching || searchQuery) && (
+							<>
+								<input
+									autoFocus
+									type="text"
+									placeholder="Search..."
+									value={searchQuery}
+									onChange={(e) => onSearchChange(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === 'Escape') {
+											onSearchChange('');
+											setIsSearching(false);
+										}
+									}}
+									className="bg-transparent border-none outline-none text-sm w-full ml-1 text-foreground placeholder:text-muted-foreground/50"
+									onBlur={() => {
+										if (!searchQuery) setIsSearching(false);
+									}}
+								/>
+								<button 
+									onClick={() => {
+										if (searchQuery) {
+											onSearchChange('');
+										} else {
+											setIsSearching(false);
+										}
+									}}
+									className="p-1 hover:text-foreground"
+								>
+									<X size={14} />
+								</button>
+							</>
+						)}
+					</div>
+
+					{canManage && (
+						<button
+							onClick={() => setShowSettings(true)}
+							className="hover:text-foreground transition"
+							title="Channel Settings"
+						>
+							<SlidersHorizontal
+								size={22}
+								className="opacity-80 hover:opacity-100"
 							/>
-							<button 
-								onClick={() => {
-									if (searchQuery) {
-										onSearchChange('');
-									} else {
-										setIsSearching(false);
-									}
-								}}
-								className="p-1 hover:text-foreground"
-							>
-								<X size={14} />
-							</button>
-						</>
+						</button>
 					)}
 				</div>
 
-				{canManage && (
-					<button
-						onClick={() => setShowSettings(true)}
-						className="hover:text-foreground transition"
-						title="Channel Settings"
-					>
-						<SlidersHorizontal
-							size={22}
-							className="opacity-80 hover:opacity-100"
-						/>
-					</button>
+				{showSettings && (
+					<GroupSettingsModal
+						channel={channel}
+						onClose={() => setShowSettings(false)}
+					/>
 				)}
 			</div>
-
-			{showSettings && (
-				<GroupSettingsModal
-					channel={channel}
-					onClose={() => setShowSettings(false)}
-				/>
-			)}
-		</div>
+		</Profiler>
 	);
 };
+
+(ChatTopbar as any).whyDidYouRender = true;

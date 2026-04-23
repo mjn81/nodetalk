@@ -1,4 +1,6 @@
-import { useEffect, useCallback, useState } from 'react';
+import { Profiler, useEffect, useCallback, useState, useMemo, memo } from 'react';
+import { logProfiler } from '@/utils/profiler';
+
 import { useQueryClient } from '@tanstack/react-query';
 import { useMessages } from '@/hooks/useMessages';
 import type { Message, Channel } from '@/types/api';
@@ -19,7 +21,7 @@ interface DecryptedMessage extends Message {
 	text?: string;
 }
 
-export default function ChatArea({ channel }: ChatAreaProps) {
+const ChatArea = memo(({ channel }: ChatAreaProps) => {
 	const user = useAuthStore((state) => state.user);
 	const queryClient = useQueryClient();
 	const refreshChannels = useChannelStore((state) => state.refreshChannels);
@@ -51,11 +53,13 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 		}
 	}, [messages.length, scrollToBottom, searchQuery]);
 
-	const filteredMessages = searchQuery
-		? messages.filter((m) =>
-				m.text?.toLowerCase().includes(searchQuery.toLowerCase()),
-		  )
-		: messages;
+	const filteredMessages = useMemo(() => 
+		searchQuery
+			? messages.filter((m) =>
+					m.text?.toLowerCase().includes(searchQuery.toLowerCase()),
+			  )
+			: messages,
+	[messages, searchQuery]);
 
 	// Pre-populate query data from IndexedDB when channel changes
 	useEffect(() => {
@@ -157,22 +161,39 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 	}, [channel.id, queryClient]);
 
 	const channelKey = useCryptoStore((state) => state.channelKeys.get(channel.id));
+	const [replyTo, setReplyTo] = useState<DecryptedMessage | null>(null);
+
+	const handleReply = useCallback((msg: DecryptedMessage) => {
+		setReplyTo(msg);
+	}, []);
 
 	return (
-		<div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
-			<ChatTopbar 
-				channel={channel} 
-				currentUserId={user?.id ?? ''} 
-				searchQuery={searchQuery}
-				onSearchChange={setSearchQuery}
-			/>
-			<VoicePlayer />
-			<ChatMessageFeed messages={filteredMessages} channel={channel} />
+		<Profiler id="ChatArea" onRender={logProfiler}>
+			<div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
+				<ChatTopbar 
+					channel={channel} 
+					currentUserId={user?.id ?? ''} 
+					searchQuery={searchQuery}
+					onSearchChange={setSearchQuery}
+				/>
+				<VoicePlayer />
+				<ChatMessageFeed 
+					messages={filteredMessages} 
+					channel={channel} 
+					onReply={handleReply}
+				/>
 
-			<ChatInputArea 
-				channel={channel} 
-				channelKey={channelKey ?? new Uint8Array(32)} // Fallback in case key isn't loaded
-			/>
-		</div>
+				<ChatInputArea 
+					channel={channel} 
+					channelKey={channelKey ?? new Uint8Array(32)} // Fallback in case key isn't loaded
+					replyTo={replyTo}
+					onCancelReply={() => setReplyTo(null)}
+					messages={messages}
+				/>
+			</div>
+		</Profiler>
 	);
-}
+});
+
+ChatArea.whyDidYouRender = true;
+export default ChatArea;

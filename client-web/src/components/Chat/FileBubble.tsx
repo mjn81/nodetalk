@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { type Message } from '@/types/api';
 import { decryptMessage, getChannelKey, base64ToBytes, onWS } from '@/ws';
@@ -23,7 +23,7 @@ interface FileMetadata {
 	thumb_nonce?: string;
 }
 
-export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
+export const FileBubble = memo(({ msg }: FileBubbleProps) => {
 	const [meta, setMeta] = useState<FileMetadata | null>(null);
 	const [thumbUrl, setThumbUrl] = useState<string | null>(null);
 	const [isDecrypting, setIsDecrypting] = useState(false);
@@ -212,4 +212,6 @@ export const FileBubble: React.FC<FileBubbleProps> = ({ msg }) => {
 			{error && <div className="text-destructive text-xs mt-1">{error}</div>}
 		</div>
 	);
-};
+});
+
+FileBubble.displayName = 'FileBubble';

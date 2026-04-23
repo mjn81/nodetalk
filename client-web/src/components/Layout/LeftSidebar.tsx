@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo, useCallback } from 'react';
 import { Avatar } from '@/components/Avatar';
 import NewChannelModal from '@/components/NewChannelModal';
 import SettingsModal from '@/components/SettingsModal';
@@ -23,24 +23,24 @@ import {
 import type { AuthUser, Channel } from '@/types/api';
 import { isDirectMessage } from '@/utils/channel';
 
-const RenderChannel = ({
+const RenderChannel = memo(({
 	ch,
 	isGroup,
 	user,
+	isActive,
+	onSelect,
 }: {
 	ch: Channel;
 	isGroup: boolean;
 	user: AuthUser | null;
+	isActive: boolean;
+	onSelect: (ch: Channel) => void;
 }) => {
-	const activeChannel = useChannelStore((state) => state.activeChannel);
-	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
 	const display = getChannelDisplayName(ch, user?.id ?? '');
-	const isActive = activeChannel?.id === ch.id;
 
 	return (
 		<div
-			key={ch.id}
-			onClick={() => setActiveChannel(ch)}
+			onClick={() => onSelect(ch)}
 			className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-md cursor-pointer transition ${
 				isActive
 					? 'bg-accent text-foreground'
@@ -80,16 +80,24 @@ const RenderChannel = ({
 			</div>
 		</div>
 	);
-};
+});
+
+RenderChannel.displayName = 'RenderChannel';
 
 export default function LeftSidebar() {
 	const user = useAuthStore((state) => state.user);
 	const logout = useAuthStore((state) => state.logout);
 	const channels = useChannelStore((state) => state.channels);
 	const isLoading = useChannelStore((state) => state.isChannelsLoading);
+	const activeChannelId = useChannelStore((state) => state.activeChannel?.id);
+	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
 	const appVersion = useAppStore((state) => state.appVersion);
 	const fetchVersion = useAppStore((state) => state.fetchVersion);
 	const wsState = useAppStore((state) => state.wsState);
+
+	const handleSelectChannel = useCallback((ch: Channel) => {
+		setActiveChannel(ch);
+	}, [setActiveChannel]);
 	const [search, setSearch] = useState('');
 	const [debouncedSearch, setDebouncedSearch] = useState('');
 	const [isJoining, setIsJoining] = useState<string | null>(null);
@@ -212,6 +220,8 @@ export default function LeftSidebar() {
 										ch={ch}
 										isGroup={true}
 										user={user}
+										isActive={activeChannelId === ch.id}
+										onSelect={handleSelectChannel}
 									/>
 								))}
 							</div>
@@ -230,6 +240,8 @@ export default function LeftSidebar() {
 										ch={ch}
 										isGroup={false}
 										user={user}
+										isActive={activeChannelId === ch.id}
+										onSelect={handleSelectChannel}
 									/>
 								))}
 							</div>

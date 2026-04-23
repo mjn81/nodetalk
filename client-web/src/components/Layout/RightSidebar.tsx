@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, Profiler, useMemo, memo } from 'react';
+import { logProfiler } from '@/utils/profiler';
+
 import { Avatar } from '@/components/Avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Users, LogOut, UserMinus, Shield } from 'lucide-react';
@@ -42,15 +44,31 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 	const [showKickConfirm, setShowKickConfirm] = useState<Member | null>(null);
 	const [loading, setLoading] = useState(false);
 
-	if (!activeChannel) {
-		return <div className="h-full bg-secondary"></div>;
-	}
+	const members: Member[] = useMemo(() => {
+		if (!activeChannel) return [];
+		return activeChannel.members.map((id) => ({
+			id,
+			username: activeChannel.member_names?.[id] || id,
+			domain: activeChannel.member_domains?.[id] || '',
+			status: activeChannel.member_statuses?.[id] || 'offline',
+			avatar_id: activeChannel.member_avatars?.[id],
+			role: activeChannel.member_roles?.[id] ?? 0,
+		}));
+	}, [activeChannel]);
 
-	const isDM = isDirectMessage(activeChannel);
-	const myRole = activeChannel.member_roles?.[user?.id || ''] || 0;
+	// Grouping logic (Discord style)
+	const owners = useMemo(() => members.filter((m) => m.role >= 20 && m.status !== 'offline'), [members]);
+	const admins = useMemo(() => members.filter((m) => m.role === 10 && m.status !== 'offline'), [members]);
+	const onlineMembers = useMemo(() => members.filter(
+		(m) => m.role === 0 && m.status !== 'offline',
+	), [members]);
+	const offlineMembers = useMemo(() => members.filter((m) => m.status === 'offline'), [members]);
+
+	const isDM = activeChannel ? isDirectMessage(activeChannel) : false;
+	const myRole = (activeChannel && user) ? (activeChannel.member_roles?.[user.id] || 0) : 0;
 
 	const handleLeave = async () => {
-		if (!user) return;
+		if (!user || !activeChannel) return;
 		setLoading(true);
 		try {
 			await apiLeaveChannel(activeChannel.id, user.id);
@@ -64,7 +82,7 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 	};
 
 	const handleKick = async () => {
-		if (!showKickConfirm) return;
+		if (!showKickConfirm || !activeChannel) return;
 		setLoading(true);
 		try {
 			await apiLeaveChannel(activeChannel.id, showKickConfirm.id);
@@ -78,6 +96,7 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 	};
 
 	const handleUpdateRole = async (targetUserId: string, newRole: number) => {
+		if (!activeChannel) return;
 		setLoading(true);
 		try {
 			await apiUpdateMemberRole(activeChannel.id, targetUserId, newRole);
@@ -89,142 +108,133 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 		}
 	};
 
-	const members: Member[] = activeChannel.members.map((id) => ({
-		id,
-		username: activeChannel.member_names?.[id] || id,
-		domain: activeChannel.member_domains?.[id] || '',
-		status: activeChannel.member_statuses?.[id] || 'offline',
-		avatar_id: activeChannel.member_avatars?.[id],
-		role: activeChannel.member_roles?.[id] ?? 0,
-	}));
-
-	// Grouping logic (Discord style)
-	const owners = members.filter((m) => m.role >= 20 && m.status !== 'offline');
-	const admins = members.filter((m) => m.role === 10 && m.status !== 'offline');
-	const onlineMembers = members.filter(
-		(m) => m.role === 0 && m.status !== 'offline',
-	);
-	const offlineMembers = members.filter((m) => m.status === 'offline');
+	if (!activeChannel) {
+		return <div className="h-full bg-secondary"></div>;
+	}
 
 	return (
-		<div className="flex flex-col h-full bg-secondary">
-			{/* Header - Styled to match ChatTopbar, adaptive to collapse */}
-			<div className={`flex items-center h-12 border-b border-border shrink-0 shadow-sm bg-background transition-all ${isCollapsed ? 'justify-center w-full' : 'px-4 gap-3'}`}>
-				<div className="w-8 h-8 flex items-center justify-center text-muted-foreground shrink-0">
-					<Users size={24} className="opacity-70" />
-				</div>
-				{!isCollapsed && (
-					<h2 className="text-[15px] font-bold text-foreground leading-tight truncate">
-						Members
-					</h2>
-				)}
-			</div>
-
-			<ScrollArea className="flex-1">
-				<div className={`flex flex-col ${isCollapsed ? 'pt-4 items-center' : 'pt-5 pb-4'}`}>
-					<Section
-						title="Owner"
-						count={owners.length}
-						list={owners}
-						user={user}
-						isDM={isDM}
-						myRole={myRole}
-						onUpdateRole={handleUpdateRole}
-						onKick={setShowKickConfirm}
-						isCollapsed={isCollapsed}
-					/>
-					<Section
-						title="Admins"
-						count={admins.length}
-						list={admins}
-						user={user}
-						isDM={isDM}
-						myRole={myRole}
-						onUpdateRole={handleUpdateRole}
-						onKick={setShowKickConfirm}
-						isCollapsed={isCollapsed}
-					/>
-					<Section
-						title="Online"
-						count={onlineMembers.length}
-						list={onlineMembers}
-						user={user}
-						isDM={isDM}
-						myRole={myRole}
-						onUpdateRole={handleUpdateRole}
-						onKick={setShowKickConfirm}
-						isCollapsed={isCollapsed}
-					/>
-					<Section
-						title="Offline"
-						count={offlineMembers.length}
-						list={offlineMembers}
-						user={user}
-						isDM={isDM}
-						myRole={myRole}
-						onUpdateRole={handleUpdateRole}
-						onKick={setShowKickConfirm}
-						isCollapsed={isCollapsed}
-					/>
-				</div>
-			</ScrollArea>
-
-			{/* Leave Channel Footer */}
-			{!isDM && (
-				<div className={`border-t border-border/50 bg-background/20 shrink-0 ${isCollapsed ? 'flex items-center justify-center h-14' : 'p-4'}`}>
-					{isCollapsed ? (
-						<TooltipProvider delayDuration={0}>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<button
-										disabled={loading}
-										onClick={() => setShowLeaveConfirm(true)}
-										className="w-10 h-10 flex items-center justify-center rounded-lg text-destructive hover:bg-destructive/10 transition-all border border-transparent hover:border-destructive/20 active:scale-[0.98]"
-									>
-										<LogOut size={20} />
-									</button>
-								</TooltipTrigger>
-								<TooltipContent side="left" className="font-bold">
-									Leave Channel
-								</TooltipContent>
-							</Tooltip>
-						</TooltipProvider>
-					) : (
-						<button
-							disabled={loading}
-							onClick={() => setShowLeaveConfirm(true)}
-							className="flex items-center justify-center w-full gap-2 py-2.5 text-sm rounded-lg text-destructive hover:bg-destructive/10 transition-all font-bold border border-transparent hover:border-destructive/20 active:scale-[0.98]"
-							title="Leave Channel"
-						>
-							<LogOut size={16} />
-							Leave Channel
-						</button>
+		<Profiler id="RightSidebar" onRender={logProfiler}>
+			<div className="flex flex-col h-full bg-secondary">
+				{/* Header - Styled to match ChatTopbar, adaptive to collapse */}
+				<div className={`flex items-center h-12 border-b border-border shrink-0 shadow-sm bg-background transition-all ${isCollapsed ? 'justify-center w-full' : 'px-4 gap-3'}`}>
+					<div className="w-8 h-8 flex items-center justify-center text-muted-foreground shrink-0">
+						<Users size={24} className="opacity-70" />
+					</div>
+					{!isCollapsed && (
+						<h2 className="text-[15px] font-bold text-foreground leading-tight truncate">
+							Members
+						</h2>
 					)}
 				</div>
-			)}
 
-			<ConfirmModal
-				isOpen={showLeaveConfirm}
-				onClose={() => setShowLeaveConfirm(false)}
-				onConfirm={handleLeave}
-				title="Leave Channel"
-				message={`Are you sure you want to leave "${activeChannel.name}"? You will need an invite link to join back later.`}
-				confirmText="Leave Channel"
-				variant="danger"
-			/>
+				<ScrollArea className="flex-1">
+					<div className={`flex flex-col ${isCollapsed ? 'pt-4 items-center' : 'pt-5 pb-4'}`}>
+						<Section
+							title="Owner"
+							count={owners.length}
+							list={owners}
+							user={user}
+							isDM={isDM}
+							myRole={myRole}
+							onUpdateRole={handleUpdateRole}
+							onKick={setShowKickConfirm}
+							isCollapsed={isCollapsed}
+						/>
+						<Section
+							title="Admins"
+							count={admins.length}
+							list={admins}
+							user={user}
+							isDM={isDM}
+							myRole={myRole}
+							onUpdateRole={handleUpdateRole}
+							onKick={setShowKickConfirm}
+							isCollapsed={isCollapsed}
+						/>
+						<Section
+							title="Online"
+							count={onlineMembers.length}
+							list={onlineMembers}
+							user={user}
+							isDM={isDM}
+							myRole={myRole}
+							onUpdateRole={handleUpdateRole}
+							onKick={setShowKickConfirm}
+							isCollapsed={isCollapsed}
+						/>
+						<Section
+							title="Offline"
+							count={offlineMembers.length}
+							list={offlineMembers}
+							user={user}
+							isDM={isDM}
+							myRole={myRole}
+							onUpdateRole={handleUpdateRole}
+							onKick={setShowKickConfirm}
+							isCollapsed={isCollapsed}
+						/>
+					</div>
+				</ScrollArea>
 
-			<ConfirmModal
-				isOpen={!!showKickConfirm}
-				onClose={() => setShowKickConfirm(null)}
-				onConfirm={handleKick}
-				title="Kick Member"
-				message={`Are you sure you want to kick ${showKickConfirm?.username} from the channel? They will need a new invite to rejoin.`}
-				confirmText="Kick Member"
-				variant="danger"
-			/>
-		</div>
+				{/* Leave Channel Footer */}
+				{!isDM && (
+					<div className={`border-t border-border/50 bg-background/20 shrink-0 ${isCollapsed ? 'flex items-center justify-center h-14' : 'p-4'}`}>
+						{isCollapsed ? (
+							<TooltipProvider delayDuration={0}>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<button
+											disabled={loading}
+											onClick={() => setShowLeaveConfirm(true)}
+											className="w-10 h-10 flex items-center justify-center rounded-lg text-destructive hover:bg-destructive/10 transition-all border border-transparent hover:border-destructive/20 active:scale-[0.98]"
+										>
+											<LogOut size={20} />
+										</button>
+									</TooltipTrigger>
+									<TooltipContent side="left" className="font-bold">
+										Leave Channel
+									</TooltipContent>
+								</Tooltip>
+							</TooltipProvider>
+						) : (
+							<button
+								disabled={loading}
+								onClick={() => setShowLeaveConfirm(true)}
+								className="flex items-center justify-center w-full gap-2 py-2.5 text-sm rounded-lg text-destructive hover:bg-destructive/10 transition-all font-bold border border-transparent hover:border-destructive/20 active:scale-[0.98] overflow-hidden px-2"
+								title="Leave Channel"
+							>
+								<LogOut size={16} className="shrink-0" />
+								<span className="truncate whitespace-nowrap">Leave Channel</span>
+							</button>
+						)}
+					</div>
+				)}
+
+				<ConfirmModal
+					isOpen={showLeaveConfirm}
+					onClose={() => setShowLeaveConfirm(false)}
+					onConfirm={handleLeave}
+					title="Leave Channel"
+					message={`Are you sure you want to leave "${activeChannel.name}"? You will need an invite link to join back later.`}
+					confirmText="Leave Channel"
+					variant="danger"
+				/>
+
+				<ConfirmModal
+					isOpen={!!showKickConfirm}
+					onClose={() => setShowKickConfirm(null)}
+					onConfirm={handleKick}
+					title="Kick Member"
+					message={`Are you sure you want to kick ${showKickConfirm?.username} from the channel? They will need a new invite to rejoin.`}
+					confirmText="Kick Member"
+					variant="danger"
+				/>
+			</div>
+		</Profiler>
 	);
 }
+
+(RightSidebar as any).whyDidYouRender = true;
 
 interface SectionProps {
 	title: string;
@@ -238,12 +248,12 @@ interface SectionProps {
 	isCollapsed: boolean;
 }
 
-const Section = ({ title, count, list, isCollapsed, ...props }: SectionProps) => {
+const Section = memo(({ title, count, list, isCollapsed, ...props }: SectionProps) => {
 	if (list.length === 0) return null;
 	return (
 		<div className={`mb-5 ${isCollapsed ? 'flex flex-col items-center w-full' : ''}`}>
 			{!isCollapsed && (
-				<h3 className="text-[11px] font-bold text-muted-foreground/60 px-4 mb-1 tracking-wider uppercase select-none">
+				<h3 className="text-[11px] font-bold text-muted-foreground/60 px-4 mb-1 tracking-wider uppercase select-none truncate">
 					{title} — {count}
 				</h3>
 			)}
@@ -254,7 +264,9 @@ const Section = ({ title, count, list, isCollapsed, ...props }: SectionProps) =>
 			</div>
 		</div>
 	);
-};
+});
+
+Section.displayName = 'Section';
 
 interface MemberRowProps {
 	member: Member;
@@ -266,7 +278,7 @@ interface MemberRowProps {
 	isCollapsed: boolean;
 }
 
-const MemberRow = ({
+const MemberRow = memo(({
 	member,
 	user,
 	isDM,
@@ -368,4 +380,6 @@ const MemberRow = ({
 			)}
 		</ContextMenu>
 	);
-};
+});
+
+MemberRow.displayName = 'MemberRow';
