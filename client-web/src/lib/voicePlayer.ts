@@ -255,8 +255,13 @@ class VoicePlayerStore {
 	cycleSpeed() {
 		const idx = SPEEDS.indexOf(this.state.speed);
 		const next = SPEEDS[(idx + 1) % SPEEDS.length];
-		this.audio.playbackRate = next;
-		this.patch({ speed: next });
+		this.setSpeed(next);
+	}
+
+	setSpeed(speed: number) {
+		const s = Math.max(0.5, Math.min(4, speed));
+		this.audio.playbackRate = s;
+		this.patch({ speed: s });
 	}
 
 	close() {

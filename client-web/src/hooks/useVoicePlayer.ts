@@ -24,6 +24,7 @@ export function useVoicePlayerActions() {
 		togglePlay: useCallback(() => voicePlayer.togglePlay(),  []),
 		seek:       useCallback((p: number) => voicePlayer.seek(p), []),
 		cycleSpeed: useCallback(() => voicePlayer.cycleSpeed(),  []),
+		setSpeed:   useCallback((s: number) => voicePlayer.setSpeed(s), []),
 		close:      useCallback(() => voicePlayer.close(),       []),
 	};
 }

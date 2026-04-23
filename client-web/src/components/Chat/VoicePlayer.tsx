@@ -1,12 +1,14 @@
-import React, { useRef } from 'react';
-import { Play, Pause, X, Loader2 } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Play, Pause, X, Loader2, ChevronDown } from 'lucide-react';
 import { useVoicePlayer, useVoicePlayerActions } from '@/hooks/useVoicePlayer';
+import { Slider } from '@/components/ui/slider';
 
 export const VoicePlayer: React.FC = () => {
 	const { track, isPlaying, isLoading, currentTime, duration, speed } =
 		useVoicePlayer();
-	const { togglePlay, seek, cycleSpeed, close } = useVoicePlayerActions();
+	const { togglePlay, seek, setSpeed, close } = useVoicePlayerActions();
 	const progressBarRef = useRef<HTMLDivElement>(null);
+	const [showSpeedSlider, setShowSpeedSlider] = useState(false);
 
 	if (!track) return null;
 
@@ -27,7 +29,10 @@ export const VoicePlayer: React.FC = () => {
 	};
 
 	return (
-		<div className="absolute top-[48px] left-0 right-0 z-20 flex items-center gap-3 px-3 py-1.5 border-b border-border bg-background/95 backdrop-blur-md animate-in slide-in-from-top-1 duration-200">
+		<div
+			key={track.fileId}
+			className="absolute top-[48px] left-0 right-0 z-20 flex items-center gap-3 px-3 py-1.5 border-b border-border bg-background/95 backdrop-blur-md animate-in slide-in-from-top-1 duration-200"
+		>
 			{/* Play / Pause */}
 			<button
 				onClick={togglePlay}
@@ -66,14 +71,41 @@ export const VoicePlayer: React.FC = () => {
 				/>
 			</div>
 
-			{/* Speed button */}
-			<button
-				onClick={cycleSpeed}
-				className="text-[10px] font-bold tabular-nums text-muted-foreground hover:text-foreground transition px-1 py-0.5 rounded hover:bg-muted shrink-0 min-w-[28px] text-center"
-				title="Playback speed"
+			{/* Speed Control (Vertical Slider) */}
+			<div
+				className="relative flex items-center shrink-0"
+				onMouseEnter={() => setShowSpeedSlider(true)}
+				onMouseLeave={() => setShowSpeedSlider(false)}
 			>
-				{speed}×
-			</button>
+				<button className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-muted transition-colors">
+					<span className="text-[11px] font-bold tabular-nums text-primary min-w-[24px]">
+						{speed}×
+					</span>
+					<ChevronDown
+						size={12}
+						className={`text-muted-foreground transition-transform duration-200 ${showSpeedSlider ? 'rotate-180' : ''}`}
+					/>
+				</button>
+
+				{/* Vertical Slider Panel */}
+				{showSpeedSlider && (
+					<div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+						<div className="bg-background/95 backdrop-blur-md border border-border rounded-lg shadow-xl p-3 flex flex-col items-center gap-2 min-h-[120px] w-10">
+							<div className="h-24 flex items-center justify-center">
+								<Slider
+									orientation="vertical"
+									min={0.5}
+									max={3}
+									step={0.1}
+									value={[speed]}
+									onValueChange={([val]) => setSpeed(val)}
+									className="h-full"
+								/>
+							</div>
+						</div>
+					</div>
+				)}
+			</div>
 
 			{/* Close */}
 			<button
