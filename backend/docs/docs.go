@@ -272,7 +272,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Max messages to return (default 50, max 200)",
+                        "description": "Max messages to return (default 250, max 500)",
                         "name": "limit",
                         "in": "query"
                     },

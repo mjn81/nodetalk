@@ -215,9 +215,11 @@ export async function apiSearchUsers(query: string) {
 // ─────────────────────────────────────────────
 // Messages
 // ─────────────────────────────────────────────
-export async function apiListMessages(id: string, limit = 50) {
+export async function apiListMessages(id: string, limit = 50, before?: string) {
+	const query = new URLSearchParams({ limit: limit.toString() });
+	if (before) query.append('before', before);
 	return apiClient
-		.get<Message[]>(`/api/channels/${id}/messages?limit=${limit}`)
+		.get<Message[]>(`/api/channels/${id}/messages?${query.toString()}`)
 		.then((r) => (r as unknown as Message[]) || []);
 }
 

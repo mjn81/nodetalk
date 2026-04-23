@@ -1,11 +1,18 @@
-import { Profiler, useEffect, useCallback, useState, useMemo, memo } from 'react';
+import {
+	Profiler,
+	useEffect,
+	useCallback,
+	useState,
+	useMemo,
+	memo,
+} from 'react';
 import { logProfiler } from '@/utils/profiler';
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useMessages } from '@/hooks/useMessages';
 import type { Message, Channel } from '@/types/api';
 import { onWS, decryptMessage, wsSendReadReceipt } from '@/ws';
-import { useAuthStore, useCryptoStore, useChannelStore } from '@/store/store';
+import { useAuthStore, useCryptoStore } from '@/store/store';
 import { db } from '@/lib/db';
 
 import { ChatTopbar } from './Chat/ChatTopbar';
@@ -24,40 +31,31 @@ interface DecryptedMessage extends Message {
 const ChatArea = memo(({ channel }: ChatAreaProps) => {
 	const user = useAuthStore((state) => state.user);
 	const queryClient = useQueryClient();
-	const refreshChannels = useChannelStore((state) => state.refreshChannels);
 	const [searchQuery, setSearchQuery] = useState('');
 
-	// Scroll to bottom helper
-	const scrollToBottom = useCallback(() => {
-		requestAnimationFrame(() => {
-			const feed = document.getElementById('messages-feed');
-			if (feed) {
-				feed.scrollTop = feed.scrollHeight;
-			}
-		});
-	}, []);
 
-	const { data: messages = [] } = useMessages(channel.id, scrollToBottom);
+	const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useMessages(channel.id);
+
+	const messages = useMemo(() => {
+		if (!data) return [];
+		return data.pages.flat();
+	}, [data]);
 
 	// Send read receipt when opening channel
 	useEffect(() => {
 		wsSendReadReceipt(channel.id);
 	}, [channel.id]);
 
-	// Automatically scroll to bottom when messages change
-	useEffect(() => {
-		if (messages.length > 0 && !searchQuery) {
-			scrollToBottom();
-		}
-	}, [messages.length, scrollToBottom, searchQuery]);
 
-	const filteredMessages = useMemo(() => 
-		searchQuery
-			? messages.filter((m) =>
-					m.text?.toLowerCase().includes(searchQuery.toLowerCase()),
-			  )
-			: messages,
-	[messages, searchQuery]);
+	const filteredMessages = useMemo(
+		() =>
+			searchQuery
+				? messages.filter((m) =>
+						m.text?.toLowerCase().includes(searchQuery.toLowerCase()),
+					)
+				: messages,
+		[messages, searchQuery],
+	);
 
 	// Pre-populate query data from IndexedDB when channel changes
 	useEffect(() => {
@@ -66,7 +64,12 @@ const ChatArea = memo(({ channel }: ChatAreaProps) => {
 			if (cached.length > 0) {
 				queryClient.setQueryData(['messages', channel.id], (old: any) => {
 					// Only set if we don't have fresh data yet
-					return (old && old.length > 0) ? old : cached;
+					if (old && old.pages && old.pages.length > 0) return old;
+					const newestFirst = [...cached].reverse();
+					return {
+						pages: [newestFirst],
+						pageParams: [undefined]
+					};
 				});
 			}
 		};
@@ -83,18 +86,16 @@ const ChatArea = memo(({ channel }: ChatAreaProps) => {
 			// Save to IndexedDB
 			await db.cacheMessages([fullMsg]);
 
-			queryClient.setQueryData<DecryptedMessage[]>(
+			queryClient.setQueryData(
 				['messages', channel.id],
-				(old) => {
-					if (!old) return [fullMsg];
-					// Check if message already exists
-					if (old.some((m) => m.id === msg.id)) return old;
-					const updated = [...old, fullMsg];
-					// Ensure chronological order
-					return updated.sort(
-						(a, b) =>
-							new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime(),
-					);
+				(old: any) => {
+					if (!old || !old.pages) return { pages: [[fullMsg]], pageParams: [undefined] };
+					for (const page of old.pages) {
+						if (page.some((m: any) => m.id === msg.id)) return old;
+					}
+					const newPages = [...old.pages];
+					newPages[0] = [fullMsg, ...newPages[0]];
+					return { ...old, pages: newPages };
 				},
 			);
 		},
@@ -113,17 +114,21 @@ const ChatArea = memo(({ channel }: ChatAreaProps) => {
 		const unsubUpdate = onWS('message_update', async (payload) => {
 			const msg = payload as Message;
 			if (msg.channel_id === channel.id) {
-				const text = msg.type === 'text' ? await decryptMessage(msg) : undefined;
+				const text =
+					msg.type === 'text' ? await decryptMessage(msg) : undefined;
 				const fullMsg = { ...msg, text };
-				
+
 				await db.cacheMessages([fullMsg]);
-				
-				queryClient.setQueryData<DecryptedMessage[]>(
+
+				queryClient.setQueryData(
 					['messages', channel.id],
-					(old) => {
-						if (!old) return [fullMsg];
-						return old.map(m => m.id === msg.id ? fullMsg : m);
-					}
+					(old: any) => {
+						if (!old || !old.pages) return { pages: [[fullMsg]], pageParams: [undefined] };
+						return {
+							...old,
+							pages: old.pages.map((page: any) => page.map((m: any) => (m.id === msg.id ? fullMsg : m)))
+						};
+					},
 				);
 			}
 		});
@@ -132,12 +137,15 @@ const ChatArea = memo(({ channel }: ChatAreaProps) => {
 			const { channel_id, message_id } = payload;
 			if (channel_id === channel.id) {
 				db.deleteMessage(message_id);
-				queryClient.setQueryData<DecryptedMessage[]>(
+				queryClient.setQueryData(
 					['messages', channel.id],
-					(old) => {
-						if (!old) return [];
-						return old.filter(m => m.id !== message_id);
-					}
+					(old: any) => {
+						if (!old || !old.pages) return { pages: [], pageParams: [] };
+						return {
+							...old,
+							pages: old.pages.map((page: any) => page.filter((m: any) => m.id !== message_id))
+						};
+					},
 				);
 			}
 		});
@@ -158,7 +166,9 @@ const ChatArea = memo(({ channel }: ChatAreaProps) => {
 		});
 	}, [channel.id, queryClient]);
 
-	const channelKey = useCryptoStore((state) => state.channelKeys.get(channel.id));
+	const channelKey = useCryptoStore((state) =>
+		state.channelKeys.get(channel.id),
+	);
 	const [replyTo, setReplyTo] = useState<DecryptedMessage | null>(null);
 
 	const handleReply = useCallback((msg: DecryptedMessage) => {
@@ -168,21 +178,24 @@ const ChatArea = memo(({ channel }: ChatAreaProps) => {
 	return (
 		<Profiler id="ChatArea" onRender={logProfiler}>
 			<div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
-				<ChatTopbar 
-					channel={channel} 
-					currentUserId={user?.id ?? ''} 
+				<ChatTopbar
+					channel={channel}
+					currentUserId={user?.id ?? ''}
 					searchQuery={searchQuery}
 					onSearchChange={setSearchQuery}
 				/>
 				<VoicePlayer />
-				<ChatMessageFeed 
-					messages={filteredMessages} 
-					channel={channel} 
+				<ChatMessageFeed
+					messages={filteredMessages}
+					channel={channel}
 					onReply={handleReply}
+					fetchNextPage={fetchNextPage}
+					hasNextPage={hasNextPage}
+					isFetchingNextPage={isFetchingNextPage}
 				/>
 
-				<ChatInputArea 
-					channel={channel} 
+				<ChatInputArea
+					channel={channel}
 					channelKey={channelKey ?? new Uint8Array(32)} // Fallback in case key isn't loaded
 					replyTo={replyTo}
 					onCancelReply={() => setReplyTo(null)}
