@@ -1,0 +1,110 @@
+{
+  "app_name": "NodeTalk",
+  "tagline": "Self-hosted, end-to-end encrypted messaging.",
+  "nav": {
+    "home": "Home",
+    "settings": "Settings",
+    "logout": "Log out"
+  },
+  "common": {
+    "save": "Save"
+  },
+  "auth": {
+    "login": "Sign In",
+    "register": "Create Account",
+    "username": "Username",
+    "password": "Password",
+    "confirm_password": "Confirm Password",
+    "username_placeholder": "your_username",
+    "password_placeholder": "Minimum 8 characters",
+    "no_account": "Don't have an account?",
+    "have_account": "Already have an account?",
+    "create_one": "Create one",
+    "sign_in": "Sign in",
+    "errors": {
+      "required": "Username and password are required",
+      "password_length": "Password must be at least 8 characters",
+      "passwords_mismatch": "Passwords do not match",
+      "invalid_credentials": "The username or password you entered is incorrect",
+      "username_taken": "That username is already taken",
+      "invalid_json": "Invalid request format",
+      "session_failed": "Failed to create session. Please try again.",
+      "login_failed": "Login failed",
+      "register_failed": "Registration failed"
+    }
+  },
+  "sidebar": {
+    "groups": "Groups",
+    "direct_messages": "Direct Messages",
+    "search_placeholder": "Search conversations…",
+    "new_channel": "New channel or DM",
+    "online": "Online",
+    "no_conversations": "No conversations yet.\nClick ✏️ to start one.",
+    "no_matches": "No matches"
+  },
+  "chat": {
+    "message_placeholder": "Message…",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "direct_message": "Direct Message",
+    "members": "{{count}} members",
+    "send": "Send",
+    "pick_emoji": "Pick emoji",
+    "record_voice": "Hold to record voice",
+    "recording": "Recording… release to send",
+    "search_messages": "Search messages",
+    "view_members": "View members"
+  },
+  "channel": {
+    "new_conversation": "New Conversation",
+    "direct_message": "💬 Direct Message",
+    "group": "👥 Group",
+    "user_id_label": "User ID",
+    "user_id_placeholder": "Paste user ID…",
+    "group_name_label": "Group Name",
+    "group_name_placeholder": "e.g. Design Team",
+    "create": "Create",
+    "close": "Close",
+    "errors": {
+      "user_id_required": "Enter a user ID to message",
+      "group_name_required": "Group name is required",
+      "create_failed": "Failed to create channel"
+    }
+  },
+  "empty_state": {
+    "title": "Welcome to NodeTalk",
+    "description": "Select a conversation on the left, or click ✏️ to start a new one."
+  },
+  "errors": {
+    "upload_failed": "Upload failed",
+    "mic_denied": "Microphone access denied",
+    "encrypted": "[encrypted]",
+    "decryption_failed": "[decryption failed]"
+  },
+  "settings": {
+    "title": "User Settings",
+    "my_account": "My Account",
+    "privacy": "Privacy & Safety",
+    "appearance": "Appearance",
+    "notifications": "Notifications",
+    "logout": "Log Out",
+    "profile_information": "Profile Information",
+    "username": "Username",
+    "about_me": "About Me",
+    "edit": "Edit",
+    "account_removal": "Account Removal",
+    "delete_description": "Deleting your account is permanent and cannot be undone. All your data, including messages and contacts, will be anonymized or removed.",
+    "delete_account": "Delete Account",
+    "delete_confirm": "Yes, Delete Account",
+    "password_change": "Change Password",
+    "new_password": "New Password",
+    "update_password": "Change Password",
+    "cancel": "Cancel",
+    "theme": "Theme",
+    "dark": "Dark",
+    "light": "Light",
+    "language": "Language",
+    "wip_title": "Work in Progress",
+    "wip_description": "These settings are coming in a future update."
+  }
+}

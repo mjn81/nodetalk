@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  nodetalk-server:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+      - "9090:9090/udp"
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/config.toml:/app/config.toml
+    restart: unless-stopped
+
+  client-web:
+    build:
+      context: ./client-web
+    ports:
+      - "3000:80"
+    depends_on:
+      - nodetalk-server

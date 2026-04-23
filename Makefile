@@ -10,42 +10,51 @@ help: ## Show this help
 
 ## ── Backend ──────────────────────────────────────────────────────────────────
 tidy: ## go mod tidy
-	$(GO) mod tidy
+	cd backend && $(GO) mod tidy
 
 build: ## Build standalone web server binary
-	$(GO) build -o $(BIN) ./cmd/server
+	cd backend && $(GO) build -o ../$(BIN) ./cmd/server
 
 run: ## Run standalone web server (go run)
-	$(GO) run ./cmd/server
+	cd backend && $(GO) run ./cmd/server
 
 test: ## Run all tests with race detector
-	$(GO) test ./... -race -cover -count=1
+	cd backend && $(GO) test ./... -race -cover -count=1
 
 lint: ## Run golangci-lint
-	golangci-lint run ./...
+	cd backend && golangci-lint run ./...
 
 swagger: ## Regenerate Swagger docs (requires swag in GOBIN)
-	$(GOBIN)/swag init -g cmd/server/main.go --output docs --parseDependency
+	cd backend && $(GOBIN)/swag init -g cmd/server/main.go --output docs --parseDependency
 
 ## ── Frontend ─────────────────────────────────────────────────────────────────
 front/install: ## npm install
-	cd frontend && $(NPM) install
+	$(NPM) --prefix client-web install
 
 front/dev: ## Vite dev server
-	cd frontend && $(NPM) run dev
+	$(NPM) --prefix client-web run dev
 
-front/build: ## Build production bundle into frontend/dist/
-	cd frontend && $(NPM) run build
+front/build: ## Build production bundle into client-web/dist/
+	$(NPM) --prefix client-web run build
 
 ## ── Wails Desktop (PRIMARY build target) ────────────────────────────────────
-wails/dev: ## Run Wails in dev mode (hot-reload desktop app)
-	$(GOBIN)/wails dev
+wails/dev: build ## Run Wails in dev mode (hot-reload desktop app)
+	rm -rf client-desktop/frontend/dist
+	mkdir -p client-desktop/frontend/dist
+	cp -r client-web/dist/* client-desktop/frontend/dist/
+	cd client-desktop && $(GOBIN)/wails dev -s
 
-wails/build: ## Build production Wails desktop binary
-	$(GOBIN)/wails build -clean
+wails/build: build front/build ## Build production Wails desktop binary
+	rm -rf client-desktop/frontend/dist
+	mkdir -p client-desktop/frontend/dist
+	cp -r client-web/dist/* client-desktop/frontend/dist/
+	cd client-desktop && $(GOBIN)/wails build -clean -s
 
-wails/build/mac: ## Build macOS universal binary
-	$(GOBIN)/wails build -clean -platform darwin/universal
+wails/build/mac: build front/build ## Build macOS universal binary
+	rm -rf client-desktop/frontend/dist
+	mkdir -p client-desktop/frontend/dist
+	cp -r client-web/dist/* client-desktop/frontend/dist/
+	cd client-desktop && $(GOBIN)/wails build -clean -platform darwin/universal -s
 
 ## ── Combined ─────────────────────────────────────────────────────────────────
 dev: ## Run standalone backend + Vite concurrently (web mode)
@@ -53,4 +62,4 @@ dev: ## Run standalone backend + Vite concurrently (web mode)
 
 clean: ## Remove build artifacts and temp data
 	rm -f $(BIN)
-	rm -rf data/ frontend/dist/ build/bin/
+	rm -rf backend/data/db/* backend/data/uploads/* client-web/dist/ client-desktop/build/bin/

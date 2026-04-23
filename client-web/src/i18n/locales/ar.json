@@ -1,0 +1,81 @@
+{
+  "app_name": "نود توك",
+  "tagline": "منصة مراسلة مستضافة ذاتياً مع تشفير كامل.",
+  "nav": {
+    "home": "الرئيسية",
+    "settings": "الإعدادات",
+    "logout": "تسجيل الخروج"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "register": "إنشاء حساب",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "confirm_password": "تأكيد كلمة المرور",
+    "username_placeholder": "اسم_المستخدم",
+    "password_placeholder": "8 أحرف على الأقل",
+    "no_account": "ليس لديك حساب؟",
+    "have_account": "لديك حساب بالفعل؟",
+    "create_one": "أنشئ حساباً",
+    "sign_in": "تسجيل الدخول",
+    "errors": {
+      "required": "اسم المستخدم وكلمة المرور مطلوبان",
+      "password_length": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل",
+      "passwords_mismatch": "كلمات المرور غير متطابقة",
+      "invalid_credentials": "اسم المستخدم أو كلمة المرور غير صحيحة",
+      "username_taken": "اسم المستخدم هذا مأخوذ بالفعل",
+      "invalid_json": "تنسيق الطلب غير صالح",
+      "session_failed": "فشل إنشاء الجلسة. يرجى المحاولة مرة أخرى.",
+      "login_failed": "فشل تسجيل الدخول",
+      "register_failed": "فشل التسجيل"
+    }
+  },
+  "sidebar": {
+    "groups": "المجموعات",
+    "direct_messages": "الرسائل المباشرة",
+    "search_placeholder": "ابحث في المحادثات…",
+    "new_channel": "محادثة أو مجموعة جديدة",
+    "online": "متصل",
+    "no_conversations": "لا توجد محادثات بعد.\nانقر ✏️ للبدء.",
+    "no_matches": "لا توجد نتائج"
+  },
+  "chat": {
+    "message_placeholder": "رسالة…",
+    "today": "اليوم",
+    "yesterday": "أمس",
+    "direct_message": "رسالة مباشرة",
+    "members": "{{count}} أعضاء",
+    "send": "إرسال",
+    "pick_emoji": "اختر رمزاً تعبيرياً",
+    "record_voice": "اضغط مطولاً للتسجيل",
+    "recording": "جارٍ التسجيل… حرر للإرسال",
+    "search_messages": "البحث في الرسائل",
+    "view_members": "عرض الأعضاء"
+  },
+  "channel": {
+    "new_conversation": "محادثة جديدة",
+    "direct_message": "💬 رسالة مباشرة",
+    "group": "👥 مجموعة",
+    "user_id_label": "معرّف المستخدم",
+    "user_id_placeholder": "الصق معرّف المستخدم…",
+    "group_name_label": "اسم المجموعة",
+    "group_name_placeholder": "مثال: فريق التصميم",
+    "create": "إنشاء",
+    "close": "إغلاق",
+    "errors": {
+      "user_id_required": "أدخل معرّف مستخدم للمراسلة",
+      "group_name_required": "اسم المجموعة مطلوب",
+      "create_failed": "فشل إنشاء القناة"
+    }
+  },
+  "empty_state": {
+    "title": "مرحباً بك في نود توك",
+    "description": "اختر محادثة من اليسار، أو انقر ✏️ لبدء محادثة جديدة."
+  },
+  "errors": {
+    "upload_failed": "فشل الرفع",
+    "mic_denied": "تم رفض الوصول إلى الميكروفون",
+    "encrypted": "[مشفّر]",
+    "decryption_failed": "[فشل فك التشفير]"
+  }
+}
