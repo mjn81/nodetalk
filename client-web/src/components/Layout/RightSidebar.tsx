@@ -338,9 +338,11 @@ const MemberRow = memo(({
 								)}
 							</div>
 						</TooltipTrigger>
-						<TooltipContent side="left" className="font-bold">
-							{member.username}
-						</TooltipContent>
+						{isCollapsed && (
+							<TooltipContent side="left" className="font-bold">
+								{member.username}
+							</TooltipContent>
+						)}
 					</Tooltip>
 				</TooltipProvider>
 			</ContextMenuTrigger>
