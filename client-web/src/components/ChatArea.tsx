@@ -9,6 +9,7 @@ import { db } from '@/lib/db';
 import { ChatTopbar } from './Chat/ChatTopbar';
 import { ChatMessageFeed } from './Chat/ChatMessageFeed';
 import { ChatInputArea } from './Chat/ChatInputArea';
+import { VoicePlayer } from './Chat/VoicePlayer';
 
 interface ChatAreaProps {
 	channel: Channel;
@@ -106,8 +107,8 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 
 	return (
 		<div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
-			<ChatTopbar channel={channel} currentUserId={user?.id ?? ''} />
-			
+				<ChatTopbar channel={channel} currentUserId={user?.id ?? ''} />
+			<VoicePlayer />
 			<ChatMessageFeed messages={messages} channel={channel} />
 
 			<ChatInputArea 
