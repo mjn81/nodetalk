@@ -3,7 +3,7 @@ import { useAuthStore } from '@/store/store';
 import { Avatar } from '../Avatar';
 import { type Message, type Channel } from '@/types/api';
 import { FileBubble } from './FileBubble';
-import { Pencil, Trash2, X, Check, Play, Pause } from 'lucide-react';
+import { Pencil, Trash2, Play, Pause } from 'lucide-react';
 import { wsEditMessage, wsDeleteMessage } from '@/ws';
 
 import { JoinPreview } from './JoinPreview';

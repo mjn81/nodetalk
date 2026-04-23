@@ -16,6 +16,7 @@ type ChannelBroadcaster interface {
 	BroadcastChannelCreated(ch *models.Channel)
 	BroadcastMemberJoined(channelID string, userID string)
 	BroadcastMemberLeft(channelID string, userID string)
+	BroadcastMemberRoleUpdated(channelID string, userID string, role int)
 	BroadcastPresence(userID string, status string)
 	SendChannelKey(channelID, userID string)
 }
@@ -67,6 +68,7 @@ func NewRouter(h *Handler, globalRPS, authRPS float64) http.Handler {
 	mux.Handle("POST /api/join/{link}",                  protect(h.JoinChannel))
 	mux.Handle("GET /api/channels/{id}/members",         protectMember(h.GetChannelMembers))
 	mux.Handle("POST /api/channels/{id}/members",        protectMember(h.AddMembers))
+	mux.Handle("PATCH /api/channels/{id}/members/{uid}", protectMember(h.UpdateMember))
 	mux.Handle("DELETE /api/channels/{id}/members/{uid}", protectMember(h.RemoveMember))
 	mux.Handle("GET /api/channels/{id}/messages",        protectMember(h.ListMessages))
 	

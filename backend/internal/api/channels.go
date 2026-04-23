@@ -387,6 +387,50 @@ func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, StatusResponse{Status: "member kicked"})
 }
 
+// UpdateMember handles promoting or demoting a member (Owner only).
+func (h *Handler) UpdateMember(w http.ResponseWriter, r *http.Request) {
+	session := auth.SessionFromContext(r.Context())
+	ch := ChannelFromContext(r.Context())
+	targetUID := r.PathValue("uid")
+
+	var req struct {
+		Role int `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Only Owner can change roles
+	actorUC, err := h.Store.GetUserChannel(session.UserID, ch.ID)
+	if err != nil || actorUC.Role < models.RoleOwner {
+		writeError(w, http.StatusForbidden, "only owners can manage roles")
+		return
+	}
+
+	// Cannot change owner's role
+	targetUC, err := h.Store.GetUserChannel(targetUID, ch.ID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "member not found")
+		return
+	}
+	if targetUC.Role >= models.RoleOwner {
+		writeError(w, http.StatusForbidden, "cannot change owner's role")
+		return
+	}
+
+	if err := h.Store.UpdateMemberRole(ch.ID, targetUID, req.Role); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update role")
+		return
+	}
+
+	if h.Hub != nil {
+		h.Hub.BroadcastMemberRoleUpdated(ch.ID, targetUID, req.Role)
+	}
+
+	writeJSON(w, http.StatusOK, StatusResponse{Status: "role updated"})
+}
+
 // --- Helpers & Middleware ---
 
 type apiContextKey int

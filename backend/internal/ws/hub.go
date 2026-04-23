@@ -3,18 +3,17 @@ package ws
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
 	"time"
 
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
 	"nodetalk/backend/internal/auth"
 	"nodetalk/backend/internal/models"
 	"nodetalk/backend/internal/store"
-	"github.com/segmentio/ksuid"
+
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 )
 
 // Hub manages all active WebSocket connections and broadcasts messages.
@@ -193,27 +192,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn.Close(websocket.StatusNormalClosure, "goodbye")
 }
 
-func (h *Hub) register(c *Client) {
-	h.mu.Lock()
-	// Close any existing connection for this user (new login replaced old tab).
-	if old, ok := h.clients[c.UserID]; ok {
-		old.conn.Close(websocket.StatusGoingAway, "replaced by new connection")
-		close(old.send)
-	}
-	h.clients[c.UserID] = c
-	h.mu.Unlock()
-}
-
-func (h *Hub) unregister(c *Client) {
-	h.mu.Lock()
-	if existing, ok := h.clients[c.UserID]; ok && existing == c {
-		delete(h.clients, c.UserID)
-		close(c.send)
-	}
-	h.mu.Unlock()
-}
-
-// broadcastPresence notifies all connected clients of a user's status change.
+// BroadcastChannelCreated notifies all connected clients of a user's status change.
 func (h *Hub) BroadcastChannelCreated(ch *models.Channel) {
 	rawKey, err := h.store.DecryptChannelKey(ch, h.kek)
 	if err != nil {
@@ -336,190 +315,26 @@ func (h *Hub) BroadcastMemberLeft(channelID string, userID string) {
 	}
 }
 
-// ---- Client Methods -------------------------------------------------------- //
-
-// writeChannelKeys pushes all decrypted AES channel keys to the client so it
-// can decrypt incoming messages immediately.
-func (c *Client) writeChannelKeys(ctx context.Context, s *store.Store, kek []byte) {
-	channels, err := s.ListUserChannels(c.UserID)
-	if err != nil {
-		log.Printf("ws: writeChannelKeys list error for %s: %v", c.UserID, err)
-		return
-	}
-	for _, ch := range channels {
-		rawKey, err := s.DecryptChannelKey(ch, kek)
-		if err != nil {
-			log.Printf("ws: cannot decrypt key for channel %s: %v", ch.ID, err)
-			continue
-		}
-		payload, _ := json.Marshal(map[string]any{
-			"channel_id": ch.ID,
-			"aes_key":    rawKey,
-		})
-		msg := &models.WSMessage{Type: "channel_key", Payload: payload}
-		writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		_ = wsjson.Write(writeCtx, c.conn, msg)
-		cancel()
-	}
-}
-
-// handleMessage routes inbound WSS frames.
-func (c *Client) handleMessage(ctx context.Context, msg *models.WSMessage) error {
-	switch msg.Type {
-	case "message":
-		return c.handleChatMessage(msg)
-	case "message_edit":
-		return c.handleEditMessage(msg)
-	case "message_delete":
-		return c.handleDeleteMessage(msg)
-	case "read_receipt":
-		return c.handleReadReceipt(msg)
-	case "ping":
-		return c.hub.store.SetPresence(c.UserID, "online")
-	default:
-		return fmt.Errorf("unknown message type: %s", msg.Type)
-	}
-}
-
-// handleChatMessage persists and broadcasts an incoming encrypted chat message.
-func (c *Client) handleChatMessage(raw *models.WSMessage) error {
-	var body struct {
-		ChannelID   string             `json:"channel_id"`
-		Type        models.MessageType `json:"type"`
-		Ciphertext  []byte             `json:"ciphertext"`
-		Nonce       []byte             `json:"nonce"`
-		Compression string             `json:"compression"`
-	}
-	if err := json.Unmarshal(raw.Payload, &body); err != nil {
-		return fmt.Errorf("invalid message payload: %w", err)
-	}
-	if body.ChannelID == "" || body.Ciphertext == nil {
-		return fmt.Errorf("missing channel_id or ciphertext")
-	}
-	if body.Type == "" {
-		body.Type = models.MessageTypeText
-	}
-	if body.Compression == "" {
-		body.Compression = "none"
-	}
-
-	// Membership check
-	uc, err := c.hub.store.GetUserChannel(c.UserID, body.ChannelID)
-	if err != nil || uc.Status != models.StatusActive {
-		return fmt.Errorf("not an active member of channel: %s", body.ChannelID)
-	}
-
-	now := time.Now().UTC()
-	msg := &models.Message{
-		ID:          ksuid.New().String(),
-		ChannelID:   body.ChannelID,
-		SenderID:    c.UserID,
-		Type:        body.Type,
-		Ciphertext:  body.Ciphertext,
-		Nonce:       body.Nonce,
-		Compression: body.Compression,
-		SentAt:      now,
-	}
-	if err := c.hub.store.SaveMessage(msg); err != nil {
-		return fmt.Errorf("persist message: %w", err)
-	}
-
-	outPayload, _ := json.Marshal(msg)
-	outMsg := &models.WSMessage{Type: "message", Payload: outPayload}
-	c.hub.broadcast <- &envelope{
-		channelID: body.ChannelID,
-		senderID:  c.UserID,
-		msg:       outMsg,
-	}
-	return nil
-}
-
-// handleEditMessage updates an existing message's ciphertext.
-func (c *Client) handleEditMessage(raw *models.WSMessage) error {
-	var body struct {
-		ChannelID  string `json:"channel_id"`
-		MessageID  string `json:"message_id"`
-		Ciphertext []byte `json:"ciphertext"`
-		Nonce      []byte `json:"nonce"`
-	}
-	if err := json.Unmarshal(raw.Payload, &body); err != nil {
-		return fmt.Errorf("invalid message_edit payload: %w", err)
-	}
-
-	msg, err := c.hub.store.GetMessage(body.ChannelID, body.MessageID)
-	if err != nil {
-		return fmt.Errorf("message not found")
-	}
-
-	if msg.SenderID != c.UserID {
-		return fmt.Errorf("permission denied: cannot edit someone else's message")
-	}
-
-	now := time.Now().UTC()
-	msg.Ciphertext = body.Ciphertext
-	msg.Nonce = body.Nonce
-	msg.EditedAt = &now
-
-	if err := c.hub.store.UpdateMessage(msg); err != nil {
-		return fmt.Errorf("update message: %w", err)
-	}
-
-	outPayload, _ := json.Marshal(msg)
-	outMsg := &models.WSMessage{Type: "message_update", Payload: outPayload}
-	c.hub.broadcast <- &envelope{
-		channelID: body.ChannelID,
-		senderID:  c.UserID,
-		msg:       outMsg,
-	}
-	return nil
-}
-
-// handleDeleteMessage removes a message from the DB and notifies clients.
-func (c *Client) handleDeleteMessage(raw *models.WSMessage) error {
-	var body struct {
-		ChannelID string `json:"channel_id"`
-		MessageID string `json:"message_id"`
-	}
-	if err := json.Unmarshal(raw.Payload, &body); err != nil {
-		return fmt.Errorf("invalid message_delete payload: %w", err)
-	}
-
-	msg, err := c.hub.store.GetMessage(body.ChannelID, body.MessageID)
-	if err != nil {
-		return fmt.Errorf("message not found")
-	}
-
-	if msg.SenderID != c.UserID {
-		return fmt.Errorf("permission denied: cannot delete someone else's message")
-	}
-
-	if err := c.hub.store.DeleteMessage(body.ChannelID, body.MessageID); err != nil {
-		return fmt.Errorf("delete message: %w", err)
-	}
-
-	outPayload, _ := json.Marshal(map[string]any{
-		"channel_id": body.ChannelID,
-		"message_id": body.MessageID,
+// BroadcastMemberRoleUpdated notifies all members that a user's role has changed.
+// This is important for the affected user to gain/lose permissions in real-time.
+func (h *Hub) BroadcastMemberRoleUpdated(channelID string, userID string, role int) {
+	payload, _ := json.Marshal(map[string]any{
+		"channel_id": channelID,
+		"user_id":    userID,
+		"role":       role,
+		"type":       "role_updated",
 	})
-	outMsg := &models.WSMessage{Type: "message_delete", Payload: outPayload}
-	c.hub.broadcast <- &envelope{
-		channelID: body.ChannelID,
-		senderID:  c.UserID,
-		msg:       outMsg,
-	}
-	return nil
-}
+	msg := &models.WSMessage{Type: "channel_update", Payload: payload}
+	// Broadcast to everyone in the channel
+	h.broadcast <- &envelope{channelID: channelID, msg: msg}
 
-// handleReadReceipt updates the last read timestamp for the channel.
-func (c *Client) handleReadReceipt(raw *models.WSMessage) error {
-	var body struct {
-		ChannelID string `json:"channel_id"`
+	// Also send targeted notification to the user who was updated
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if c, ok := h.clients[userID]; ok {
+		select {
+		case c.send <- &envelope{msg: msg}:
+		default:
+		}
 	}
-	if err := json.Unmarshal(raw.Payload, &body); err != nil {
-		return fmt.Errorf("invalid read_receipt payload: %w", err)
-	}
-	if body.ChannelID == "" {
-		return fmt.Errorf("missing channel_id")
-	}
-	return c.hub.store.UpdateChannelRead(c.UserID, body.ChannelID)
 }

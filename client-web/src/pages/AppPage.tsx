@@ -65,9 +65,20 @@ export default function AppPage() {
 			}
 		});
 
+		// Listen for messages to update unread counts for channels NOT in focus
+		const unsubMessage = onWS('message', (payload: any) => {
+			if (payload && payload.channel_id) {
+				const active = useChannelStore.getState().activeChannel;
+				if (!active || active.id !== payload.channel_id) {
+					useChannelStore.getState().incrementUnread(payload.channel_id);
+				}
+			}
+		});
+
 		return () => {
 			unsubChannel();
 			unsubPresence();
+			unsubMessage();
 		};
 	}, [refreshChannels]);
 

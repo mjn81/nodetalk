@@ -36,12 +36,12 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 
 	const { data: messages = [] } = useMessages(channel.id, scrollToBottom);
 
-	// Send read receipt when opening channel or new messages arrive
+	// Send read receipt when opening channel
 	useEffect(() => {
 		wsSendReadReceipt(channel.id);
-		// Optionally refresh channels to clear local unread count in sidebar immediately
+		// Clear local unread count in sidebar immediately on entry
 		refreshChannels();
-	}, [channel.id, messages.length, refreshChannels]);
+	}, [channel.id, refreshChannels]);
 
 	// Automatically scroll to bottom when messages change
 	useEffect(() => {

@@ -183,6 +183,10 @@ export async function apiLeaveChannel(channelId: string, userId: string) {
 	return apiClient.delete(`/api/channels/${channelId}/members/${userId}`);
 }
 
+export async function apiUpdateMemberRole(channelId: string, userId: string, role: number) {
+	return apiClient.patch(`/api/channels/${channelId}/members/${userId}`, { role });
+}
+
 export async function apiGetChannelMembers(channelId: string) {
 	return apiClient
 		.get<User[]>(`/api/channels/${channelId}/members`)

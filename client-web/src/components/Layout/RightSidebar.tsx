@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Avatar } from '@/components/Avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, LogOut, UserMinus } from 'lucide-react';
+import { Users, LogOut, UserMinus, ShieldAlert, ShieldCheck, Shield } from 'lucide-react';
 import { useChannelStore, useAuthStore } from '@/store/store';
-import { apiLeaveChannel } from '@/api/client';
+import { apiLeaveChannel, apiUpdateMemberRole } from '@/api/client';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { isDirectMessage } from '@/utils/channel';
 import {
@@ -11,6 +11,7 @@ import {
 	ContextMenuContent,
 	ContextMenuItem,
 	ContextMenuTrigger,
+	ContextMenuSeparator,
 } from '@/components/ui/context-menu';
 
 interface Member {
@@ -66,6 +67,18 @@ export default function RightSidebar() {
 		}
 	};
 
+	const handleUpdateRole = async (targetUserId: string, newRole: number) => {
+		setLoading(true);
+		try {
+			await apiUpdateMemberRole(activeChannel.id, targetUserId, newRole);
+			await refreshChannels();
+		} catch (err) {
+			console.error('Failed to update role:', err);
+		} finally {
+			setLoading(false);
+		}
+	};
+
 	const members: Member[] = activeChannel.members.map(id => ({
 		id,
 		username: activeChannel.member_names?.[id] || id,
@@ -79,7 +92,10 @@ export default function RightSidebar() {
 	const offlineMembers = members.filter((m) => m.status === 'offline');
 
 	const MemberRow = ({ member }: { member: Member }) => {
-		const canKick = !isDM && myRole >= 10 && myRole > member.role && member.id !== user?.id;
+		const isMe = member.id === user?.id;
+		const canKick = !isDM && myRole >= 10 && myRole > member.role && !isMe;
+		const canPromote = !isDM && myRole >= 20 && member.role === 0 && !isMe;
+		const canDemote = !isDM && myRole >= 20 && member.role === 10 && !isMe;
 
 		return (
 			<ContextMenu key={member.id}>
@@ -111,24 +127,47 @@ export default function RightSidebar() {
 									{member.username}
 								</span>
 								{member.role >= 20 && (
-									<span className="text-[10px] bg-primary/20 text-primary px-1 rounded font-bold uppercase tracking-wider">Owner</span>
+									<ShieldAlert className="w-3 h-3 text-primary fill-primary/20" />
 								)}
 								{member.role === 10 && (
-									<span className="text-[10px] bg-blue-500/20 text-blue-500 px-1 rounded font-bold uppercase tracking-wider">Admin</span>
+									<ShieldCheck className="w-3 h-3 text-blue-500 fill-blue-500/20" />
 								)}
 							</div>
 						</div>
 					</div>
 				</ContextMenuTrigger>
-				{canKick && (
+				{(canKick || canPromote || canDemote) && (
 					<ContextMenuContent className="w-48">
-						<ContextMenuItem 
-							className="text-destructive focus:text-destructive focus:bg-destructive/10 font-bold gap-2"
-							onClick={() => setShowKickConfirm(member)}
-						>
-							<UserMinus size={16} />
-							Kick Member
-						</ContextMenuItem>
+						{canPromote && (
+							<ContextMenuItem 
+								className="gap-2"
+								onClick={() => handleUpdateRole(member.id, 10)}
+							>
+								<Shield size={16} className="text-blue-500" />
+								Promote to Admin
+							</ContextMenuItem>
+						)}
+						{canDemote && (
+							<ContextMenuItem 
+								className="gap-2"
+								onClick={() => handleUpdateRole(member.id, 0)}
+							>
+								<UserMinus size={16} className="text-muted-foreground" />
+								Demote to Member
+							</ContextMenuItem>
+						)}
+						{canKick && (
+							<>
+								<ContextMenuSeparator />
+								<ContextMenuItem 
+									className="text-destructive focus:text-destructive focus:bg-destructive/10 font-bold gap-2"
+									onClick={() => setShowKickConfirm(member)}
+								>
+									<UserMinus size={16} />
+									Kick Member
+								</ContextMenuItem>
+							</>
+						)}
 					</ContextMenuContent>
 				)}
 			</ContextMenu>

@@ -318,6 +318,16 @@ func (s *Store) RemoveMemberFromChannel(channelID, userID, status string) error 
 	return s.db.SetUserChannel(uc)
 }
 
+// UpdateMemberRole changes a user's role in a channel.
+func (s *Store) UpdateMemberRole(channelID, userID string, role int) error {
+	uc, err := s.db.GetUserChannel(userID, channelID)
+	if err != nil {
+		return err
+	}
+	uc.Role = role
+	return s.db.SetUserChannel(uc)
+}
+
 
 // DecryptChannelKey decrypts and returns the raw AES key for a channel.
 func (s *Store) DecryptChannelKey(ch *models.Channel, kek []byte) ([]byte, error) {
