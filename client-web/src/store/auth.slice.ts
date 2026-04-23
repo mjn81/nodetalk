@@ -37,10 +37,20 @@ export const useAuthStore = create<AuthSlice>()(
 						set({ user: fresh, isAuthLoading: false });
 						connectWS();
 						useChannelStore.getState().refreshChannels();
-					} catch {
-						// Session invalid or server down
-						set({ user: null, isAuthLoading: false });
-						disconnectWS();
+					} catch (err: any) {
+						// Only clear session if it's a definitive 401 Unauthorized
+						// If it's a network error or 500, we keep the 'saved' user state
+						// so the app doesn't flick back to login incorrectly.
+						if (err?.status === 401) {
+							set({ user: null, isAuthLoading: false });
+							disconnectWS();
+						} else {
+							// Network error or server blip - stay "logged in" locally
+							// but the UI will show connection errors via WS state.
+							set({ isAuthLoading: false });
+							connectWS();
+							useChannelStore.getState().refreshChannels().catch(() => {});
+						}
 					}
 				} else {
 					set({ isAuthLoading: false });

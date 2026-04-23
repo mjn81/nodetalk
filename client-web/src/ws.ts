@@ -2,7 +2,20 @@
 
 import type { Message } from '@/types/api';
 
-const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080';
+const getWsUrl = () => {
+	const envUrl = import.meta.env.VITE_WS_URL;
+	if (envUrl && !envUrl.includes('localhost')) return envUrl.replace(/\/$/, '');
+
+	if (typeof window !== 'undefined') {
+		const host = window.location.hostname;
+		if (host === '[::1]' || host === '127.0.0.1' || host === 'localhost') {
+			return `ws://${host}:8080`;
+		}
+	}
+	return (envUrl ?? 'ws://localhost:8080').replace(/\/$/, '');
+};
+
+const WS_URL = getWsUrl();
 
 // ── Binary Helpers ───────────────────────────────────────────────────────
 export function base64ToBytes(base64: string): Uint8Array {

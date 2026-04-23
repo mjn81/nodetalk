@@ -6,9 +6,22 @@ import axios, { AxiosError } from 'axios';
 // ─────────────────────────────────────────────
 // Environment
 // ─────────────────────────────────────────────
-const BASE_URL = (
-	import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
-).replace(/\/$/, '');
+const getBaseUrl = () => {
+	const envUrl = import.meta.env.VITE_API_URL;
+	if (envUrl && !envUrl.includes('localhost')) return envUrl.replace(/\/$/, '');
+	
+	// If we're on localhost/[::1] and no explicit env URL (or it's localhost),
+	// match the hostname the user is actually using.
+	if (typeof window !== 'undefined') {
+		const host = window.location.hostname;
+		if (host === '[::1]' || host === '127.0.0.1' || host === 'localhost') {
+			return `http://${host}:8080`;
+		}
+	}
+	return (envUrl ?? 'http://localhost:8080').replace(/\/$/, '');
+};
+
+const BASE_URL = getBaseUrl();
 
 // ─────────────────────────────────────────────
 // Custom Error Types
