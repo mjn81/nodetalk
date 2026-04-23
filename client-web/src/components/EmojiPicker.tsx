@@ -5,9 +5,10 @@ import data from '@emoji-mart/data';
 interface EmojiPickerProps {
   onSelect: (emoji: { native: string }) => void;
   onClickOutside: () => void;
+  theme?: 'light' | 'dark';
 }
 
-export default function EmojiPicker({ onSelect, onClickOutside }: EmojiPickerProps) {
+export default function EmojiPicker({ onSelect, onClickOutside, theme = 'dark' }: EmojiPickerProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,7 +26,7 @@ export default function EmojiPicker({ onSelect, onClickOutside }: EmojiPickerPro
       <Picker
         data={data}
         onEmojiSelect={onSelect}
-        theme="dark"
+        theme={theme}
         previewPosition="none"
         skinTonePosition="none"
         navPosition="bottom"

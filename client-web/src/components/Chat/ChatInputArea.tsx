@@ -15,7 +15,7 @@ import {
 	Lock,
 	AtSign,
 } from 'lucide-react';
-import { useAuthStore, getChannelDisplayName } from '@/store/store';
+import { useAuthStore, getChannelDisplayName, useAppStore } from '@/store/store';
 import { apiGetChannelMembers } from '@/api/client';
 import { Avatar } from '../Avatar';
 import EmojiPicker from '../EmojiPicker';
@@ -36,6 +36,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 	channelKey,
 }) => {
 	const user = useAuthStore((state) => state.user);
+	const theme = useAppStore((state) => state.theme);
 	const [inputText, setInputText] = useState('');
 	const [sending, setSending] = useState(false);
 	const [showEmoji, setShowEmoji] = useState(false);
@@ -399,19 +400,14 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 						/>
 						<div className="relative flex items-center justify-center">
 							<button
-								onClick={() => setShowEmoji((v) => !v)}
+								onClick={(e) => {
+									e.stopPropagation();
+									setShowEmoji((v) => !v);
+								}}
 								className="text-muted-foreground hover:text-foreground transition flex items-center"
 							>
 								<Smile size={24} />
 							</button>
-							{showEmoji && (
-								<div className="absolute bottom-10 right-0 z-50">
-									<EmojiPicker
-										onSelect={handleEmojiSelect}
-										onClickOutside={() => setShowEmoji(false)}
-									/>
-								</div>
-							)}
 						</div>
 						<button
 							onClick={handleSend}
@@ -457,6 +453,17 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 							</div>
 						)}
 					</div>
+				</div>
+			)}
+
+			{/* Emoji Picker */}
+			{showEmoji && (
+				<div className="absolute bottom-[70px] right-6 z-50">
+					<EmojiPicker
+						onSelect={handleEmojiSelect}
+						onClickOutside={() => setShowEmoji(false)}
+						theme={theme}
+					/>
 				</div>
 			)}
 		</div>

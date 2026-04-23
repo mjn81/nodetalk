@@ -1,15 +1,16 @@
 import React, { useRef } from 'react';
-import { Play, Pause, X, Loader2, Mic } from 'lucide-react';
+import { Play, Pause, X, Loader2 } from 'lucide-react';
 import { useVoicePlayer, useVoicePlayerActions } from '@/hooks/useVoicePlayer';
 
 export const VoicePlayer: React.FC = () => {
-	const { track, isPlaying, isLoading, currentTime, duration, speed } = useVoicePlayer();
+	const { track, isPlaying, isLoading, currentTime, duration, speed } =
+		useVoicePlayer();
 	const { togglePlay, seek, cycleSpeed, close } = useVoicePlayerActions();
 	const progressBarRef = useRef<HTMLDivElement>(null);
 
 	if (!track) return null;
 
-	const progress   = duration > 0 ? currentTime / duration : 0;
+	const progress = duration > 0 ? currentTime / duration : 0;
 	const formatTime = (s: number) => {
 		if (!isFinite(s) || isNaN(s)) return '0:00';
 		return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -17,8 +18,11 @@ export const VoicePlayer: React.FC = () => {
 
 	const handleProgressClick = (e: React.MouseEvent) => {
 		if (!progressBarRef.current) return;
-		const rect    = progressBarRef.current.getBoundingClientRect();
-		const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+		const rect = progressBarRef.current.getBoundingClientRect();
+		const percent = Math.max(
+			0,
+			Math.min(1, (e.clientX - rect.left) / rect.width),
+		);
 		seek(percent);
 	};
 
@@ -30,12 +34,13 @@ export const VoicePlayer: React.FC = () => {
 				disabled={isLoading}
 				className="w-7 h-7 flex items-center justify-center text-primary hover:bg-primary/10 rounded-full transition shrink-0"
 			>
-				{isLoading
-					? <Loader2 size={14} className="animate-spin" />
-					: isPlaying
-						? <Pause size={14} fill="currentColor" />
-						: <Play  size={14} fill="currentColor" className="ml-0.5" />
-				}
+				{isLoading ? (
+					<Loader2 size={14} className="animate-spin" />
+				) : isPlaying ? (
+					<Pause size={14} fill="currentColor" />
+				) : (
+					<Play size={14} fill="currentColor" className="ml-0.5" />
+				)}
 			</button>
 
 			{/* Time display */}
