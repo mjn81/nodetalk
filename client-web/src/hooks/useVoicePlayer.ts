@@ -1,17 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useSyncExternalStore, useCallback } from 'react';
 import { voicePlayer, type VoicePlayerState } from '@/lib/voicePlayer';
 
-/** Subscribe to the singleton VoicePlayerStore and return a reactive snapshot. */
+/** 
+ * Subscribe to the singleton VoicePlayerStore using React's useSyncExternalStore.
+ * This ensures the component stays in sync with the external state without
+ * triggering the "setState synchronously" warning or cascading renders.
+ */
 export function useVoicePlayer(): VoicePlayerState {
-	const [state, setState] = useState<VoicePlayerState>(() => voicePlayer.state);
-
-	useEffect(() => {
-		// Sync immediately in case state changed between render and effect
-		setState({ ...voicePlayer.state });
-		return voicePlayer.subscribe(setState);
-	}, []);
-
-	return state;
+	return useSyncExternalStore(
+		(onStoreChange) => {
+			const unsub = voicePlayer.subscribe(() => onStoreChange());
+			return () => { unsub(); };
+		},
+		() => voicePlayer.state
+	);
 }
 
 /** Returns a stable reference to the voicePlayer API methods. */

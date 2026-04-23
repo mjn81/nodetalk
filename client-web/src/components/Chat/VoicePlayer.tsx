@@ -23,45 +23,40 @@ export const VoicePlayer: React.FC = () => {
 	};
 
 	return (
-		<div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-background/95 backdrop-blur-sm shadow-sm animate-in slide-in-from-top-2 duration-200">
-			{/* Mic icon */}
-			<div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-				<Mic size={14} className="text-primary" />
-			</div>
-
+		<div className="absolute top-[48px] left-0 right-0 z-20 flex items-center gap-3 px-3 py-1.5 border-b border-border bg-background/95 backdrop-blur-md animate-in slide-in-from-top-1 duration-200">
 			{/* Play / Pause */}
 			<button
 				onClick={togglePlay}
 				disabled={isLoading}
-				className="w-8 h-8 flex items-center justify-center bg-primary text-primary-foreground rounded-full hover:scale-105 active:scale-95 transition shrink-0"
+				className="w-7 h-7 flex items-center justify-center text-primary hover:bg-primary/10 rounded-full transition shrink-0"
 			>
 				{isLoading
-					? <Loader2 size={16} className="animate-spin" />
+					? <Loader2 size={14} className="animate-spin" />
 					: isPlaying
-						? <Pause size={16} fill="currentColor" />
-						: <Play  size={16} fill="currentColor" className="ml-0.5" />
+						? <Pause size={14} fill="currentColor" />
+						: <Play  size={14} fill="currentColor" className="ml-0.5" />
 				}
 			</button>
 
 			{/* Time display */}
-			<span className="text-[11px] tabular-nums text-muted-foreground w-20 shrink-0">
+			<span className="text-[10px] tabular-nums text-muted-foreground min-w-[70px] shrink-0">
 				{formatTime(currentTime)} / {formatTime(duration)}
 			</span>
 
 			{/* Progress bar */}
 			<div
 				ref={progressBarRef}
-				className="flex-1 h-1.5 bg-muted rounded-full cursor-pointer group relative"
+				className="flex-1 h-1 bg-muted rounded-full cursor-pointer group relative"
 				onClick={handleProgressClick}
 			>
 				{/* Fill */}
 				<div
-					className="h-full bg-primary rounded-full"
+					className="h-full bg-primary/60 rounded-full"
 					style={{ width: `${progress * 100}%` }}
 				/>
-				{/* Thumb — positioned relative to the track, not the fill */}
+				{/* Thumb */}
 				<div
-					className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary shadow-md opacity-0 group-hover:opacity-100 transition-opacity -translate-x-1/2"
+					className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-primary shadow-sm opacity-0 group-hover:opacity-100 transition-opacity -translate-x-1/2"
 					style={{ left: `${progress * 100}%` }}
 				/>
 			</div>
@@ -69,7 +64,7 @@ export const VoicePlayer: React.FC = () => {
 			{/* Speed button */}
 			<button
 				onClick={cycleSpeed}
-				className="text-[11px] font-bold tabular-nums text-muted-foreground hover:text-foreground transition px-1.5 py-0.5 rounded hover:bg-muted shrink-0 min-w-[36px] text-center"
+				className="text-[10px] font-bold tabular-nums text-muted-foreground hover:text-foreground transition px-1 py-0.5 rounded hover:bg-muted shrink-0 min-w-[28px] text-center"
 				title="Playback speed"
 			>
 				{speed}×
@@ -78,10 +73,10 @@ export const VoicePlayer: React.FC = () => {
 			{/* Close */}
 			<button
 				onClick={close}
-				className="text-muted-foreground hover:text-foreground transition shrink-0"
+				className="text-muted-foreground hover:text-foreground transition shrink-0 p-1"
 				title="Close player"
 			>
-				<X size={18} />
+				<X size={14} />
 			</button>
 		</div>
 	);

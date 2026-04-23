@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Mic, Square, Trash2, Send } from 'lucide-react';
-import { Button } from './ui/button';
+import { Mic, Trash2, Send } from 'lucide-react';
 
 interface VoiceRecorderProps {
 	channelId: string;
@@ -12,7 +11,7 @@ export default function VoiceRecorder({ onFile }: VoiceRecorderProps) {
 	const [duration, setDuration] = useState(0);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 	const chunksRef = useRef<Blob[]>([]);
-	const timerRef = useRef<NodeJS.Timeout | null>(null);
+	const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 	const startRecording = async () => {
 		try {
