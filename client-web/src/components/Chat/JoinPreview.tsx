@@ -24,10 +24,10 @@ export const JoinPreview: React.FC<JoinPreviewProps> = ({ inviteCode }) => {
 			const res = await apiJoinChannel(inviteCode);
 			setJoined(true);
 			await refreshChannels();
-			
+
 			// Find the newly joined channel and navigate to it
 			const allChannels = useChannelStore.getState().channels;
-			const newCh = allChannels.find(c => c.id === res.id);
+			const newCh = allChannels.find((c) => c.id === res.id);
 			if (newCh) {
 				setActiveChannel(newCh);
 			}
@@ -46,7 +46,7 @@ export const JoinPreview: React.FC<JoinPreviewProps> = ({ inviteCode }) => {
 				</div>
 				<div className="flex flex-col min-w-0">
 					<span className="text-sm font-bold text-foreground truncate">
-						Group Invitation
+						Channel Invitation
 					</span>
 					<span className="text-xs text-muted-foreground truncate">
 						You've been invited to join a group
@@ -60,9 +60,9 @@ export const JoinPreview: React.FC<JoinPreviewProps> = ({ inviteCode }) => {
 				</span>
 			)}
 
-			<Button 
-				size="sm" 
-				onClick={handleJoin} 
+			<Button
+				size="sm"
+				onClick={handleJoin}
 				disabled={loading || joined}
 				className="w-full gap-2 font-bold"
 			>
@@ -71,7 +71,7 @@ export const JoinPreview: React.FC<JoinPreviewProps> = ({ inviteCode }) => {
 				) : (
 					<>
 						<UserPlus size={16} />
-						{loading ? 'Joining...' : 'Join Group'}
+						{loading ? 'Joining...' : 'Join Channel'}
 					</>
 				)}
 			</Button>

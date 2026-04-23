@@ -81,7 +81,7 @@ export default function AppPage() {
 				defaultSize={250}
 				minSize={200}
 				maxSize={300}
-				className="bg-secondary flex flex-col border-r border-border"
+				className="bg-secondary flex flex-col border-r border-border overflow-hidden"
 			>
 				<LeftSidebar />
 			</ResizablePanel>

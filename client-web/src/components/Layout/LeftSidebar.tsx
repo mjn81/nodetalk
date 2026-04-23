@@ -41,7 +41,7 @@ const RenderChannel = ({
 		<div
 			key={ch.id}
 			onClick={() => setActiveChannel(ch)}
-			className={`flex items-center gap-3 px-2 py-1.5 mx-2 rounded-md cursor-pointer transition flex-1 min-w-0 ${
+			className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-md cursor-pointer transition ${
 				isActive
 					? 'bg-accent text-foreground'
 					: 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
@@ -50,7 +50,7 @@ const RenderChannel = ({
 			{isGroup ? (
 				<Hash className="w-5 h-5 shrink-0 opacity-70" />
 			) : (
-				<div className="relative">
+				<div className="relative shrink-0">
 					<Avatar
 						userId={ch.members.find((m) => m !== user?.id) || ch.id}
 						avatarId={
@@ -59,7 +59,6 @@ const RenderChannel = ({
 							]
 						}
 						size={32}
-						className="shrink-0"
 					/>
 					<div
 						className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-[2px] border-secondary z-10 ${
@@ -71,10 +70,10 @@ const RenderChannel = ({
 					/>
 				</div>
 			)}
-			<div className="flex-1 min-w-0 flex items-center justify-between">
+			<div className="min-w-0 flex-1 flex items-center gap-2">
 				<span className="truncate text-[15px] font-medium">{display}</span>
 				{!isActive && (ch.unread_count ?? 0) > 0 && (
-					<div className="flex items-center justify-center min-w-[16px] h-4 bg-[#f23f42] rounded-full text-[11px] font-bold text-white px-1 ml-1 opacity-90 shadow-sm shrink-0">
+					<div className="flex items-center justify-center min-w-[16px] h-4 bg-[#f23f42] rounded-full text-[11px] font-bold text-white px-1 opacity-90 shadow-sm shrink-0 ml-auto">
 						{ch.unread_count}
 					</div>
 				)}
@@ -142,7 +141,7 @@ export default function LeftSidebar() {
 	);
 
 	return (
-		<div className="flex flex-col h-full bg-secondary">
+		<div className="flex flex-col h-full bg-secondary w-full overflow-hidden">
 			{/* Server Header */}
 			<div className="h-12 border-b border-border flex items-center px-4 shrink-0 shadow-sm transition-colors hover:bg-accent/30 cursor-pointer">
 				<div className="flex-1 flex flex-row justify-between min-w-0">
@@ -193,7 +192,7 @@ export default function LeftSidebar() {
 			</div>
 
 			{/* Channel Lists */}
-			<ScrollArea className="flex-1">
+			<ScrollArea className="flex-1 w-full min-h-0">
 				{isLoading ? (
 					<div className="flex justify-center py-4">
 						<span className="spinner" />
@@ -206,7 +205,7 @@ export default function LeftSidebar() {
 									CHANNELS
 								</span>
 							</div>
-							<div className="flex flex-col gap-0.5">
+							<div className="flex flex-col gap-0.5 px-2">
 								{groupChannels.map((ch) => (
 									<RenderChannel
 										key={ch.id}
@@ -224,7 +223,7 @@ export default function LeftSidebar() {
 									DIRECT MESSAGES
 								</span>
 							</div>
-							<div className="flex flex-col gap-0.5">
+							<div className="flex flex-col gap-0.5 px-2">
 								{dmChannels.map((ch) => (
 									<RenderChannel
 										key={ch.id}
@@ -265,11 +264,11 @@ export default function LeftSidebar() {
 													onClick={() =>
 														handleJoinChannel(ch.invite_link, ch.id)
 													}
-													className="flex items-center justify-between px-2 py-1.5 mx-2 rounded-md cursor-pointer transition flex-1 min-w-0 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+													className="flex items-center justify-between px-2 py-1.5 mx-2 rounded-md cursor-pointer transition min-w-0 overflow-hidden text-muted-foreground hover:bg-accent/50 hover:text-foreground"
 												>
-													<div className="flex items-center gap-3 min-w-0 flex-1">
+													<div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
 														<Hash className="w-5 h-5 shrink-0 opacity-70" />
-														<span className="truncate text-[15px] font-medium leading-none">
+														<span className="truncate text-[15px] font-medium leading-none min-w-0 flex-1">
 															{ch.name}
 														</span>
 													</div>

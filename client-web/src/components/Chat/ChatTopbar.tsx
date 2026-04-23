@@ -11,22 +11,26 @@ interface ChatTopbarProps {
 	currentUserId: string;
 }
 
-export const ChatTopbar: React.FC<ChatTopbarProps> = ({ channel, currentUserId }) => {
+export const ChatTopbar: React.FC<ChatTopbarProps> = ({
+	channel,
+	currentUserId,
+}) => {
 	const [showSettings, setShowSettings] = useState(false);
 	const isDM = isDirectMessage(channel);
-	const otherMemberId = channel.members.find(m => m !== currentUserId) || channel.id;
+	const otherMemberId =
+		channel.members.find((m) => m !== currentUserId) || channel.id;
 
 	// Only show settings icon for admins/owners of group channels
-	const canManage = !isDM && (channel.user_role >= 10);
+	const canManage = !isDM && channel.user_role >= 10;
 
 	return (
 		<div className="flex items-center justify-between px-4 h-12 border-b border-border shrink-0 shadow-sm relative z-10 bg-background">
 			<div className="flex items-center gap-3">
 				{isDM ? (
-					<Avatar 
-						userId={otherMemberId} 
+					<Avatar
+						userId={otherMemberId}
 						avatarId={channel.member_avatars?.[otherMemberId]}
-						size={32} 
+						size={32}
 					/>
 				) : (
 					<div className="w-8 h-8 flex items-center justify-center text-muted-foreground shrink-0">
@@ -46,22 +50,25 @@ export const ChatTopbar: React.FC<ChatTopbarProps> = ({ channel, currentUserId }
 				<button className="hover:text-foreground transition" title="Search">
 					<Search size={22} className="opacity-80 hover:opacity-100" />
 				</button>
-				
+
 				{canManage && (
-					<button 
+					<button
 						onClick={() => setShowSettings(true)}
-						className="hover:text-foreground transition" 
-						title="Group Settings"
+						className="hover:text-foreground transition"
+						title="Channel Settings"
 					>
-						<SlidersHorizontal size={22} className="opacity-80 hover:opacity-100" />
+						<SlidersHorizontal
+							size={22}
+							className="opacity-80 hover:opacity-100"
+						/>
 					</button>
 				)}
 			</div>
 
 			{showSettings && (
-				<GroupSettingsModal 
-					channel={channel} 
-					onClose={() => setShowSettings(false)} 
+				<GroupSettingsModal
+					channel={channel}
+					onClose={() => setShowSettings(false)}
 				/>
 			)}
 		</div>

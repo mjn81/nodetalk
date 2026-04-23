@@ -50,7 +50,11 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 	};
 
 	const handleDelete = async () => {
-		if (!window.confirm('Are you sure you want to delete this group? This action cannot be undone.')) {
+		if (
+			!window.confirm(
+				'Are you sure you want to delete this group? This action cannot be undone.',
+			)
+		) {
 			return;
 		}
 
@@ -83,16 +87,18 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 		<Dialog open onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className="bg-background text-foreground border-border max-w-md rounded-xl">
 				<DialogHeader>
-					<DialogTitle className="text-xl font-bold">Group Settings</DialogTitle>
+					<DialogTitle className="text-xl font-bold">
+						Channel Settings
+					</DialogTitle>
 					<DialogDescription className="text-muted-foreground">
-						Manage your group channel's details and permissions.
+						Manage your channel's details and permissions.
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-6 py-4">
 					{/* Group Name */}
 					<div className="space-y-2">
-						<Label htmlFor="name">Group Name</Label>
+						<Label htmlFor="name">Channel Name</Label>
 						<Input
 							id="name"
 							value={name}
@@ -122,8 +128,8 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 							</Button>
 						</div>
 						<p className="text-[11px] text-muted-foreground px-1">
-							{isPrivate 
-								? 'Only invited members can find and join this channel.' 
+							{isPrivate
+								? 'Only invited members can find and join this channel.'
 								: 'Anyone can find and join this channel through the explorer.'}
 						</p>
 					</div>
@@ -139,7 +145,11 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 									className="bg-secondary/30 border-border font-mono text-xs"
 								/>
 								<Button size="icon" variant="outline" onClick={copyLink}>
-									{copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+									{copied ? (
+										<Check size={16} className="text-green-500" />
+									) : (
+										<Copy size={16} />
+									)}
 								</Button>
 							</div>
 						</div>
@@ -147,8 +157,8 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 
 					{/* Actions */}
 					<div className="pt-4 flex flex-col gap-3">
-						<Button 
-							onClick={handleSave} 
+						<Button
+							onClick={handleSave}
 							disabled={loading || !name.trim()}
 							className="w-full font-bold"
 						>
@@ -162,7 +172,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 								onClick={handleDelete}
 								disabled={loading}
 							>
-								<Trash2 size={16} /> Delete Group
+								<Trash2 size={16} /> Delete Channel
 							</Button>
 						)}
 					</div>
