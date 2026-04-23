@@ -21,6 +21,7 @@ import {
 	getChannelDisplayName,
 } from '@/store/store';
 import type { AuthUser, Channel } from '@/types/api';
+import { isDirectMessage } from '@/utils/channel';
 
 const RenderChannel = ({
 	ch,
@@ -135,9 +136,7 @@ export default function LeftSidebar() {
 		return display.toLowerCase().includes(search.toLowerCase());
 	});
 
-	const dmChannels = filtered.filter(
-		(ch) => ch.members.length === 2 && (!ch.name || ch.name.trim() === ''),
-	);
+	const dmChannels = filtered.filter((ch) => isDirectMessage(ch));
 	const groupChannels = filtered.filter(
 		(ch) => !dmChannels.some((dm) => dm.id === ch.id),
 	);

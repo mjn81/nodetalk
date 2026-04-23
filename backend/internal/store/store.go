@@ -125,14 +125,18 @@ func (s *Store) SearchUsers(query string) ([]*models.User, error) {
 	return matched, nil
 }
 
-// DeleteUser fully anonymizes a user by overwriting their username to "Deleted Account"
-// in the DB, clears their presence, and removes them from all channels they were part of.
+// DeleteUser fully anonymizes a user. We remove them from group channels
+// so they don't clutter member lists, but we keep them in DMs so that
+// the other participant can still see the conversation history.
 func (s *Store) DeleteUser(userID string) error {
-	// 1. Remove from all channels
+	// 1. Remove from Group Channels (keep DMs)
 	channels, err := s.ListUserChannels(userID)
 	if err == nil {
 		for _, ch := range channels {
-			_ = s.RemoveMemberFromChannel(ch.ID, userID, models.StatusLeft)
+			members, _ := s.GetChannelMembers(ch.ID)
+			if !ch.IsDM(len(members)) {
+				_ = s.RemoveMemberFromChannel(ch.ID, userID, models.StatusLeft)
+			}
 		}
 	}
 
@@ -145,6 +149,9 @@ func (s *Store) DeleteUser(userID string) error {
 		u.Username = "Deleted Account"
 		u.Status = "deleted"
 		u.PwdHash = nil
+		u.AvatarID = ""
+		u.CustomMsg = ""
+		u.PublicKey = nil
 		_ = s.db.SetUser(u)
 	}
 	return nil
@@ -277,6 +284,28 @@ func (s *Store) UpdateChannelRead(userID, channelID string) error {
 // ListAllChannels scans and returns all channels in the DB.
 func (s *Store) ListAllChannels() ([]*models.Channel, error) {
 	return s.db.ListAllChannels()
+}
+
+// UpdateChannel persists changes to a Channel record.
+func (s *Store) UpdateChannel(ch *models.Channel) error {
+	return s.db.SetChannel(ch)
+}
+
+// DeleteChannel removes the channel and all its member associations.
+func (s *Store) DeleteChannel(id string) error {
+	// 1. Remove all UserChannel associations
+	members, err := s.GetChannelMembers(id)
+	if err == nil {
+		for _, m := range members {
+			_ = s.db.DeleteUserChannel(m.UserID, id)
+		}
+	}
+
+	// 2. Delete all messages
+	_ = s.db.DeleteChannelMessages(id)
+
+	// 3. Delete the channel record
+	return s.db.DeleteChannel(id)
 }
 
 // RemoveMemberFromChannel updates a user's status to kicked, left, or banned.

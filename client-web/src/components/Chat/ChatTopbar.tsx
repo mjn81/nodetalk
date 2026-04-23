@@ -1,8 +1,10 @@
-
+import { useState } from 'react';
 import { Avatar } from '../Avatar';
 import { Search, SlidersHorizontal, Hash } from 'lucide-react';
 import { type Channel } from '@/types/api';
 import { getChannelDisplayName } from '@/store/store';
+import { GroupSettingsModal } from './GroupSettingsModal';
+import { isDirectMessage } from '@/utils/channel';
 
 interface ChatTopbarProps {
 	channel: Channel;
@@ -10,8 +12,12 @@ interface ChatTopbarProps {
 }
 
 export const ChatTopbar: React.FC<ChatTopbarProps> = ({ channel, currentUserId }) => {
-	const isDM = channel.members.length === 2 && (!channel.name || channel.name.trim() === '');
+	const [showSettings, setShowSettings] = useState(false);
+	const isDM = isDirectMessage(channel);
 	const otherMemberId = channel.members.find(m => m !== currentUserId) || channel.id;
+
+	// Only show settings icon for admins/owners of group channels
+	const canManage = !isDM && (channel.user_role >= 10);
 
 	return (
 		<div className="flex items-center justify-between px-4 h-12 border-b border-border shrink-0 shadow-sm relative z-10 bg-background">
@@ -40,10 +46,24 @@ export const ChatTopbar: React.FC<ChatTopbarProps> = ({ channel, currentUserId }
 				<button className="hover:text-foreground transition" title="Search">
 					<Search size={22} className="opacity-80 hover:opacity-100" />
 				</button>
-				<button className="hover:text-foreground transition" title="Settings">
-					<SlidersHorizontal size={22} className="opacity-80 hover:opacity-100" />
-				</button>
+				
+				{canManage && (
+					<button 
+						onClick={() => setShowSettings(true)}
+						className="hover:text-foreground transition" 
+						title="Group Settings"
+					>
+						<SlidersHorizontal size={22} className="opacity-80 hover:opacity-100" />
+					</button>
+				)}
 			</div>
+
+			{showSettings && (
+				<GroupSettingsModal 
+					channel={channel} 
+					onClose={() => setShowSettings(false)} 
+				/>
+			)}
 		</div>
 	);
 };

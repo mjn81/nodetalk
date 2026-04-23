@@ -92,6 +92,11 @@ func (d *DB) ListAllChannels() ([]*models.Channel, error) {
 	return channels, err
 }
 
+// DeleteChannel removes a Channel record from BadgerDB.
+func (d *DB) DeleteChannel(id string) error {
+	return d.delete(channelKey(id))
+}
+
 // SetUserChannel writes the junction index entry for a user↔channel mapping.
 func (d *DB) SetUserChannel(uc *models.UserChannel) error {
 	if uc.JoinedAt.IsZero() {
@@ -246,6 +251,23 @@ func (d *DB) ListChannelMembers(channelID string) ([]*models.UserChannel, error)
 func (d *DB) SetMessage(msg *models.Message) error {
 	key := fmt.Sprintf("%s%s:%019d", prefixMessage, msg.ChannelID, msg.SentAt.UnixNano())
 	return d.set(key, msg)
+}
+
+// DeleteChannelMessages removes all messages for a specific channel.
+func (d *DB) DeleteChannelMessages(channelID string) error {
+	prefix := []byte(fmt.Sprintf("%s%s:", prefixMessage, channelID))
+	return d.bdb.Update(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = prefix
+		it := txn.NewIterator(opts)
+		defer it.Close()
+		for it.Rewind(); it.Valid(); it.Next() {
+			if err := txn.Delete(it.Item().Key()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // ListMessages returns up to `limit` messages for a channel, newest-first.

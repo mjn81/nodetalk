@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 )
 
@@ -33,6 +34,10 @@ type Channel struct {
 	AESKeyEncrypted []byte    `json:"aes_key_enc"`  // Channel AES-256 key encrypted with server KEK
 	CreatedAt       time.Time `json:"created_at"`
 	UnreadCount     int       `json:"unread_count"` // Ephemeral: Populated per-user in handlers
+}
+
+func (ch *Channel) IsDM(memberCount int) bool {
+	return strings.TrimSpace(ch.Name) == "" && memberCount == 2
 }
 
 // ---- UserChannel (Junction Index) ------------------------------------------ //

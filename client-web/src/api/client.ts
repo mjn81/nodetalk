@@ -168,6 +168,17 @@ export async function apiAddMember(channelId: string, userIds: string[]) {
 	});
 }
 
+export async function apiUpdateChannel(
+	id: string,
+	data: { name?: string; is_private?: boolean },
+) {
+	return apiClient.patch<Channel>(`/api/channels/${id}`, data) as unknown as Promise<Channel>;
+}
+
+export async function apiDeleteChannel(id: string) {
+	return apiClient.delete(`/api/channels/${id}`);
+}
+
 export async function apiGetChannelMembers(channelId: string) {
 	return apiClient
 		.get<User[]>(`/api/channels/${channelId}/members`)

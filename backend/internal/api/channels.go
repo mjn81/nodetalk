@@ -33,14 +33,17 @@ func (h *Handler) CreateChannel(w http.ResponseWriter, r *http.Request) {
 	memberSet := uniqueStrings(append(body.Members, session.UserID))
 
 	// DM de-duplication: if this is a DM, check if it already exists
-	if body.Name == "" && len(memberSet) == 2 {
+	isDM := (&models.Channel{Name: body.Name}).IsDM(len(memberSet))
+	if isDM {
 		existingByMe, err := h.Store.ListUserChannels(session.UserID)
 		if err == nil {
 			for _, ex := range existingByMe {
-				if ex.Name != "" { continue }
-				
+				if ex.Name != "" {
+					continue
+				}
+
 				exMembers, _ := h.Store.GetChannelMembers(ex.ID)
-				if len(exMembers) == 2 {
+				if ex.IsDM(len(exMembers)) {
 					matches := 0
 					for _, m1 := range memberSet {
 						for _, m2 := range exMembers {
@@ -50,7 +53,7 @@ func (h *Handler) CreateChannel(w http.ResponseWriter, r *http.Request) {
 						}
 					}
 					if matches == 2 {
-						writeJSON(w, http.StatusOK, h.toChannelResponse(ex))
+						writeJSON(w, http.StatusOK, h.toChannelResponse(ex, session.UserID))
 						return
 					}
 				}
@@ -64,12 +67,19 @@ func (h *Handler) CreateChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// For DMs, override RoleOwner back to RoleMember (user's request)
+	if isDM {
+		for _, uid := range memberSet {
+			_ = h.Store.AddMemberToChannel(ch.ID, uid, models.RoleMember)
+		}
+	}
+
 	// Notify all members via WebSocket
 	if h.Hub != nil {
 		h.Hub.BroadcastChannelCreated(ch)
 	}
 
-	writeJSON(w, http.StatusCreated, h.toChannelResponse(ch))
+	writeJSON(w, http.StatusCreated, h.toChannelResponse(ch, session.UserID))
 }
 
 //	@Summary     List channels for the current user
@@ -89,7 +99,7 @@ func (h *Handler) ListChannels(w http.ResponseWriter, r *http.Request) {
 	
 	resp := make([]ChannelResponse, 0)
 	for _, ch := range channels {
-		resp = append(resp, h.toChannelResponse(ch))
+		resp = append(resp, h.toChannelResponse(ch, session.UserID))
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -143,8 +153,83 @@ func (h *Handler) ExploreChannels(w http.ResponseWriter, r *http.Request) {
 //	@Success     200 {object} models.Channel
 //	@Router      /api/channels/{id} [get]
 func (h *Handler) GetChannel(w http.ResponseWriter, r *http.Request) {
+	session := auth.SessionFromContext(r.Context())
 	ch := ChannelFromContext(r.Context())
-	writeJSON(w, http.StatusOK, h.toChannelResponse(ch))
+	writeJSON(w, http.StatusOK, h.toChannelResponse(ch, session.UserID))
+}
+
+// UpdateChannel godoc
+//	@Summary     Update channel settings
+//	@Tags        channels
+//	@Accept      json
+//	@Produce     json
+//	@Security    BearerAuth
+//	@Param       id   path string               true "Channel ID"
+//	@Param       body body UpdateChannelRequest true "Update payload"
+//	@Success     200 {object} ChannelResponse
+//	@Router      /api/channels/{id} [patch]
+func (h *Handler) UpdateChannel(w http.ResponseWriter, r *http.Request) {
+	session := auth.SessionFromContext(r.Context())
+	ch := ChannelFromContext(r.Context())
+
+	// Permission check: Admin or Owner
+	uc, err := h.Store.GetUserChannel(session.UserID, ch.ID)
+	if err != nil || uc.Role < models.RoleAdmin {
+		writeError(w, http.StatusForbidden, "insufficient permissions")
+		return
+	}
+
+	var body UpdateChannelRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	if body.Name != nil {
+		newName := strings.TrimSpace(*body.Name)
+		if newName == "" {
+			writeError(w, http.StatusBadRequest, "channel name cannot be empty")
+			return
+		}
+		ch.Name = newName
+	}
+	if body.IsPrivate != nil {
+		ch.IsPrivate = *body.IsPrivate
+	}
+
+	if err := h.Store.UpdateChannel(ch); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update channel")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, h.toChannelResponse(ch, session.UserID))
+}
+
+// DeleteChannel godoc
+//	@Summary     Delete a channel
+//	@Tags        channels
+//	@Produce     json
+//	@Security    BearerAuth
+//	@Param       id path string true "Channel ID"
+//	@Success     200 {object} StatusResponse
+//	@Router      /api/channels/{id} [delete]
+func (h *Handler) DeleteChannel(w http.ResponseWriter, r *http.Request) {
+	session := auth.SessionFromContext(r.Context())
+	ch := ChannelFromContext(r.Context())
+
+	// Permission check: Owner only for deletion
+	uc, err := h.Store.GetUserChannel(session.UserID, ch.ID)
+	if err != nil || uc.Role < models.RoleOwner {
+		writeError(w, http.StatusForbidden, "only the owner can delete the channel")
+		return
+	}
+
+	if err := h.Store.DeleteChannel(ch.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete channel")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, StatusResponse{Status: "channel deleted"})
 }
 
 // JoinChannel godoc
@@ -326,13 +411,18 @@ func ChannelFromContext(ctx context.Context) *models.Channel {
 	return ch
 }
 
-func (h *Handler) toChannelResponse(ch *models.Channel) ChannelResponse {
+func (h *Handler) toChannelResponse(ch *models.Channel, userID string) ChannelResponse {
 	memberNames := make(map[string]string)
 	memberAvatars := make(map[string]string)
 	memberDomains := make(map[string]string)
 	memberStatuses := make(map[string]string)
 	members, err := h.Store.GetChannelMembers(ch.ID)
 	
+	userRole := models.RoleMember
+	if uc, err := h.Store.GetUserChannel(userID, ch.ID); err == nil {
+		userRole = uc.Role
+	}
+
 	var memberIDs []string
 	if err == nil {
 		for _, m := range members {
@@ -353,6 +443,7 @@ func (h *Handler) toChannelResponse(ch *models.Channel) ChannelResponse {
 		IsPrivate:      ch.IsPrivate,
 		InviteLink:     ch.InviteLink,
 		CreatorID:      ch.CreatorID,
+		UserRole:       userRole,
 		Members:        memberIDs,
 		MemberNames:    memberNames,
 		MemberAvatars:  memberAvatars,

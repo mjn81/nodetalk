@@ -61,6 +61,8 @@ func NewRouter(h *Handler, globalRPS, authRPS float64) http.Handler {
 	mux.Handle("GET /api/channels",                      protect(h.ListChannels))
 	mux.Handle("GET /api/channels/explore",              protect(h.ExploreChannels))
 	mux.Handle("GET /api/channels/{id}",                 protectMember(h.GetChannel))
+	mux.Handle("PATCH /api/channels/{id}",               protectMember(h.UpdateChannel))
+	mux.Handle("DELETE /api/channels/{id}",              protectMember(h.DeleteChannel))
 	mux.Handle("POST /api/join/{link}",                  protect(h.JoinChannel))
 	mux.Handle("GET /api/channels/{id}/members",         protectMember(h.GetChannelMembers))
 	mux.Handle("POST /api/channels/{id}/members",        protectMember(h.AddMembers))

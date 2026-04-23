@@ -25,6 +25,7 @@ import { apiUploadFile } from '@/api/client';
 import { encryptAndCompressFile } from '@/utils/file';
 import { wsSendMessage } from '@/ws';
 import { bytesToBase64 } from '@/ws';
+import { isDirectMessage } from '@/utils/channel';
 
 interface ChatInputAreaProps {
 	channel: Channel;
@@ -289,9 +290,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 		};
 	}, []);
 
-	const isDirect =
-		channel.members.length === 2 &&
-		(!channel.name || channel.name.trim() === '');
+	const isDirect = isDirectMessage(channel);
 	const displayName = getChannelDisplayName(channel, user?.id || '');
 	const prefix = isDirect ? '@' : '#';
 

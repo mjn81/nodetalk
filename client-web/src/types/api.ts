@@ -14,6 +14,7 @@ export interface Channel {
 	is_private: boolean;
 	invite_link?: string;
 	creator_id: string;
+	user_role: number; // 0=Member, 10=Admin, 20=Owner
 	members: string[];
 	member_names?: Record<string, string>;
 	member_avatars?: Record<string, string>;

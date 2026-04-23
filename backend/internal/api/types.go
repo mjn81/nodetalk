@@ -37,6 +37,7 @@ type ChannelResponse struct {
 	IsPrivate     bool              `json:"is_private"`
 	InviteLink    string            `json:"invite_link"`
 	CreatorID     string            `json:"creator_id"`
+	UserRole      int               `json:"user_role"` // 0=Member, 10=Admin, 20=Owner
 	Members       []string          `json:"members,omitempty"`
 	MemberNames   map[string]string `json:"member_names,omitempty"`
 	MemberAvatars map[string]string `json:"member_avatars,omitempty"`
@@ -44,6 +45,11 @@ type ChannelResponse struct {
 	MemberStatuses map[string]string `json:"member_statuses,omitempty"`
 	CreatedAt     time.Time         `json:"created_at"`
 	UnreadCount   int               `json:"unread_count,omitempty"`
+}
+
+type UpdateChannelRequest struct {
+	Name      *string `json:"name,omitempty"`
+	IsPrivate *bool   `json:"is_private,omitempty"`
 }
 
 type ExploreChannelResponse struct {

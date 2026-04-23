@@ -10,14 +10,14 @@ export interface ChannelSlice {
 	isChannelsLoading: boolean;
 
 	refreshChannels: () => Promise<void>;
-	setActiveChannel: (ch: Channel) => void;
+	setActiveChannel: (ch: Channel | null) => void;
 	createChannel: (name: string, memberIds: string[], isPrivate: boolean) => Promise<Channel>;
 	incrementUnread: (id: string) => void;
 	updateMemberStatus: (userId: string, status: string) => void;
 	resetChannels: () => void;
 }
 
-export const useChannelStore = create<ChannelSlice>((set,) => ({
+export const useChannelStore = create<ChannelSlice>((set) => ({
 	channels: [],
 	activeChannel: null,
 	isChannelsLoading: false,
@@ -34,6 +34,7 @@ export const useChannelStore = create<ChannelSlice>((set,) => ({
 					// Update the active channel object to reflect new members/metadata
 					const updated = list.find((c) => c.id === active.id);
 					if (updated) nextActive = updated;
+					else nextActive = null; // Channel was deleted or user was removed
 				}
 				return { channels: list, activeChannel: nextActive };
 			});
@@ -43,12 +44,12 @@ export const useChannelStore = create<ChannelSlice>((set,) => ({
 	},
 
 	setActiveChannel: (ch) => {
-		wsSendReadReceipt(ch.id);
+		if (ch) wsSendReadReceipt(ch.id);
 		set((state) => ({
 			activeChannel: ch,
-			channels: state.channels.map((c) =>
-				c.id === ch.id ? { ...c, unread_count: 0 } : c,
-			),
+			channels: ch 
+				? state.channels.map((c) => c.id === ch.id ? { ...c, unread_count: 0 } : c)
+				: state.channels,
 		}));
 	},
 
