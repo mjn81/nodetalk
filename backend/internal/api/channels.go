@@ -250,6 +250,13 @@ func (h *Handler) JoinChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if already a member
+	uc, err := h.Store.GetUserChannel(session.UserID, ch.ID)
+	if err == nil && uc.Status == models.StatusActive {
+		writeJSON(w, http.StatusOK, h.toChannelResponse(ch, session.UserID))
+		return
+	}
+
 	if err := h.Store.AddMemberToChannel(ch.ID, session.UserID, models.RoleMember); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to join channel")
 		return
@@ -260,7 +267,7 @@ func (h *Handler) JoinChannel(w http.ResponseWriter, r *http.Request) {
 		h.Hub.BroadcastMemberJoined(ch.ID, session.UserID)
 	}
 
-	writeJSON(w, http.StatusOK, StatusResponse{Status: "joined"})
+	writeJSON(w, http.StatusOK, h.toChannelResponse(ch, session.UserID))
 }
 
 // GetChannelMembers godoc

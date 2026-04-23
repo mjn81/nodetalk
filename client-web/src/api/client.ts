@@ -159,7 +159,7 @@ export async function apiGetChannel(id: string) {
 }
 
 export async function apiJoinChannel(link: string) {
-	return apiClient.post(`/api/join/${link}`);
+	return apiClient.post<Channel>(`/api/join/${link}`) as unknown as Promise<Channel>;
 }
 
 export async function apiAddMember(channelId: string, userIds: string[]) {
