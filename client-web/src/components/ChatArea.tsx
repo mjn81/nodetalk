@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMessages } from '@/hooks/useMessages';
 import type { Message, Channel } from '@/types/api';
@@ -23,6 +23,7 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 	const user = useAuthStore((state) => state.user);
 	const queryClient = useQueryClient();
 	const refreshChannels = useChannelStore((state) => state.refreshChannels);
+	const [searchQuery, setSearchQuery] = useState('');
 
 	// Scroll to bottom helper
 	const scrollToBottom = useCallback(() => {
@@ -45,10 +46,16 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 
 	// Automatically scroll to bottom when messages change
 	useEffect(() => {
-		if (messages.length > 0) {
+		if (messages.length > 0 && !searchQuery) {
 			scrollToBottom();
 		}
-	}, [messages.length, scrollToBottom]);
+	}, [messages.length, scrollToBottom, searchQuery]);
+
+	const filteredMessages = searchQuery
+		? messages.filter((m) =>
+				m.text?.toLowerCase().includes(searchQuery.toLowerCase()),
+		  )
+		: messages;
 
 	// Pre-populate query data from IndexedDB when channel changes
 	useEffect(() => {
@@ -153,9 +160,14 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 
 	return (
 		<div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
-				<ChatTopbar channel={channel} currentUserId={user?.id ?? ''} />
+			<ChatTopbar 
+				channel={channel} 
+				currentUserId={user?.id ?? ''} 
+				searchQuery={searchQuery}
+				onSearchChange={setSearchQuery}
+			/>
 			<VoicePlayer />
-			<ChatMessageFeed messages={messages} channel={channel} />
+			<ChatMessageFeed messages={filteredMessages} channel={channel} />
 
 			<ChatInputArea 
 				channel={channel} 

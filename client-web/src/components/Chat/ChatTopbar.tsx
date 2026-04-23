@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Avatar } from '../Avatar';
-import { Search, SlidersHorizontal, Hash } from 'lucide-react';
+import { Search, SlidersHorizontal, Hash, X } from 'lucide-react';
 import { type Channel } from '@/types/api';
 import { getChannelDisplayName } from '@/store/store';
 import { GroupSettingsModal } from './GroupSettingsModal';
@@ -9,13 +9,18 @@ import { isDirectMessage } from '@/utils/channel';
 interface ChatTopbarProps {
 	channel: Channel;
 	currentUserId: string;
+	searchQuery: string;
+	onSearchChange: (query: string) => void;
 }
 
 export const ChatTopbar: React.FC<ChatTopbarProps> = ({
 	channel,
 	currentUserId,
+	searchQuery,
+	onSearchChange,
 }) => {
 	const [showSettings, setShowSettings] = useState(false);
+	const [isSearching, setIsSearching] = useState(false);
 	const isDM = isDirectMessage(channel);
 	const otherMemberId =
 		channel.members.find((m) => m !== currentUserId) || channel.id;
@@ -47,9 +52,48 @@ export const ChatTopbar: React.FC<ChatTopbarProps> = ({
 				</div>
 			</div>
 			<div className="flex items-center gap-4 text-muted-foreground">
-				<button className="hover:text-foreground transition" title="Search">
-					<Search size={22} className="opacity-80 hover:opacity-100" />
-				</button>
+				<div className={`flex items-center bg-secondary/50 rounded-lg px-2 transition-all duration-200 ${isSearching || searchQuery ? 'w-48 ring-1 ring-primary/20' : 'w-9 bg-transparent'}`}>
+					<button 
+						onClick={() => setIsSearching(!isSearching)}
+						className="hover:text-foreground transition p-1" 
+						title="Search"
+					>
+						<Search size={20} className={`${(isSearching || searchQuery) ? 'text-primary opacity-100' : 'opacity-70'}`} />
+					</button>
+					{(isSearching || searchQuery) && (
+						<>
+							<input
+								autoFocus
+								type="text"
+								placeholder="Search..."
+								value={searchQuery}
+								onChange={(e) => onSearchChange(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === 'Escape') {
+										onSearchChange('');
+										setIsSearching(false);
+									}
+								}}
+								className="bg-transparent border-none outline-none text-sm w-full ml-1 text-foreground placeholder:text-muted-foreground/50"
+								onBlur={() => {
+									if (!searchQuery) setIsSearching(false);
+								}}
+							/>
+							<button 
+								onClick={() => {
+									if (searchQuery) {
+										onSearchChange('');
+									} else {
+										setIsSearching(false);
+									}
+								}}
+								className="p-1 hover:text-foreground"
+							>
+								<X size={14} />
+							</button>
+						</>
+					)}
+				</div>
 
 				{canManage && (
 					<button
