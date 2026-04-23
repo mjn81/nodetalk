@@ -57,9 +57,11 @@ function emit(event: WSEventType, payload: unknown) {
 
 // ── SharedWorker Manager ────────────────────────────────────────────────
 let worker: SharedWorker | null = null;
+let connectTime = 0;
 
 export function wsConnect(): void {
   if (worker) return; // already initialized
+  connectTime = Date.now();
 
   worker = new SharedWorker(new URL('./ws/shared.worker.ts', import.meta.url), {
     type: 'module',

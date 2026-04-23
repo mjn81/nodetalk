@@ -27,6 +27,7 @@ import { encryptAndCompressFile } from '@/utils/file';
 import { wsSendMessage } from '@/ws';
 import { bytesToBase64 } from '@/ws';
 import { isDirectMessage } from '@/utils/channel';
+import { playNotificationSound } from '@/utils/notifications';
 
 interface ChatInputAreaProps {
 	channel: Channel;
@@ -134,6 +135,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 
 				await wsSendMessage(channel.id, fileMetadata, 'file', 'zstd');
 				updateFileStatus(f.id, 'done', 100);
+				playNotificationSound('file-upload');
 			}
 
 			if (text) {

@@ -8,9 +8,10 @@ import LeftSidebar from '@/components/Layout/LeftSidebar';
 import RightSidebar from '@/components/Layout/RightSidebar';
 import ChatArea from '@/components/ChatArea';
 
-import { useChannelStore, useAuthStore } from '@/store/store';
+import { useChannelStore } from '@/store/store';
 import { onWS } from '@/ws';
 import { ensureZstdReady } from '@/utils/file';
+import { requestNotificationPermission } from '@/utils/notifications';
 
 import { apiJoinChannel } from '@/api/client';
 
@@ -47,39 +48,15 @@ export default function AppPage() {
 	useEffect(() => {
 		// Initialize ZSTD WASM once on app load
 		ensureZstdReady();
+		requestNotificationPermission();
 
 		// Listen for realtime channel state updates (e.g. member joins)
 		const unsubChannel = onWS('channel_update', () => {
 			refreshChannels();
 		});
 
-		// Listen for presence updates
-		const unsubPresence = onWS('presence', (payload: any) => {
-			if (payload && payload.user_id && payload.status) {
-				const { user } = useAuthStore.getState();
-				if (user && payload.user_id === user.id) {
-					useAuthStore.getState().updateStatus(payload.status);
-				}
-				useChannelStore
-					.getState()
-					.updateMemberStatus(payload.user_id, payload.status);
-			}
-		});
-
-		// Listen for messages to update unread counts for channels NOT in focus
-		const unsubMessage = onWS('message', (payload: any) => {
-			if (payload && payload.channel_id) {
-				const active = useChannelStore.getState().activeChannel;
-				if (!active || active.id !== payload.channel_id) {
-					useChannelStore.getState().incrementUnread(payload.channel_id);
-				}
-			}
-		});
-
 		return () => {
 			unsubChannel();
-			unsubPresence();
-			unsubMessage();
 		};
 	}, [refreshChannels]);
 
