@@ -89,8 +89,16 @@ export const ChatMessageFeed = memo(
 				}
 			});
 
+			// If no more history, add a welcome header at the end of history (top of feed)
+			if (!hasNextPage && items.length > 0) {
+				items.push({
+					type: 'header',
+					id: 'welcome-header'
+				});
+			}
+
 			return items;
-		}, [messages]);
+		}, [messages, hasNextPage]);
 
 		const virtualizer = useVirtualizer({
 			count: renderedItems.length,
@@ -159,6 +167,24 @@ export const ChatMessageFeed = memo(
 					const item = renderedItems[virtualRow.index];
 					if (!item) return null;
 
+					if (item.type === 'header') {
+						return (
+							<div
+								key={virtualRow.key}
+								ref={virtualizer.measureElement}
+								className="py-12 px-4 mb-8 border-b border-border/50"
+							>
+								<div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+									<span className="text-3xl">#</span>
+								</div>
+								<h1 className="text-3xl font-bold mb-2">Welcome to #{channel.name}!</h1>
+								<p className="text-muted-foreground">
+									This is the start of the #{channel.name} channel.
+								</p>
+							</div>
+						);
+					}
+
 					return (
 						<div
 							key={virtualRow.key}
@@ -207,7 +233,7 @@ export const ChatMessageFeed = memo(
 					ref={loaderRef}
 					className="flex justify-center py-4 h-[60px] items-center shrink-0"
 					style={{ 
-						visibility: hasNextPage ? 'visible' : 'hidden', 
+						display: hasNextPage ? 'flex' : 'none',
 						overflowAnchor: 'none' 
 					}}
 				>
