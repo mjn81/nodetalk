@@ -9,7 +9,7 @@ import RightSidebar from '@/components/Layout/RightSidebar';
 import ChatArea from '@/components/ChatArea';
 
 
-import { useChannelStore } from '@/store/store';
+import { useChannelStore, useAuthStore } from '@/store/store';
 import { onWS } from '@/ws';
 import { ensureZstdReady } from '@/utils/file';
 
@@ -22,11 +22,25 @@ export default function AppPage() {
 		ensureZstdReady();
 
 		// Listen for realtime channel state updates (e.g. member joins)
-		const unsub = onWS('channel_update', () => {
+		const unsubChannel = onWS('channel_update', () => {
 			refreshChannels();
 		});
 
-		return () => unsub();
+		// Listen for presence updates
+		const unsubPresence = onWS('presence', (payload: any) => {
+			if (payload && payload.user_id && payload.status) {
+				const { user } = useAuthStore.getState();
+				if (user && payload.user_id === user.id) {
+					useAuthStore.getState().updateStatus(payload.status);
+				}
+				useChannelStore.getState().updateMemberStatus(payload.user_id, payload.status);
+			}
+		});
+
+		return () => {
+			unsubChannel();
+			unsubPresence();
+		};
 	}, [refreshChannels]);
 
 	return (

@@ -1,4 +1,3 @@
-import { useChannelMembers } from '@/hooks/useChannels';
 import { Avatar } from '@/components/Avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Users } from 'lucide-react';
@@ -14,16 +13,20 @@ interface Member {
 
 export default function RightSidebar() {
 	const activeChannel = useChannelStore((state) => state.activeChannel);
-	const { data: members = [], isLoading } = useChannelMembers(
-		activeChannel?.id,
-	);
 
 	if (!activeChannel) {
 		return <div className="h-full bg-secondary"></div>;
 	}
 
 	// Discord typically separates Online from Offline members.
-	// Discord typically separates Online from Offline members.
+	const members: Member[] = activeChannel.members.map(id => ({
+		id,
+		username: activeChannel.member_names?.[id] || id,
+		domain: activeChannel.member_domains?.[id] || '',
+		status: activeChannel.member_statuses?.[id] || 'offline',
+		avatar_id: activeChannel.member_avatars?.[id],
+	}));
+
 	const onlineMembers = members.filter((m) => m.status !== 'offline');
 	const offlineMembers = members.filter((m) => m.status === 'offline');
 
@@ -67,39 +70,33 @@ export default function RightSidebar() {
 			</div>
 
 			<ScrollArea className="flex-1 mt-4">
-				{isLoading ? (
-					<div className="flex justify-center py-4">
-						<span className="spinner" />
-					</div>
-				) : (
-					<div className="pb-4 flex flex-col gap-4">
-						{onlineMembers.length > 0 && (
-							<div>
-								<h3 className="text-xs font-semibold text-muted-foreground px-4 mb-1 tracking-wider uppercase">
-									Online — {onlineMembers.length}
-								</h3>
-								<div className="flex flex-col gap-0.5">
-									{onlineMembers.map((m) => (
-										<MemberRow key={m.id} member={m} />
-									))}
-								</div>
+				<div className="pb-4 flex flex-col gap-4">
+					{onlineMembers.length > 0 && (
+						<div>
+							<h3 className="text-xs font-semibold text-muted-foreground px-4 mb-1 tracking-wider uppercase">
+								Online — {onlineMembers.length}
+							</h3>
+							<div className="flex flex-col gap-0.5">
+								{onlineMembers.map((m) => (
+									<MemberRow key={m.id} member={m} />
+								))}
 							</div>
-						)}
+						</div>
+					)}
 
-						{offlineMembers.length > 0 && (
-							<div>
-								<h3 className="text-xs font-semibold text-muted-foreground px-4 mb-1 tracking-wider uppercase">
-									Offline — {offlineMembers.length}
-								</h3>
-								<div className="flex flex-col gap-0.5">
-									{offlineMembers.map((m) => (
-										<MemberRow key={m.id} member={m} />
-									))}
-								</div>
+					{offlineMembers.length > 0 && (
+						<div>
+							<h3 className="text-xs font-semibold text-muted-foreground px-4 mb-1 tracking-wider uppercase">
+								Offline — {offlineMembers.length}
+							</h3>
+							<div className="flex flex-col gap-0.5">
+								{offlineMembers.map((m) => (
+									<MemberRow key={m.id} member={m} />
+								))}
 							</div>
-						)}
-					</div>
-				)}
+						</div>
+					)}
+				</div>
 			</ScrollArea>
 		</div>
 	);

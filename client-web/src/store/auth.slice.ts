@@ -17,6 +17,7 @@ export interface AuthSlice {
 	register: (u: string, p: string) => Promise<void>;
 	logout: () => Promise<void>;
 	updateUser: (data: { avatar_id?: string; username?: string; custom_msg?: string; status_preference?: string; password?: string; old_password?: string }) => Promise<void>;
+	updateStatus: (status: string) => void;
 	deleteAccount: () => Promise<void>;
 }
 
@@ -71,6 +72,12 @@ export const useAuthStore = create<AuthSlice>()(
 			updateUser: async (data) => {
 				const fresh = await apiUpdateProfile(data);
 				set({ user: fresh });
+			},
+			updateStatus: (status) => {
+				set((state) => {
+					if (!state.user) return state;
+					return { user: { ...state.user, status } };
+				});
 			},
 
 			deleteAccount: async () => {

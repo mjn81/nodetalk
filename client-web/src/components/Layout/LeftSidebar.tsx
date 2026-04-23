@@ -320,7 +320,7 @@ export default function LeftSidebar() {
 									{user?.username}
 								</span>
 								<span className="text-[11px] text-muted-foreground truncate">
-									Online
+									{user?.status ? user.status.charAt(0).toUpperCase() + user.status.slice(1) : 'Offline'}
 								</span>
 							</div>
 						</div>
