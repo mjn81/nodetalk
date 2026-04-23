@@ -354,7 +354,7 @@ const MemberRow = ({
 					)}
 					{canKick && (
 						<>
-							<ContextMenuSeparator />
+							{(canPromote || canDemote) && <ContextMenuSeparator />}
 							<ContextMenuItem
 								className="text-destructive focus:text-destructive focus:bg-destructive/10 font-bold gap-2"
 								onClick={() => onKick(member)}
