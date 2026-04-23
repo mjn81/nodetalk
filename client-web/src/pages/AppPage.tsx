@@ -13,9 +13,37 @@ import { useChannelStore, useAuthStore } from '@/store/store';
 import { onWS } from '@/ws';
 import { ensureZstdReady } from '@/utils/file';
 
+import { apiJoinChannel } from '@/api/client';
+
 export default function AppPage() {
 	const activeChannel = useChannelStore((state) => state.activeChannel);
 	const refreshChannels = useChannelStore((state) => state.refreshChannels);
+	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
+
+	useEffect(() => {
+		const path = window.location.pathname;
+		if (path.startsWith('/join/')) {
+			const code = path.split('/join/')[1];
+			if (code) {
+				const autoJoin = async () => {
+					try {
+						const res = await apiJoinChannel(code);
+						await refreshChannels();
+						// Remove join from URL
+						window.history.replaceState({}, '', '/');
+						// Find newly joined channel in the refreshed list
+						const allChannels = useChannelStore.getState().channels;
+						const ch = allChannels.find(c => c.id === res.id);
+						if (ch) setActiveChannel(ch);
+					} catch (err) {
+						console.error('Auto-join failed:', err);
+						window.history.replaceState({}, '', '/');
+					}
+				};
+				autoJoin();
+			}
+		}
+	}, []);
 
 	useEffect(() => {
 		// Initialize ZSTD WASM once on app load

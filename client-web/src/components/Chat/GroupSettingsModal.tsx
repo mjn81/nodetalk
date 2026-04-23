@@ -67,9 +67,11 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 		}
 	};
 
+	const fullInviteLink = `${window.location.origin}/join/${channel.invite_link}`;
+
 	const copyLink = () => {
 		if (channel.invite_link) {
-			navigator.clipboard.writeText(channel.invite_link);
+			navigator.clipboard.writeText(fullInviteLink);
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
 		}
@@ -133,7 +135,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 							<div className="flex gap-2">
 								<Input
 									readOnly
-									value={channel.invite_link}
+									value={fullInviteLink}
 									className="bg-secondary/30 border-border font-mono text-xs"
 								/>
 								<Button size="icon" variant="outline" onClick={copyLink}>

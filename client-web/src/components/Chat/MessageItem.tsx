@@ -5,6 +5,8 @@ import { Play, Pause } from 'lucide-react';
 import { type Message, type Channel } from '@/types/api';
 import { FileBubble } from './FileBubble';
 
+import { JoinPreview } from './JoinPreview';
+
 interface MessageItemProps {
 	msg: Message & { text?: string };
 	channel: Channel;
@@ -15,6 +17,13 @@ interface MessageItemProps {
 export const MessageItem: React.FC<MessageItemProps> = ({ msg, channel, grouped, formatTime }) => {
 	const user = useAuthStore((state) => state.user);
 	
+	const joinCode = useMemo(() => {
+		if (!msg.text) return null;
+		// Match /join/ followed by alphanumeric/dashes
+		const match = msg.text.match(/\/join\/([a-zA-Z0-9-]+)/);
+		return match ? match[1] : null;
+	}, [msg.text]);
+
 	const isMentioned = useMemo(() => {
 		if (!user || !msg.text) return false;
 		// Simple check for @username. In a real app we might use regex for boundaries.
@@ -80,9 +89,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({ msg, channel, grouped,
 					</div>
 				)}
 				{msg.type === 'text' && (
-					<div className="text-[15px] text-foreground/90 leading-[22px] whitespace-pre-wrap break-words" dir="auto">
-						{msg.text ? renderText(msg.text) : '[encrypted]'}
-					</div>
+					<>
+						<div className="text-[15px] text-foreground/90 leading-[22px] whitespace-pre-wrap break-words" dir="auto">
+							{msg.text ? renderText(msg.text) : '[encrypted]'}
+						</div>
+						{joinCode && <JoinPreview inviteCode={joinCode} />}
+					</>
 				)}
 				{msg.type === 'voice' && <VoiceBubble msg={msg} />}
 				{msg.type === 'file' && <FileBubble msg={msg} />}
