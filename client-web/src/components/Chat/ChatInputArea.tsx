@@ -393,7 +393,10 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 					/>
 
 					<div className="flex items-center gap-3 shrink-0 h-6">
-						<VoiceRecorder channelId={channel.id} />
+						<VoiceRecorder 
+							channelId={channel.id} 
+							onFile={(file) => addFiles([file])} 
+						/>
 						<div className="relative flex items-center justify-center">
 							<button
 								onClick={() => setShowEmoji((v) => !v)}

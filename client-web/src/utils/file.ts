@@ -126,6 +126,38 @@ async function generateVideoThumbnail(file: File, maxWidth = 400, maxHeight = 40
 }
 
 /**
+ * Extracts normalized peaks from an audio file to represent its waveform.
+ * Returns a Uint8Array of values between 0 and 100.
+ */
+async function generateWaveform(file: File, samples = 60): Promise<Uint8Array | null> {
+	try {
+		const arrayBuffer = await file.arrayBuffer();
+		const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+		const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+		
+		const channelData = audioBuffer.getChannelData(0);
+		const step = Math.floor(channelData.length / samples);
+		const peaks = new Uint8Array(samples);
+
+		for (let i = 0; i < samples; i++) {
+			let max = 0;
+			for (let j = 0; j < step; j++) {
+				const val = Math.abs(channelData[i * step + j]);
+				if (val > max) max = val;
+			}
+			// Normalize to 0-100 range
+			peaks[i] = Math.min(100, Math.floor(max * 100));
+		}
+
+		await audioCtx.close();
+		return peaks;
+	} catch (err) {
+		console.error('Failed to generate waveform:', err);
+		return null;
+	}
+}
+
+/**
  * Prepares a file for secure upload:
  * 1. Compresses the raw bytes using ZSTD via WASM.
  * 2. Encrypts the compressed bytes using AES-256-GCM and the channel key.
@@ -145,7 +177,11 @@ export async function encryptAndCompressFile(
 	await ensureZstdReady();
 
 	const arrayBuffer = await file.arrayBuffer();
-	const compressed = compress(new Uint8Array(arrayBuffer), 10);
+	const isAudio = file.type.startsWith('audio/');
+	
+	// Skip ZSTD compression for audio files as they are already compressed (Opus/WebM)
+	// and additional compression can sometimes cause issues with media headers.
+	const processedData = isAudio ? new Uint8Array(arrayBuffer) : compress(new Uint8Array(arrayBuffer), 10);
 
 	// Import channel key for encryption
 	const cryptoKey = await crypto.subtle.importKey(
@@ -161,7 +197,7 @@ export async function encryptAndCompressFile(
 	const ciphertextBuffer = await crypto.subtle.encrypt(
 		{ name: 'AES-GCM', iv: nonce as any },
 		cryptoKey,
-		compressed as any,
+		processedData as any,
 	);
 
 	const result: any = {
@@ -205,6 +241,21 @@ export async function encryptAndCompressFile(
 		}
 	}
 
+	// waveform for audio
+	if (file.type.startsWith('audio/')) {
+		const peaks = await generateWaveform(file);
+		if (peaks) {
+			const thumbNonce = crypto.getRandomValues(new Uint8Array(12));
+			const thumbCipher = await crypto.subtle.encrypt(
+				{ name: 'AES-GCM', iv: thumbNonce as any },
+				cryptoKey,
+				peaks as any,
+			);
+			result.thumbnailCipher = new Uint8Array(thumbCipher);
+			result.thumbnailNonce = thumbNonce;
+		}
+	}
+
 	return result;
 }
 
@@ -217,6 +268,7 @@ export async function decryptAndDecompressFile(
 	ciphertext: Uint8Array,
 	nonce: Uint8Array,
 	channelKey: Uint8Array,
+	isAudio: boolean = false,
 ): Promise<Uint8Array> {
 	await ensureZstdReady();
 
@@ -234,6 +286,9 @@ export async function decryptAndDecompressFile(
 		ciphertext as any,
 	);
 
-	const decompressed = decompress(new Uint8Array(decrypted));
+	const decryptedBytes = new Uint8Array(decrypted);
+	if (isAudio) return decryptedBytes;
+
+	const decompressed = decompress(decryptedBytes);
 	return decompressed;
 }

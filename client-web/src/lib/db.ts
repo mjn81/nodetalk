@@ -5,38 +5,33 @@ export interface CachedMessage extends Message {
 	text?: string; // Decrypted content if available
 }
 
+export interface CachedFile {
+	id: string; // File ID
+	data: Uint8Array; // Decrypted file bytes
+	mime: string;
+}
+
 /**
- * NodeTalkDB - Local IndexedDB for message persistence.
- * Used for persistent message caching and offline availability.
+ * NodeTalkDB - Local IndexedDB for message and file persistence.
  */
 export class NodeTalkDB extends Dexie {
 	messages!: Table<CachedMessage>;
+	files!: Table<CachedFile>;
 
 	constructor() {
 		super('NodeTalkDB');
 		
-		// Schema definition
-		// id: Message ID (from server)
-		// channel_id: For querying messages by channel
-		// sent_at: For sorting chronologically
-		this.version(1).stores({
-			messages: 'id, channel_id, sent_at'
+		this.version(2).stores({
+			messages: 'id, channel_id, sent_at',
+			files: 'id'
 		});
 	}
 
-	/**
-	 * Persist messages to the local database.
-	 * Uses bulkPut to handle updates/duplicates efficiently.
-	 */
 	async cacheMessages(msgs: CachedMessage[]) {
 		if (msgs.length === 0) return;
 		return this.messages.bulkPut(msgs);
 	}
 
-	/**
-	 * Retrieve cached messages for a specific channel.
-	 * Sorted by sent_at chronologically.
-	 */
 	async getCachedMessages(channelId: string, limit: number = 50): Promise<CachedMessage[]> {
 		return this.messages
 			.where('channel_id')
@@ -47,13 +42,22 @@ export class NodeTalkDB extends Dexie {
 			.then(msgs => msgs.reverse());
 	}
 
-	/**
-	 * Clear cache for a specific channel or entirely.
-	 */
 	async clearChannelCache(channelId: string) {
 		return this.messages.where('channel_id').equals(channelId).delete();
 	}
+
+	// File Caching
+	async cacheFile(id: string, data: Uint8Array, mime: string) {
+		return this.files.put({ id, data, mime });
+	}
+
+	async getCachedFile(id: string): Promise<CachedFile | undefined> {
+		return this.files.get(id);
+	}
+
+	async clearFileCache(id: string) {
+		return this.files.delete(id);
+	}
 }
 
-// Singleton instance
 export const db = new NodeTalkDB();
