@@ -4,6 +4,7 @@ import { useMessages } from '@/hooks/useMessages';
 import type { Message, Channel } from '@/types/api';
 import { onWS, decryptMessage } from '@/ws';
 import { useAuthStore, useCryptoStore } from '@/store/store';
+import { db } from '@/lib/db';
 
 import { ChatTopbar } from './Chat/ChatTopbar';
 import { ChatMessageFeed } from './Chat/ChatMessageFeed';
@@ -40,19 +41,43 @@ export default function ChatArea({ channel }: ChatAreaProps) {
 		}
 	}, [messages.length, scrollToBottom]);
 
+	// Pre-populate query data from IndexedDB when channel changes
+	useEffect(() => {
+		const preloadFromDB = async () => {
+			const cached = await db.getCachedMessages(channel.id);
+			if (cached.length > 0) {
+				queryClient.setQueryData(['messages', channel.id], (old: any) => {
+					// Only set if we don't have fresh data yet
+					return (old && old.length > 0) ? old : cached;
+				});
+			}
+		};
+		preloadFromDB();
+	}, [channel.id, queryClient]);
+
 	// Decrypt and set a message via cache
 	const addMessage = useCallback(
 		async (msg: Message) => {
 			// Avoid duplicates if we just fetched from REST
 			const text = msg.type === 'text' ? await decryptMessage(msg) : undefined;
+			const fullMsg = { ...msg, text };
+
+			// Save to IndexedDB
+			await db.cacheMessages([fullMsg]);
+
 			queryClient.setQueryData<DecryptedMessage[]>(
 				['messages', channel.id],
 				(old) => {
-					if (!old) return [{ ...msg, text }];
-					// Check if message already exists (e.g. from a concurrent REST fetch)
-					if (old.some(m => m.id === msg.id)) return old;
-					return [...old, { ...msg, text }];
-				}
+					if (!old) return [fullMsg];
+					// Check if message already exists
+					if (old.some((m) => m.id === msg.id)) return old;
+					const updated = [...old, fullMsg];
+					// Ensure chronological order
+					return updated.sort(
+						(a, b) =>
+							new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime(),
+					);
+				},
 			);
 		},
 		[queryClient, channel.id],
