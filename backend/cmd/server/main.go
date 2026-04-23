@@ -121,8 +121,8 @@ func main() {
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      middleware.Logger(rootMux),
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		ReadTimeout:  1 * time.Hour,
+		WriteTimeout: 1 * time.Hour,
 		IdleTimeout:  120 * time.Second,
 	}
 

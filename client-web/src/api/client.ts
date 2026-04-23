@@ -55,7 +55,7 @@ export class NetworkError extends Error {
 export const apiClient = axios.create({
 	baseURL: BASE_URL,
 	withCredentials: true,
-	timeout: 8000,
+	timeout: 3600000, // 1 hour for long uploads/downloads
 });
 
 apiClient.interceptors.response.use(
