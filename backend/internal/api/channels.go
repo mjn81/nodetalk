@@ -428,6 +428,7 @@ func (h *Handler) toChannelResponse(ch *models.Channel, userID string) ChannelRe
 	memberAvatars := make(map[string]string)
 	memberDomains := make(map[string]string)
 	memberStatuses := make(map[string]string)
+	memberRoles := make(map[string]int)
 	members, err := h.Store.GetChannelMembers(ch.ID)
 	
 	userRole := models.RoleMember
@@ -439,6 +440,7 @@ func (h *Handler) toChannelResponse(ch *models.Channel, userID string) ChannelRe
 	if err == nil {
 		for _, m := range members {
 			memberIDs = append(memberIDs, m.UserID)
+			memberRoles[m.UserID] = m.Role
 			u, err := h.Store.GetUser(m.UserID)
 			if err == nil {
 				memberNames[m.UserID] = u.Username
@@ -461,6 +463,7 @@ func (h *Handler) toChannelResponse(ch *models.Channel, userID string) ChannelRe
 		MemberAvatars:  memberAvatars,
 		MemberDomains:  memberDomains,
 		MemberStatuses: memberStatuses,
+		MemberRoles:    memberRoles,
 		CreatedAt:      ch.CreatedAt,
 		UnreadCount:    ch.UnreadCount,
 	}

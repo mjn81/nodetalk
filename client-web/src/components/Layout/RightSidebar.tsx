@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { Avatar } from '@/components/Avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, LogOut } from 'lucide-react';
+import { Users, LogOut, UserMinus } from 'lucide-react';
 import { useChannelStore, useAuthStore } from '@/store/store';
 import { apiLeaveChannel } from '@/api/client';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { isDirectMessage } from '@/utils/channel';
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 
 interface Member {
 	id: string;
@@ -13,6 +19,7 @@ interface Member {
 	domain: string;
 	status: string;
 	avatar_id?: string;
+	role: number;
 }
 
 export default function RightSidebar() {
@@ -21,6 +28,7 @@ export default function RightSidebar() {
 	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
 	const user = useAuthStore((state) => state.user);
 	const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+	const [showKickConfirm, setShowKickConfirm] = useState<Member | null>(null);
 	const [loading, setLoading] = useState(false);
 
 	if (!activeChannel) {
@@ -28,6 +36,7 @@ export default function RightSidebar() {
 	}
 
 	const isDM = isDirectMessage(activeChannel);
+	const myRole = activeChannel.user_role ?? 0;
 
 	const handleLeave = async () => {
 		if (!user) return;
@@ -43,48 +52,88 @@ export default function RightSidebar() {
 		}
 	};
 
-	// ... Member mapping and Row component
+	const handleKick = async () => {
+		if (!showKickConfirm) return;
+		setLoading(true);
+		try {
+			await apiLeaveChannel(activeChannel.id, showKickConfirm.id);
+			await refreshChannels();
+			setShowKickConfirm(null);
+		} catch (err) {
+			console.error('Failed to kick member:', err);
+		} finally {
+			setLoading(false);
+		}
+	};
+
 	const members: Member[] = activeChannel.members.map(id => ({
 		id,
 		username: activeChannel.member_names?.[id] || id,
 		domain: activeChannel.member_domains?.[id] || '',
 		status: activeChannel.member_statuses?.[id] || 'offline',
 		avatar_id: activeChannel.member_avatars?.[id],
+		role: activeChannel.member_roles?.[id] ?? 0,
 	}));
 
 	const onlineMembers = members.filter((m) => m.status !== 'offline');
 	const offlineMembers = members.filter((m) => m.status === 'offline');
 
-	const MemberRow = ({ member }: { member: Member }) => (
-		<div
-			key={member.id}
-			className="flex items-center gap-3 px-2 py-1 mx-2 rounded-md cursor-pointer transition hover:bg-accent/50 group"
-		>
-			<div className="relative">
-				<Avatar 
-					userId={member.id} 
-					avatarId={member.avatar_id}
-					size={32} 
-					className="shrink-0" 
-				/>
-				<div
-					className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-[3px] border-secondary group-hover:border-accent/50 transition-colors ${
-						member.status === 'online' ? 'bg-green-500' :
-						member.status === 'away' ? 'bg-yellow-500' :
-						member.status === 'dnd' ? 'bg-red-500' :
-						'bg-gray-500'
-					}`}
-				/>
-			</div>
-			<div className="flex flex-col flex-1 min-w-0">
-				<span
-					className={`text-[15px] font-medium leading-tight truncate ${member.status !== 'offline' ? 'text-foreground' : 'text-muted-foreground/60'}`}
-				>
-					{member.username}
-				</span>
-			</div>
-		</div>
-	);
+	const MemberRow = ({ member }: { member: Member }) => {
+		const canKick = !isDM && myRole >= 10 && myRole > member.role && member.id !== user?.id;
+
+		return (
+			<ContextMenu key={member.id}>
+				<ContextMenuTrigger>
+					<div
+						className="flex items-center gap-3 px-2 py-1 mx-2 rounded-md cursor-pointer transition hover:bg-accent/50 group"
+					>
+						<div className="relative">
+							<Avatar 
+								userId={member.id} 
+								avatarId={member.avatar_id}
+								size={32} 
+								className="shrink-0" 
+							/>
+							<div
+								className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-[3px] border-secondary group-hover:border-accent/50 transition-colors ${
+									member.status === 'online' ? 'bg-green-500' :
+									member.status === 'away' ? 'bg-yellow-500' :
+									member.status === 'dnd' ? 'bg-red-500' :
+									'bg-gray-500'
+								}`}
+							/>
+						</div>
+						<div className="flex flex-col flex-1 min-w-0">
+							<div className="flex items-center gap-1.5 min-w-0">
+								<span
+									className={`text-[15px] font-medium leading-tight truncate ${member.status !== 'offline' ? 'text-foreground' : 'text-muted-foreground/60'}`}
+								>
+									{member.username}
+								</span>
+								{member.role >= 20 && (
+									<span className="text-[10px] bg-primary/20 text-primary px-1 rounded font-bold uppercase tracking-wider">Owner</span>
+								)}
+								{member.role === 10 && (
+									<span className="text-[10px] bg-blue-500/20 text-blue-500 px-1 rounded font-bold uppercase tracking-wider">Admin</span>
+								)}
+							</div>
+						</div>
+					</div>
+				</ContextMenuTrigger>
+				{canKick && (
+					<ContextMenuContent className="w-48">
+						<ContextMenuItem 
+							className="text-destructive focus:text-destructive focus:bg-destructive/10 font-bold gap-2"
+							onClick={() => setShowKickConfirm(member)}
+						>
+							<UserMinus size={16} />
+							Kick Member
+						</ContextMenuItem>
+					</ContextMenuContent>
+				)}
+			</ContextMenu>
+		);
+	};
 
 	return (
 		<div className="flex flex-col h-full bg-secondary border-l border-border/50">
@@ -145,6 +194,16 @@ export default function RightSidebar() {
 				title="Leave Channel"
 				message={`Are you sure you want to leave "${activeChannel.name}"? You will need an invite link to join back later.`}
 				confirmText="Leave Channel"
+				variant="danger"
+			/>
+
+			<ConfirmModal
+				isOpen={!!showKickConfirm}
+				onClose={() => setShowKickConfirm(null)}
+				onConfirm={handleKick}
+				title="Kick Member"
+				message={`Are you sure you want to kick ${showKickConfirm?.username} from the channel? They will need a new invite to rejoin.`}
+				confirmText="Kick Member"
 				variant="danger"
 			/>
 		</div>

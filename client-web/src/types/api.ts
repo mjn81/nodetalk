@@ -20,6 +20,7 @@ export interface Channel {
 	member_avatars?: Record<string, string>;
 	member_domains?: Record<string, string>;
 	member_statuses?: Record<string, string>;
+	member_roles?: Record<string, number>;
 	created_at: string;
 	unread_count?: number;
 }

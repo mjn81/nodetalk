@@ -316,7 +316,24 @@ func (h *Hub) BroadcastMemberLeft(channelID string, userID string) {
 		"type":       "member_left",
 	})
 	msg := &models.WSMessage{Type: "channel_update", Payload: payload}
+	// Broadcast to remaining members
 	h.broadcast <- &envelope{channelID: channelID, msg: msg}
+
+	// Also send targeted notification to the user who left/was kicked 
+	// so their UI can react (e.g. remove channel from sidebar)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if c, ok := h.clients[userID]; ok {
+		kickPayload, _ := json.Marshal(map[string]any{
+			"channel_id": channelID,
+			"type":       "kicked",
+		})
+		kickMsg := &models.WSMessage{Type: "channel_update", Payload: kickPayload}
+		select {
+		case c.send <- &envelope{msg: kickMsg}:
+		default:
+		}
+	}
 }
 
 // ---- Client Methods -------------------------------------------------------- //
