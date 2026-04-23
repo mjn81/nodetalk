@@ -42,9 +42,7 @@ const ChatArea = memo(({ channel }: ChatAreaProps) => {
 	// Send read receipt when opening channel
 	useEffect(() => {
 		wsSendReadReceipt(channel.id);
-		// Clear local unread count in sidebar immediately on entry
-		refreshChannels();
-	}, [channel.id, refreshChannels]);
+	}, [channel.id]);
 
 	// Automatically scroll to bottom when messages change
 	useEffect(() => {

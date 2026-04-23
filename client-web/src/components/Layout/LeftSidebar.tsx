@@ -1,4 +1,4 @@
-import { useEffect, useState, memo, useCallback } from 'react';
+import { useEffect, useState, memo, useCallback, useMemo } from 'react';
 import { Avatar } from '@/components/Avatar';
 import NewChannelModal from '@/components/NewChannelModal';
 import SettingsModal from '@/components/SettingsModal';
@@ -138,15 +138,18 @@ export default function LeftSidebar() {
 		}
 	};
 
-	const filtered = channels.filter((ch) => {
-		const display = getChannelDisplayName(ch, user?.id ?? '');
-		return display.toLowerCase().includes(search.toLowerCase());
-	});
+	const filtered = useMemo(() => {
+		return channels.filter((ch) => {
+			const display = getChannelDisplayName(ch, user?.id ?? '');
+			return display.toLowerCase().includes(search.toLowerCase());
+		});
+	}, [channels, user?.id, search]);
 
-	const dmChannels = filtered.filter((ch) => isDirectMessage(ch));
-	const groupChannels = filtered.filter(
-		(ch) => !dmChannels.some((dm) => dm.id === ch.id),
-	);
+	const { dmChannels, groupChannels } = useMemo(() => {
+		const dms = filtered.filter((ch) => isDirectMessage(ch));
+		const groups = filtered.filter((ch) => !dms.some((dm) => dm.id === ch.id));
+		return { dmChannels: dms, groupChannels: groups };
+	}, [filtered]);
 
 	return (
 		<div className="flex flex-col h-full bg-secondary w-full overflow-hidden">

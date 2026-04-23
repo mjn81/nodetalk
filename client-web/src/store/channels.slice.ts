@@ -23,7 +23,8 @@ export const useChannelStore = create<ChannelSlice>((set) => ({
 	isChannelsLoading: false,
 
 	refreshChannels: async () => {
-		set({ isChannelsLoading: true });
+		const hasChannels = useChannelStore.getState().channels.length > 0;
+		if (!hasChannels) set({ isChannelsLoading: true });
 
 		try {
 			const list = await apiListChannels();
@@ -45,12 +46,20 @@ export const useChannelStore = create<ChannelSlice>((set) => ({
 
 	setActiveChannel: (ch) => {
 		if (ch) wsSendReadReceipt(ch.id);
-		set((state) => ({
-			activeChannel: ch,
-			channels: ch 
-				? state.channels.map((c) => c.id === ch.id ? { ...c, unread_count: 0 } : c)
-				: state.channels,
-		}));
+		set((state) => {
+			if (state.activeChannel?.id === ch?.id) {
+				// If clicking already active channel, only update unread count if it's > 0
+				const target = state.channels.find(c => c.id === ch?.id);
+				if (!target || (target.unread_count || 0) === 0) return state;
+			}
+
+			return {
+				activeChannel: ch,
+				channels: ch 
+					? state.channels.map((c) => (c.id === ch.id && (c.unread_count || 0) > 0) ? { ...c, unread_count: 0 } : c)
+					: state.channels,
+			};
+		});
 	},
 
 	incrementUnread: (id) => {
