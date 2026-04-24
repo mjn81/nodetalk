@@ -1,10 +1,11 @@
 version: '3.8'
 
 services:
-  nodetalk-server:
+  backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: nodetalk/backend:latest
     ports:
       - "8080:8080"
       - "9090:9090/udp"
@@ -13,10 +14,15 @@ services:
       - ./backend/config.toml:/app/config.toml
     restart: unless-stopped
 
-  client-web:
+  frontend:
     build:
       context: ./client-web
+      dockerfile: Dockerfile
+    image: nodetalk/frontend:latest
     ports:
       - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:8080
     depends_on:
-      - nodetalk-server
+      - backend
+    restart: unless-stopped

@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
-
 	"github.com/BurntSushi/toml"
 )
 
@@ -104,7 +103,7 @@ func Load() (*Config, error) {
 		cfg.Security.MasterPassword = envPwd
 	}
 
-	// Dev mode override
+	// Dev mode override (keeps development convenience)
 	if os.Getenv("NODE_ENV") == "development" || os.Getenv("GO_ENV") == "development" {
 		cfg.Server.Dev = true
 	}

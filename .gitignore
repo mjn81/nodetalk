@@ -3,3 +3,4 @@
 data/
 config.toml
 nodetalk-server
+stress_report_*.txt
