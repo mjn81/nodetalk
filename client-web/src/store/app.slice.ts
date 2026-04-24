@@ -14,6 +14,10 @@ export interface AppSlice {
 	enableDesktopNotifications: boolean;
 	enableNotificationSounds: boolean;
 
+	// Voice Settings
+	preferredMicId: string;
+	setPreferredMicId: (id: string) => void;
+
 	fetchVersion: () => Promise<void>;
 	setWsState: (s: AppSlice['wsState']) => void;
 	setTheme: (theme: 'dark' | 'light') => void;
@@ -33,6 +37,7 @@ export const useAppStore = create<AppSlice>()(
 			isRightSidebarOpen: false,
 			enableDesktopNotifications: true,
 			enableNotificationSounds: true,
+			preferredMicId: 'default',
 
 			setWsState: (wsState) => set({ wsState }),
 			setTheme: (theme) => set({ theme }),
@@ -42,6 +47,7 @@ export const useAppStore = create<AppSlice>()(
 				set({ enableDesktopNotifications }),
 			setEnableNotificationSounds: (enableNotificationSounds) =>
 				set({ enableNotificationSounds }),
+			setPreferredMicId: (preferredMicId) => set({ preferredMicId }),
 
 			fetchVersion: async () => {
 				try {
@@ -58,6 +64,7 @@ export const useAppStore = create<AppSlice>()(
 				theme: s.theme,
 				enableDesktopNotifications: s.enableDesktopNotifications,
 				enableNotificationSounds: s.enableNotificationSounds,
+				preferredMicId: s.preferredMicId,
 			}),
 		},
 	),

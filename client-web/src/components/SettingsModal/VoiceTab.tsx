@@ -2,11 +2,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mic, Play, Square } from 'lucide-react';
+import { useAppStore } from '@/store/store';
 
 export const VoiceTab = () => {
 	const { t } = useTranslation();
+	const { preferredMicId: selectedId, setPreferredMicId } = useAppStore();
 	const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-	const [selectedId, setSelectedId] = useState<string>(localStorage.getItem('preferred-mic-id') || 'default');
 	const [isTesting, setIsTesting] = useState(false);
 	const [volume, setVolume] = useState(0);
 	const audioContextRef = useRef<AudioContext | null>(null);
@@ -39,8 +40,7 @@ export const VoiceTab = () => {
 	}, []);
 
 	const handleDeviceChange = (id: string) => {
-		setSelectedId(id);
-		localStorage.setItem('preferred-mic-id', id);
+		setPreferredMicId(id);
 		if (isTesting) {
 			stopTest();
 			startTest(id);

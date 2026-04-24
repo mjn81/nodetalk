@@ -4,7 +4,8 @@ import NewChannelModal from '@/components/NewChannelModal';
 import SettingsModal from '@/components/SettingsModal';
 import { useExploreChannels } from '@/hooks/useChannels';
 import { apiJoinChannel } from '@/api/client';
-import { Settings, LogOut, Plus, Hash, Search } from 'lucide-react';
+import { Settings, LogOut, Plus, Hash, Search, Volume2 } from 'lucide-react';
+import { useVoiceStore } from '@/store/voiceStore';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -38,6 +39,7 @@ const RenderChannel = memo(
 		onSelect: (ch: Channel) => void;
 	}) => {
 		const display = getChannelDisplayName(ch, user?.id ?? '');
+		const hasVoice = useVoiceStore(state => (state.participants[ch.id]?.length ?? 0) > 0);
 
 		return (
 			<div
@@ -49,7 +51,14 @@ const RenderChannel = memo(
 				}`}
 			>
 				{isGroup ? (
-					<Hash className="w-5 h-5 shrink-0 opacity-70" />
+					<div className="relative shrink-0">
+						<Hash className="w-5 h-5 shrink-0 opacity-70" />
+						{hasVoice && (
+							<div className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground rounded-full p-0.5 shadow-sm border border-secondary animate-in zoom-in duration-300">
+								<Volume2 size={10} fill="currentColor" />
+							</div>
+						)}
+					</div>
 				) : (
 					<div className="relative shrink-0">
 						<Avatar
@@ -78,6 +87,11 @@ const RenderChannel = memo(
 											: 'bg-gray-500'
 							}`}
 						/>
+						{hasVoice && (
+							<div className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full p-0.5 shadow-sm border border-secondary z-10 animate-in zoom-in duration-300">
+								<Volume2 size={10} fill="currentColor" />
+							</div>
+						)}
 					</div>
 				)}
 				<div className="min-w-0 flex-1 flex items-center gap-2">

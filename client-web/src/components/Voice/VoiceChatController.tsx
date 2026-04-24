@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useVoiceStore } from '@/store/voiceStore';
-import { useAuthStore, useChannelStore } from '@/store/store';
+import { useAuthStore, useChannelStore, useAppStore } from '@/store/store';
 import { VoiceChatPanel } from './VoiceChatPanel';
 import { isWails } from '@/utils/wails';
 import { onWS } from '@/ws';
@@ -13,6 +13,8 @@ export const VoiceChatController: React.FC = () => {
 	const { user } = useAuthStore();
 	const token = user?.token || localStorage.getItem('nodetalk_token') || '';
 	const channels = useChannelStore(state => state.channels);
+	
+	const { preferredMicId } = useAppStore();
 	
 	const streamRef = useRef<MediaStream | null>(null);
 	const audioContextRef = useRef<AudioContext | null>(null);
@@ -108,7 +110,6 @@ export const VoiceChatController: React.FC = () => {
 				}
 
 				addLog('STEP 8: Initializing MediaStream...');
-				const preferredMicId = localStorage.getItem('preferred-mic-id');
 				const constraints: MediaStreamConstraints = { 
 					audio: preferredMicId && preferredMicId !== 'default' 
 						? { deviceId: { exact: preferredMicId } } 
@@ -295,7 +296,7 @@ export const VoiceChatController: React.FC = () => {
 			isMounted = false;
 			stop();
 		};
-	}, [isActive, activeChannelId, user?.id, token]);
+	}, [isActive, activeChannelId, user?.id, token, preferredMicId]);
 	
 	// Force clear local speaking state when muting
 	useEffect(() => {
