@@ -87,20 +87,14 @@ func (h *Hub) run() {
 // ServeHTTP upgrades an HTTP request to a WebSocket connection.
 // Authentication is via the `nodetalk_session` cookie or a `token` query parameter.
 func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var token string
-	if c, err := r.Cookie("nodetalk_session"); err == nil && c.Value != "" {
-		token = c.Value
-	} else {
-		token = r.URL.Query().Get("token")
-	}
-
-	if token == "" {
-		http.Error(w, `{"error":"missing token"}`, http.StatusUnauthorized)
+	token, err := auth.BearerToken(r)
+	if err != nil {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
 	session, err := h.sessions.Validate(token)
 	if err != nil {
-		http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
 

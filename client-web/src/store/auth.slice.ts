@@ -60,6 +60,11 @@ export const useAuthStore = create<AuthSlice>()(
 			login: async (u, p) => {
 				const user = await apiLogin(u, p);
 				set({ user });
+				
+				// Persist token separately for easy extraction in interceptors/ws
+				if (user.token) {
+					localStorage.setItem('nodetalk_token', user.token);
+				}
 
 				connectWS(user.token);
 				useChannelStore.getState().refreshChannels();
@@ -75,6 +80,7 @@ export const useAuthStore = create<AuthSlice>()(
 
 				disconnectWS();
 				useChannelStore.getState().resetChannels();
+				localStorage.removeItem('nodetalk_token');
 
 				set({ user: null });
 			},

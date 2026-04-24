@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { isWails } from '@/utils/wails';
 
 export default function RegisterPage() {
 	const { t } = useTranslation();
@@ -125,9 +126,8 @@ export default function RegisterPage() {
 							{loading ? <span className="spinner" /> : 'Continue'}
 						</Button>
 					</form>
-				</CardContent>
-				<CardFooter className="flex flex-col items-start gap-2 pt-2">
-					<div className="text-sm text-muted-foreground">
+
+					<div className="text-sm text-muted-foreground mt-4 text-center">
 						<Link
 							to="/login"
 							className="text-primary hover:underline font-medium"
@@ -135,17 +135,21 @@ export default function RegisterPage() {
 							Already have an account?
 						</Link>
 					</div>
+				</CardContent>
 
-					<div className="mt-4 pt-4 border-t border-border/10 w-full flex items-center justify-between text-[11px] text-muted-foreground/60 italic">
-						<span>Connecting to: {BASE_URL}</span>
-						<Link
-							to="/connect"
-							className="text-primary hover:underline not-italic font-medium"
-						>
-							Change
-						</Link>
-					</div>
-				</CardFooter>
+				{isWails() && (
+					<CardFooter className="flex flex-col items-start gap-2 pt-2">
+						<div className="mt-4 pt-4 border-t border-border/10 w-full flex items-center justify-between text-[11px] text-muted-foreground/60 italic">
+							<span>Connecting to: {BASE_URL}</span>
+							<Link
+								to="/connect"
+								className="text-primary hover:underline not-italic font-medium"
+							>
+								Change
+							</Link>
+						</div>
+					</CardFooter>
+				)}
 			</Card>
 
 			<div className="absolute bottom-8 flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity duration-300">

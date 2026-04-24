@@ -100,16 +100,13 @@ func (ss *SessionStore) sweepExpired() {
 
 // ---- HTTP Helpers ---------------------------------------------------------- //
 
-// BearerToken extracts the token from the cookie or `Authorization: Bearer <token>` header.
+// BearerToken extracts the token from the `Authorization: Bearer <token>` header or query parameter.
 func BearerToken(r *http.Request) (string, error) {
-	if c, err := r.Cookie("nodetalk_session"); err == nil && c.Value != "" {
-		return c.Value, nil
-	}
 	h := r.Header.Get("Authorization")
 	if len(h) >= 8 && h[:7] == "Bearer " {
 		return h[7:], nil
 	}
-	// Fallback for query parameter (required for WebSocket handshake in Wails)
+	// Fallback for query parameter (required for WebSocket handshake)
 	if t := r.URL.Query().Get("token"); t != "" {
 		return t, nil
 	}

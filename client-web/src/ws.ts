@@ -21,8 +21,10 @@ export function base64ToBytes(base64: string): Uint8Array {
 }
 
 export function bytesToBase64(bytes: Uint8Array): string {
-    // Correct way to handle potential stack issues with larger arrays
-    const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
+	// Correct way to handle potential stack issues with larger arrays
+	const binString = Array.from(bytes, (byte) =>
+		String.fromCodePoint(byte),
+	).join('');
 	return btoa(binString);
 }
 
@@ -33,235 +35,272 @@ import { useCryptoStore } from '@/store/crypto.slice';
 // They are NEVER persisted to disk / localStorage.
 
 export function getChannelKey(channelId: string): Uint8Array | undefined {
-  return useCryptoStore.getState().channelKeys.get(channelId);
+	return useCryptoStore.getState().channelKeys.get(channelId);
 }
 
 // ── Event Listeners ─────────────────────────────────────────────────────
-type WSEventType = 'message' | 'message_update' | 'message_delete' | 'presence' | 'channel_key' | 'channel_update' | 'open' | 'close';
+type WSEventType =
+	| 'message'
+	| 'message_update'
+	| 'message_delete'
+	| 'presence'
+	| 'channel_key'
+	| 'channel_update'
+	| 'open'
+	| 'close';
 type WSListener = (payload: unknown) => void;
 
 const listeners = new Map<WSEventType, Set<WSListener>>();
 
 export function onWS(event: WSEventType, fn: WSListener): () => void {
-  if (!listeners.has(event)) listeners.set(event, new Set());
-  listeners.get(event)!.add(fn);
-  return () => listeners.get(event)?.delete(fn);
+	if (!listeners.has(event)) listeners.set(event, new Set());
+	listeners.get(event)!.add(fn);
+	return () => listeners.get(event)?.delete(fn);
 }
 
 function emit(event: WSEventType, payload: unknown) {
-  listeners.get(event)?.forEach(fn => fn(payload));
+	listeners.get(event)?.forEach((fn) => fn(payload));
 }
 
 // ── WebSocket Connection Manager ────────────────────────────────────────
 // Singleton state to manage either a SharedWorker or a direct connection
-let worker: { port: { postMessage: (msg: any) => void, onmessage?: (e: any) => void, start: () => void } } | null = null;
+let worker: {
+	port: {
+		postMessage: (msg: any) => void;
+		onmessage?: (e: any) => void;
+		start: () => void;
+	};
+} | null = null;
 let directSocket: WebSocket | null = null;
 
 export function wsConnect(token?: string): void {
-  if (!worker) {
-    // SharedWorker is great for multiple tabs, but Wails/Safari often don't support it
-    // or it's overkill for a single-window desktop app.
-    if (typeof SharedWorker !== 'undefined' && !isWails()) {
-      try {
-        const sw = new SharedWorker(new URL('./ws/shared.worker.ts', import.meta.url), {
-          type: 'module',
-          name: 'nodetalk-ws'
-        });
-        
-        sw.port.onmessage = (event: MessageEvent) => {
-          handleWorkerMessage(event.data);
-        };
-        sw.port.start();
-        
-        worker = {
-          port: {
-            postMessage: (msg) => sw.port.postMessage(msg),
-            start: () => sw.port.start()
-          }
-        };
-        console.info('[ws] using SharedWorker');
-      } catch (err) {
-        console.warn('[ws] SharedWorker failed, falling back to direct connection', err);
-        setupDirectConnection();
-      }
-    } else {
-      setupDirectConnection();
-    }
-  }
+	if (!worker) {
+		// SharedWorker is great for multiple tabs, but Wails/Safari often don't support it
+		// or it's overkill for a single-window desktop app.
+		if (typeof SharedWorker !== 'undefined' && !isWails()) {
+			try {
+				const sw = new SharedWorker(
+					new URL('./ws/shared.worker.ts', import.meta.url),
+					{
+						type: 'module',
+						name: 'nodetalk-ws',
+					},
+				);
 
-  // Trigger initial connection or update existing one with new token
-  sendToWorker('CONNECT', { url: getFullWsUrl(token) });
+				sw.port.onmessage = (event: MessageEvent) => {
+					handleWorkerMessage(event.data);
+				};
+				sw.port.start();
+
+				worker = {
+					port: {
+						postMessage: (msg) => sw.port.postMessage(msg),
+						start: () => sw.port.start(),
+					},
+				};
+				console.info('[ws] using SharedWorker');
+			} catch (err) {
+				console.warn(
+					'[ws] SharedWorker failed, falling back to direct connection',
+					err,
+				);
+				setupDirectConnection();
+			}
+		} else {
+			setupDirectConnection();
+		}
+	}
+
+	// Trigger initial connection or update existing one with new token
+	sendToWorker('CONNECT', { url: getFullWsUrl(token) });
 }
 
 function getFullWsUrl(explicitToken?: string): string {
-  let token = explicitToken || '';
-  if (!token && isWails()) {
-    try {
-      const authData = localStorage.getItem('auth');
-      if (authData) {
-        const { state } = JSON.parse(authData);
-        token = state?.user?.token || '';
-      }
-    } catch (err) { /* ignore */ }
-  }
-  return `${getWsUrl()}/ws${token ? `?token=${token}` : ''}`;
+	let token = explicitToken || '';
+	if (!token) {
+		try {
+			token = localStorage.getItem('nodetalk_token') || '';
+			if (token) {
+				console.info('[ws] extracted token from localStorage');
+			}
+		} catch (err) {
+			console.warn('[ws] failed to get token from localStorage', err);
+		}
+	}
+
+	const url = `${getWsUrl()}/ws${token ? `?token=${token}` : ''}`;
+	console.info('[ws] connecting to:', url.replace(token, '***'));
+	return url;
 }
 
 function setupDirectConnection() {
-  console.info('[ws] using direct connection');
-  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-  let reconnectDelay = 1000;
-  const MAX_RECONNECT_DELAY = 10000;
-  let lastUrl = '';
+	console.info('[ws] using direct connection');
+	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+	let reconnectDelay = 1000;
+	const MAX_RECONNECT_DELAY = 10000;
+	let lastUrl = '';
 
-  const stopHeartbeat = () => {
-    if (heartbeatTimer) clearInterval(heartbeatTimer);
-    heartbeatTimer = null;
-  };
+	const stopHeartbeat = () => {
+		if (heartbeatTimer) clearInterval(heartbeatTimer);
+		heartbeatTimer = null;
+	};
 
-  const startHeartbeat = () => {
-    stopHeartbeat();
-    heartbeatTimer = setInterval(() => {
-      if (directSocket?.readyState === WebSocket.OPEN) {
-        directSocket.send(JSON.stringify({ type: 'ping', payload: null }));
-      }
-    }, 25000);
-  };
-  
-  const connect = (url?: string) => {
-    // If already open or connecting, don't start a new one unless the URL changed
-    if (directSocket) {
-      if (directSocket.readyState === WebSocket.OPEN || directSocket.readyState === WebSocket.CONNECTING) {
-        if (!url || url === lastUrl) return;
-        // If URL changed (e.g. new token), close old and start new
-        directSocket.close(1000, 'URL changed');
-      }
-    }
-    
-    lastUrl = url || getFullWsUrl();
-    console.info('[ws-direct] connecting to', lastUrl);
-    directSocket = new WebSocket(lastUrl);
-    
-    directSocket.onopen = () => {
-      console.info('[ws-direct] connected');
-      reconnectDelay = 1000; // Reset delay on success
-      handleWorkerMessage({ type: 'WS_OPEN' });
-      startHeartbeat();
-    };
-    
-    directSocket.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        handleWorkerMessage({ type: 'WS_MESSAGE', payload: msg });
-      } catch (e) {
-        console.warn('[ws-direct] unparseable message', e);
-      }
-    };
-    
-    directSocket.onclose = (ev) => {
-      stopHeartbeat();
-      handleWorkerMessage({ type: 'WS_CLOSE', code: ev.code });
-      
-      // Don't reconnect if it was a normal closure or if URL changed
-      if (ev.code === 1000 || ev.code === 1001) {
-        console.info('[ws-direct] closed normally');
-        return;
-      }
+	const startHeartbeat = () => {
+		stopHeartbeat();
+		heartbeatTimer = setInterval(() => {
+			if (directSocket?.readyState === WebSocket.OPEN) {
+				directSocket.send(JSON.stringify({ type: 'ping', payload: null }));
+			}
+		}, 25000);
+	};
 
-      console.warn(`[ws-direct] closed (${ev.code}), reconnecting in ${reconnectDelay}ms...`);
-      setTimeout(() => {
-        reconnectDelay = Math.min(reconnectDelay * 1.5, MAX_RECONNECT_DELAY);
-        connect(lastUrl);
-      }, reconnectDelay);
-    };
-  };
+	const connect = (url?: string) => {
+		// If already open or connecting, don't start a new one unless the URL changed
+		if (directSocket) {
+			if (
+				directSocket.readyState === WebSocket.OPEN ||
+				directSocket.readyState === WebSocket.CONNECTING
+			) {
+				if (!url || url === lastUrl) return;
+				// If URL changed (e.g. new token), close old and start new
+				directSocket.close(1000, 'URL changed');
+			}
+		}
 
-  worker = {
-    port: {
-      postMessage: (msg: any) => {
-        const { cmd, payload } = msg;
-        if (cmd === 'CONNECT') connect(payload?.url);
-        else if (cmd === 'DISCONNECT') {
-          directSocket?.close(1000, 'User logout');
-          directSocket = null;
-        } else if (cmd === 'SEND') {
-          if (directSocket?.readyState === WebSocket.OPEN) {
-            directSocket.send(JSON.stringify(payload));
-          }
-        }
-      },
-      start: () => {}
-    }
-  };
+		lastUrl = url || getFullWsUrl();
+		console.info('[ws-direct] connecting to', lastUrl);
+		directSocket = new WebSocket(lastUrl);
+
+		directSocket.onopen = () => {
+			console.info('[ws-direct] connected');
+			reconnectDelay = 1000; // Reset delay on success
+			handleWorkerMessage({ type: 'WS_OPEN' });
+			startHeartbeat();
+		};
+
+		directSocket.onmessage = (event) => {
+			try {
+				const msg = JSON.parse(event.data);
+				handleWorkerMessage({ type: 'WS_MESSAGE', payload: msg });
+			} catch (e) {
+				console.warn('[ws-direct] unparseable message', e);
+			}
+		};
+
+		directSocket.onclose = (ev) => {
+			stopHeartbeat();
+			handleWorkerMessage({ type: 'WS_CLOSE', code: ev.code });
+
+			// Don't reconnect if it was a normal closure or if URL changed
+			if (ev.code === 1000 || ev.code === 1001) {
+				console.info('[ws-direct] closed normally');
+				return;
+			}
+
+			console.warn(
+				`[ws-direct] closed (${ev.code}), reconnecting in ${reconnectDelay}ms...`,
+			);
+			setTimeout(() => {
+				reconnectDelay = Math.min(reconnectDelay * 1.5, MAX_RECONNECT_DELAY);
+				connect(lastUrl);
+			}, reconnectDelay);
+		};
+	};
+
+	worker = {
+		port: {
+			postMessage: (msg: any) => {
+				const { cmd, payload } = msg;
+				if (cmd === 'CONNECT') connect(payload?.url);
+				else if (cmd === 'DISCONNECT') {
+					directSocket?.close(1000, 'User logout');
+					directSocket = null;
+				} else if (cmd === 'SEND') {
+					if (directSocket?.readyState === WebSocket.OPEN) {
+						directSocket.send(JSON.stringify(payload));
+					}
+				}
+			},
+			start: () => {},
+		},
+	};
 }
 
 function handleWorkerMessage(data: any) {
-  const { type, payload, code } = data;
-  if (type === 'WS_OPEN') {
-    emit('open', null);
-  } else if (type === 'WS_CLOSE') {
-    emit('close', code);
-  } else if (type === 'WS_MESSAGE') {
-    handleInbound(payload as { type: string; payload: unknown });
-  }
+	const { type, payload, code } = data;
+	if (type === 'WS_OPEN') {
+		emit('open', null);
+	} else if (type === 'WS_CLOSE') {
+		emit('close', code);
+	} else if (type === 'WS_MESSAGE') {
+		handleInbound(payload as { type: string; payload: unknown });
+	}
 }
 
 function sendToWorker(cmd: string, payload: any) {
-  worker?.port.postMessage({ cmd, payload });
+	worker?.port.postMessage({ cmd, payload });
 }
 
 export function wsDisconnect(): void {
-  sendToWorker('DISCONNECT', null);
-  worker = null;
-  directSocket = null;
-  useCryptoStore.getState().clearKeys();
+	sendToWorker('DISCONNECT', null);
+	worker = null;
+	directSocket = null;
+	useCryptoStore.getState().clearKeys();
 }
 
 // ── Inbound Handler ──────────────────────────────────────────────────────
 function handleInbound(msg: { type: string; payload: unknown }) {
-  switch (msg.type) {
-    case 'channel_key': {
-      const { channel_id, aes_key } = msg.payload as { channel_id: string; aes_key: string };
-      // Backend (Go) sends bytes as base64 strings
-      useCryptoStore.getState().setChannelKey(channel_id, base64ToBytes(aes_key));
-      emit('channel_key', { channel_id });
-      break;
-    }
-    case 'message':
-      emit('message', msg.payload as Message);
-      break;
-    case 'message_update':
-      emit('message_update', msg.payload as Message);
-      break;
-    case 'message_delete':
-      emit('message_delete', msg.payload as { channel_id: string; message_id: string });
-      break;
-    case 'presence':
-      emit('presence', msg.payload);
-      break;
-    case 'channel_update':
-      emit('channel_update', msg.payload);
-      break;
-    default:
-      console.debug('[ws-worker] unknown message type', msg.type);
-  }
+	switch (msg.type) {
+		case 'channel_key': {
+			const { channel_id, aes_key } = msg.payload as {
+				channel_id: string;
+				aes_key: string;
+			};
+			// Backend (Go) sends bytes as base64 strings
+			useCryptoStore
+				.getState()
+				.setChannelKey(channel_id, base64ToBytes(aes_key));
+			emit('channel_key', { channel_id });
+			break;
+		}
+		case 'message':
+			emit('message', msg.payload as Message);
+			break;
+		case 'message_update':
+			emit('message_update', msg.payload as Message);
+			break;
+		case 'message_delete':
+			emit(
+				'message_delete',
+				msg.payload as { channel_id: string; message_id: string },
+			);
+			break;
+		case 'presence':
+			emit('presence', msg.payload);
+			break;
+		case 'channel_update':
+			emit('channel_update', msg.payload);
+			break;
+		default:
+			console.debug('[ws-worker] unknown message type', msg.type);
+	}
 }
 
 // ── Outbound Helpers ─────────────────────────────────────────────────────
 function wsSend(msg: { type: string; payload: unknown }): boolean {
-  if (!worker) return false;
-  worker.port.postMessage({
-    cmd: 'SEND',
-    payload: msg
-  });
-  return true;
+	if (!worker) return false;
+	worker.port.postMessage({
+		cmd: 'SEND',
+		payload: msg,
+	});
+	return true;
 }
 
 export function wsSendReadReceipt(channelId: string) {
-  wsSend({
-    type: 'read_receipt',
-    payload: { channel_id: channelId }
-  });
+	wsSend({
+		type: 'read_receipt',
+		payload: { channel_id: channelId },
+	});
 }
 
 /**
@@ -323,61 +362,77 @@ export async function wsSendMessage(
 }
 
 export async function wsEditMessage(
-  channelId: string,
-  messageId: string,
-  text: string
+	channelId: string,
+	messageId: string,
+	text: string,
 ): Promise<boolean> {
-  const key = useCryptoStore.getState().channelKeys.get(channelId);
-  if (!key) return false;
+	const key = useCryptoStore.getState().channelKeys.get(channelId);
+	if (!key) return false;
 
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw', key.buffer.slice(key.byteOffset, key.byteOffset + key.byteLength) as ArrayBuffer,
-    { name: 'AES-GCM' }, false, ['encrypt'],
-  );
-  const encoded = new TextEncoder().encode(text);
-  const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv }, cryptoKey, encoded,
-  );
+	const iv = crypto.getRandomValues(new Uint8Array(12));
+	const cryptoKey = await crypto.subtle.importKey(
+		'raw',
+		key.buffer.slice(
+			key.byteOffset,
+			key.byteOffset + key.byteLength,
+		) as ArrayBuffer,
+		{ name: 'AES-GCM' },
+		false,
+		['encrypt'],
+	);
+	const encoded = new TextEncoder().encode(text);
+	const encrypted = await crypto.subtle.encrypt(
+		{ name: 'AES-GCM', iv },
+		cryptoKey,
+		encoded,
+	);
 
-  return wsSend({
-    type: 'message_edit',
-    payload: {
-      channel_id: channelId,
-      message_id: messageId,
-      ciphertext: bytesToBase64(new Uint8Array(encrypted)),
-      nonce: bytesToBase64(iv),
-    },
-  });
+	return wsSend({
+		type: 'message_edit',
+		payload: {
+			channel_id: channelId,
+			message_id: messageId,
+			ciphertext: bytesToBase64(new Uint8Array(encrypted)),
+			nonce: bytesToBase64(iv),
+		},
+	});
 }
 
 export function wsDeleteMessage(channelId: string, messageId: string): boolean {
-  return wsSend({
-    type: 'message_delete',
-    payload: {
-      channel_id: channelId,
-      message_id: messageId,
-    },
-  });
+	return wsSend({
+		type: 'message_delete',
+		payload: {
+			channel_id: channelId,
+			message_id: messageId,
+		},
+	});
 }
 
 // ── Decryption Helper ────────────────────────────────────────────────────
 export async function decryptMessage(msg: Message): Promise<string> {
-  const key = useCryptoStore.getState().channelKeys.get(msg.channel_id);
-  if (!key) return '[encrypted]';
+	const key = useCryptoStore.getState().channelKeys.get(msg.channel_id);
+	if (!key) return '[encrypted]';
 
-  try {
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw', key.buffer.slice(key.byteOffset, key.byteOffset + key.byteLength) as ArrayBuffer,
-      { name: 'AES-GCM' }, false, ['decrypt'],
-    );
-    const nonce = base64ToBytes(msg.nonce);
-    const ct = base64ToBytes(msg.ciphertext);
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: nonce as any }, cryptoKey, ct as any,
-    );
-    return new TextDecoder().decode(decrypted);
-  } catch {
-    return '[decryption failed]';
-  }
+	try {
+		const cryptoKey = await crypto.subtle.importKey(
+			'raw',
+			key.buffer.slice(
+				key.byteOffset,
+				key.byteOffset + key.byteLength,
+			) as ArrayBuffer,
+			{ name: 'AES-GCM' },
+			false,
+			['decrypt'],
+		);
+		const nonce = base64ToBytes(msg.nonce);
+		const ct = base64ToBytes(msg.ciphertext);
+		const decrypted = await crypto.subtle.decrypt(
+			{ name: 'AES-GCM', iv: nonce as any },
+			cryptoKey,
+			ct as any,
+		);
+		return new TextDecoder().decode(decrypted);
+	} catch {
+		return '[decryption failed]';
+	}
 }

@@ -10,6 +10,7 @@ interface ChatMessageFeedProps {
 	messages: (Message & { text?: string })[];
 	channel: Channel;
 	onReply?: (msg: Message & { text?: string }) => void;
+	onForward?: (msg: Message & { text?: string }) => void;
 	fetchNextPage?: () => void;
 	hasNextPage?: boolean;
 	isFetchingNextPage?: boolean;
@@ -56,6 +57,7 @@ export const ChatMessageFeed = memo(
 		messages,
 		channel,
 		onReply,
+		onForward,
 		fetchNextPage,
 		hasNextPage,
 		isFetchingNextPage,
@@ -156,7 +158,7 @@ export const ChatMessageFeed = memo(
 
 		return (
 			<div
-				className="flex-1 overflow-y-auto px-4 py-6 flex flex-col-reverse"
+				className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 flex flex-col-reverse"
 				ref={feedRef}
 				id="messages-feed"
 				style={{ overflowAnchor: 'none' }}
@@ -233,6 +235,7 @@ export const ChatMessageFeed = memo(
 									grouped={item.grouped}
 									formatTime={formatTime}
 									onReply={onReply}
+									onForward={onForward}
 									replyTarget={
 										item.msg.reply_to_id
 											? messages.find((m) => m.id === item.msg.reply_to_id)

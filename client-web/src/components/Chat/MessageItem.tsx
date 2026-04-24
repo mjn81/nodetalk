@@ -16,6 +16,7 @@ interface MessageItemProps {
 	grouped: boolean;
 	formatTime: (iso: string) => string;
 	onReply?: (msg: Message & { text?: string }) => void;
+	onForward?: (msg: Message & { text?: string }) => void;
 	replyTarget?: Message & { text?: string };
 }
 
@@ -26,6 +27,7 @@ export const MessageItem = memo(
 		grouped,
 		formatTime,
 		onReply,
+		onForward,
 		replyTarget,
 	}: MessageItemProps) => {
 		const user = useAuthStore((state) => state.user);
@@ -48,20 +50,17 @@ export const MessageItem = memo(
 		const handleDragMove = (x: number) => {
 			if (dragStartX.current === null) return;
 			const delta = x - dragStartX.current;
-			// Only allow dragging to the left (negative delta)
-			if (delta < 0) {
-				// Apply some resistance (clamp)
-				const clamped = Math.max(delta, -120);
-				setDragX(clamped);
-			} else {
-				setDragX(0);
-			}
+			// Allow dragging both ways (negative for reply, positive for forward)
+			const clamped = Math.max(delta, -120);
+			// For now, resistance for positive delta to show it's possible but fix the scrollbar
+			setDragX(Math.min(clamped, 120));
 		};
 
 		const handleDragEnd = () => {
 			if (dragX < -80) {
 				onReply?.(msg);
-				// Small haptic-like feedback or animation would go here
+			} else if (dragX > 80) {
+				onForward?.(msg);
 			}
 			setDragX(0);
 			dragStartX.current = null;
@@ -150,22 +149,39 @@ export const MessageItem = memo(
 				}`}
 				style={{ touchAction: 'pan-y' }}
 			>
-				{/* Swipe to Reply Indicator */}
-				<div 
-					className="absolute right-0 top-0 bottom-0 flex items-center justify-center transition-all pointer-events-none"
-					style={{ 
-						width: '80px',
-						opacity: Math.min(Math.abs(dragX) / 60, 1),
-						transform: `translateX(${80 + dragX}px) scale(${Math.min(Math.abs(dragX) / 60, 1.2)})`
-					}}
-				>
-					<div className="bg-primary/10 p-2 rounded-full border border-primary/20">
-						<Reply size={20} className="text-primary" />
+				{/* Dedicated clipping container for swipe indicators */}
+				<div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+					{/* Swipe to Reply Indicator (revealed when sliding LEFT) */}
+					<div 
+						className="absolute right-0 top-0 bottom-0 flex items-center justify-center transition-all"
+						style={{ 
+							width: '80px',
+							opacity: dragX < 0 ? Math.min(Math.abs(dragX) / 60, 1) : 0,
+							transform: `translateX(${80 + dragX}px) scale(${dragX < 0 ? Math.min(Math.abs(dragX) / 60, 1.2) : 1})`
+						}}
+					>
+						<div className="bg-primary/10 p-2 rounded-full border border-primary/20">
+							<Reply size={20} className="text-primary" />
+						</div>
+					</div>
+	
+					{/* Swipe to Forward Indicator (revealed when sliding RIGHT) */}
+					<div 
+						className="absolute left-0 top-0 bottom-0 flex items-center justify-center transition-all"
+						style={{ 
+							width: '80px',
+							opacity: dragX > 0 ? Math.min(dragX / 60, 1) : 0,
+							transform: `translateX(${-80 + dragX}px) scale(${dragX > 0 ? Math.min(dragX / 60, 1.2) : 1})`
+						}}
+					>
+						<div className="bg-primary/10 p-2 rounded-full border border-primary/20">
+							<CornerUpLeft size={20} className="text-primary rotate-180" />
+						</div>
 					</div>
 				</div>
 
 				<div 
-					className="flex flex-1 min-w-0 transition-transform duration-75 ease-out"
+					className="flex flex-1 min-w-0 transition-transform duration-75 ease-out relative z-10"
 					style={{ transform: `translateX(${dragX}px)` }}
 				>
 					{/* Action Menu */}

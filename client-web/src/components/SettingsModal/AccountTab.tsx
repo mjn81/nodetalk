@@ -3,10 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Camera, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/store';
 import { Avatar as MinidenticonAvatar } from '@/components/Avatar';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { apiUploadFile, apiGetFileUrl } from '@/api/client';
+import { apiUploadFile } from '@/api/client';
 import { ConfirmModal } from '../ConfirmModal';
 
 export const AccountTab = () => {
@@ -131,22 +130,18 @@ export const AccountTab = () => {
 				<div className="px-4 pb-4 flex flex-col gap-4">
 					<div className="flex items-center gap-4 -mt-10 mb-2">
 						<div className="relative group">
-							<Avatar className="w-20 h-20 border-[6px] border-background bg-background rounded-full overflow-hidden shadow-lg relative">
-								{user?.avatar_id && (
-									<AvatarImage
-										src={apiGetFileUrl(user.avatar_id)}
-										className="object-cover"
-									/>
-								)}
-								<AvatarFallback className="bg-transparent">
-									<MinidenticonAvatar userId={user?.id || ''} size={64} />
-								</AvatarFallback>
+							<div className="w-20 h-20 border-[6px] border-background bg-background rounded-full overflow-hidden shadow-lg relative">
+								<MinidenticonAvatar 
+									userId={user?.id || ''} 
+									avatarId={user?.avatar_id}
+									size={80} 
+								/>
 								{isUploading && (
 									<div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-full z-10">
 										<Loader2 size={24} className="text-white animate-spin" />
 									</div>
 								)}
-							</Avatar>
+							</div>
 							<button
 								onClick={() => fileInputRef.current?.click()}
 								className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full z-20"

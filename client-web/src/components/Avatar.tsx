@@ -1,8 +1,7 @@
 import { useMemo, memo, useState, useEffect } from 'react';
 import { minidenticon } from 'minidenticons';
 import { Avatar as RadixAvatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { apiGetFile, apiGetFileUrl } from '@/api/client';
-import { isWails } from '@/utils/wails';
+import { apiGetFile } from '@/api/client';
 
 interface AvatarProps {
   userId: string;
@@ -19,16 +18,11 @@ export const Avatar = memo(({ userId, avatarId, size = 36, className }: AvatarPr
     return `data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`;
   }, [userId]);
 
-  // Use direct URL for browsers, blob for Wails
-  const directUrl = useMemo(() => {
-    if (avatarId && !isWails()) {
-      return apiGetFileUrl(avatarId);
-    }
-    return null;
-  }, [avatarId]);
-
+  // Since we are now using a pure Bearer token approach without cookies, 
+  // we must ALWAYS fetch images via apiGetFile (which adds the Authorization header)
+  // and convert them to blob URLs, because standard <img> tags cannot send headers.
   useEffect(() => {
-    if (!avatarId || !isWails()) {
+    if (!avatarId) {
       setBlobUrl(null);
       return;
     }
@@ -36,7 +30,7 @@ export const Avatar = memo(({ userId, avatarId, size = 36, className }: AvatarPr
     let active = true;
     const loadAvatar = async () => {
       try {
-        const buffer = await apiGetFile(avatarId);
+        const buffer = await apiGetFile(avatarId, undefined);
         if (!active) return;
         
         const blob = new Blob([buffer]);
@@ -57,7 +51,7 @@ export const Avatar = memo(({ userId, avatarId, size = 36, className }: AvatarPr
     };
   }, [avatarId]);
 
-  const displayUrl = directUrl || blobUrl;
+  const displayUrl = blobUrl;
 
   return (
     <RadixAvatar 

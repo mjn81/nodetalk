@@ -19,6 +19,7 @@ import { ChatTopbar } from './Chat/ChatTopbar';
 import { ChatMessageFeed } from './Chat/ChatMessageFeed';
 import { ChatInputArea } from './Chat/ChatInputArea';
 import { VoicePlayer } from './Chat/VoicePlayer';
+import { ForwardModal } from './Chat/ForwardModal';
 
 interface ChatAreaProps {
 	channel: Channel;
@@ -170,9 +171,14 @@ const ChatArea = memo(({ channel }: ChatAreaProps) => {
 		state.channelKeys.get(channel.id),
 	);
 	const [replyTo, setReplyTo] = useState<DecryptedMessage | null>(null);
+	const [forwardMessage, setForwardMessage] = useState<DecryptedMessage | null>(null);
 
 	const handleReply = useCallback((msg: DecryptedMessage) => {
 		setReplyTo(msg);
+	}, []);
+
+	const handleForward = useCallback((msg: DecryptedMessage) => {
+		setForwardMessage(msg);
 	}, []);
 
 	return (
@@ -189,6 +195,7 @@ const ChatArea = memo(({ channel }: ChatAreaProps) => {
 					messages={filteredMessages}
 					channel={channel}
 					onReply={handleReply}
+					onForward={handleForward}
 					fetchNextPage={fetchNextPage}
 					hasNextPage={hasNextPage}
 					isFetchingNextPage={isFetchingNextPage}
@@ -201,6 +208,13 @@ const ChatArea = memo(({ channel }: ChatAreaProps) => {
 					onCancelReply={() => setReplyTo(null)}
 					messages={messages}
 				/>
+
+				{forwardMessage && (
+					<ForwardModal 
+						message={forwardMessage} 
+						onClose={() => setForwardMessage(null)} 
+					/>
+				)}
 			</div>
 		</Profiler>
 	);

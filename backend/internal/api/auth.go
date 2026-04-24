@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 	"nodetalk/backend/internal/auth"
 )
 
@@ -66,20 +65,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "auth.errors.session_failed")
 		return
 	}
-	// For Wails and cross-origin dev environments, we MUST use SameSite=None
-	// Browsers allow Secure=true on localhost/127.0.0.1 even over HTTP.
-	sameSite := http.SameSiteNoneMode
-	secure := true
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "nodetalk_session",
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: sameSite,
-		MaxAge:   int(h.TokenTTL.Seconds()),
-	})
 	writeJSON(w, http.StatusOK, LoginResponse{
 		ID:               u.ID,
 		Username:         u.Username,
@@ -106,18 +92,6 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		_ = h.Store.SetPresence(session.UserID, "offline")
 	}
 	h.Sessions.Delete(token)
-	sameSite := http.SameSiteNoneMode
-	secure := true
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "nodetalk_session",
-		Value:    "",
-		Path:     "/",
-		Expires:  time.Unix(0, 0),
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: sameSite,
-	})
 	writeJSON(w, http.StatusOK, StatusResponse{Status: "logged out"})
 }

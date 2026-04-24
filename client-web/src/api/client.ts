@@ -9,7 +9,7 @@ import axios, { AxiosError } from 'axios';
 const getBaseUrl = () => {
 	const envUrl = import.meta.env.VITE_API_URL;
 	if (envUrl && !envUrl.includes('localhost')) return envUrl.replace(/\/$/, '');
-	
+
 	if (typeof window !== 'undefined') {
 		const host = window.location.hostname;
 		if (host === '[::1]' || host === '127.0.0.1' || host === 'localhost') {
@@ -61,27 +61,20 @@ export class NetworkError extends Error {
 // ─────────────────────────────────────────────
 export const apiClient = axios.create({
 	baseURL: BASE_URL,
-	withCredentials: true,
+	withCredentials: false,
 	timeout: 3600000, // 1 hour for long uploads/downloads
 });
 
-import { isWails } from '@/utils/wails';
-
 apiClient.interceptors.request.use((config) => {
-	// Token fallback is ONLY for Wails desktop build to bypass cookie blocking
-	if (isWails()) {
-		try {
-			const authData = localStorage.getItem('auth');
-			if (authData) {
-				const { state } = JSON.parse(authData);
-				const token = state?.user?.token;
-				if (token) {
-					config.headers.set('Authorization', `Bearer ${token}`);
-				}
-			}
-		} catch (err) {
-			// Ignore parse errors
+	// Proactively send Bearer token if available in localStorage
+	// This ensures compatibility with Safari and other environments where cookies might be blocked
+	try {
+		const token = localStorage.getItem('nodetalk_token');
+		if (token) {
+			config.headers.set('Authorization', `Bearer ${token}`);
 		}
+	} catch {
+		// Ignore access errors
 	}
 	return config;
 });
@@ -157,7 +150,10 @@ export async function apiUpdateProfile(data: {
 	password?: string;
 	old_password?: string;
 }) {
-	return apiClient.patch<AuthUser>('/api/users/me', data) as unknown as Promise<AuthUser>;
+	return apiClient.patch<AuthUser>(
+		'/api/users/me',
+		data,
+	) as unknown as Promise<AuthUser>;
 }
 
 export async function apiDeleteAccount() {
@@ -200,7 +196,9 @@ export async function apiGetChannel(id: string) {
 }
 
 export async function apiJoinChannel(link: string) {
-	return apiClient.post<Channel>(`/api/join/${link}`) as unknown as Promise<Channel>;
+	return apiClient.post<Channel>(
+		`/api/join/${link}`,
+	) as unknown as Promise<Channel>;
 }
 
 export async function apiAddMember(channelId: string, userIds: string[]) {
@@ -213,7 +211,10 @@ export async function apiUpdateChannel(
 	id: string,
 	data: { name?: string; is_private?: boolean },
 ) {
-	return apiClient.patch<Channel>(`/api/channels/${id}`, data) as unknown as Promise<Channel>;
+	return apiClient.patch<Channel>(
+		`/api/channels/${id}`,
+		data,
+	) as unknown as Promise<Channel>;
 }
 
 export async function apiDeleteChannel(id: string) {
@@ -224,8 +225,14 @@ export async function apiLeaveChannel(channelId: string, userId: string) {
 	return apiClient.delete(`/api/channels/${channelId}/members/${userId}`);
 }
 
-export async function apiUpdateMemberRole(channelId: string, userId: string, role: number) {
-	return apiClient.patch(`/api/channels/${channelId}/members/${userId}`, { role });
+export async function apiUpdateMemberRole(
+	channelId: string,
+	userId: string,
+	role: number,
+) {
+	return apiClient.patch(`/api/channels/${channelId}/members/${userId}`, {
+		role,
+	});
 }
 
 export async function apiGetChannelMembers(channelId: string) {
@@ -259,7 +266,7 @@ export async function apiUploadFile(
 	mimeType: string,
 	thumbCipher?: string,
 	thumbNonce?: string,
-	onUploadProgress?: (progressEvent: any) => void
+	onUploadProgress?: (progressEvent: any) => void,
 ) {
 	const formData = new FormData();
 	formData.append('file', file, `upload.${mimeType.split('/')[1] ?? 'bin'}`);
@@ -270,15 +277,14 @@ export async function apiUploadFile(
 		headers: {
 			'Content-Type': 'multipart/form-data',
 		},
-		onUploadProgress
+		onUploadProgress,
 	});
 }
 
-export function apiGetFileUrl(fileId: string) {
-	return `${BASE_URL}/api/files/${fileId}`;
-}
-
-export async function apiGetFile(fileId: string, onDownloadProgress?: (progressEvent: any) => void): Promise<ArrayBuffer> {
+export async function apiGetFile(
+	fileId: string,
+	onDownloadProgress?: (progressEvent: any) => void,
+): Promise<ArrayBuffer> {
 	return apiClient.get(`/api/files/${fileId}`, {
 		responseType: 'arraybuffer',
 		onDownloadProgress,
