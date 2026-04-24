@@ -1,3 +1,5 @@
+import { useAppStore } from '@/store/store';
+
 /**
  * Notification Sound Utility
  */
@@ -12,6 +14,9 @@ const SOUND_PATHS: Record<SoundType, string> = {
 
 /** Plays a notification sound. Safely handles browser restrictions. */
 export function playNotificationSound(type: SoundType) {
+  const { enableNotificationSounds } = useAppStore.getState();
+  if (!enableNotificationSounds) return;
+
   try {
     const audio = new Audio(SOUND_PATHS[type]);
     audio.volume = 0.3; // Subtle volume
@@ -34,6 +39,9 @@ export async function requestNotificationPermission() {
 
 /** Shows a browser desktop notification. */
 export function showBrowserNotification(title: string, body: string, icon?: string) {
+  const { enableDesktopNotifications } = useAppStore.getState();
+  if (!enableDesktopNotifications) return;
+
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   
   // Only show if the tab is not focused

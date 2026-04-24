@@ -7,18 +7,19 @@ import type { SettingsTab } from './types';
 interface SidebarProps {
 	activeTab: SettingsTab;
 	setActiveTab: (tab: SettingsTab) => void;
+	isMobile?: boolean;
 }
 
 import { useState } from 'react';
 import { ConfirmModal } from '../ConfirmModal';
 
-export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
+export const Sidebar = ({ activeTab, setActiveTab, isMobile }: SidebarProps) => {
 	const { t } = useTranslation();
 	const logout = useAuthStore((state) => state.logout);
 	const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
 	return (
-		<div className="w-[220px] bg-secondary p-4 flex flex-col pt-8 border-r border-border/50">
+		<div className={`${isMobile ? 'w-full px-6' : 'w-[220px] border-r border-border/50 px-4'} bg-secondary flex flex-col pt-8 h-full ${isMobile ? 'pt-safe' : ''}`}>
 			<div className="space-y-6">
 				<div>
 					<div className="text-[11px] font-bold text-muted-foreground uppercase px-3 mb-1.5 tracking-wider">

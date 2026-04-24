@@ -1,71 +1,24 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ShieldAlert } from 'lucide-react';
 
 export const PrivacyTab = () => {
 	const { t } = useTranslation();
-	const [privacySettings, setPrivacySettings] = useState({
-		allowDMs: true,
-		safeMessaging: true,
-		dataPersonalization: false,
-	});
 
 	return (
-		<div className="max-w-[500px] animate-in fade-in slide-in-from-right-4 duration-300">
-			<h2 className="text-xl font-bold text-foreground mb-5">
+		<div className="w-full h-full flex flex-col items-center justify-center text-center p-6 animate-in fade-in zoom-in-95 duration-500">
+			<div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+				<ShieldAlert size={40} className="text-primary" />
+			</div>
+			<h2 className="text-2xl font-bold text-foreground mb-3">
 				{t('settings.privacy')}
 			</h2>
-			<div className="space-y-6">
-				<div className="bg-secondary/30 rounded-lg p-4 border border-border/50">
-					<div className="flex items-center justify-between mb-2">
-						<div>
-							<div className="text-sm font-bold text-foreground">
-								Allow direct messages from server members
-							</div>
-							<div className="text-xs text-muted-foreground">
-								This setting is applied when you join a new server.
-							</div>
-						</div>
-						<button
-							onClick={() =>
-								setPrivacySettings((s) => ({
-									...s,
-									allowDMs: !s.allowDMs,
-								}))
-							}
-							className={`w-10 h-6 rounded-full transition-colors relative ${privacySettings.allowDMs ? 'bg-green-500' : 'bg-muted-foreground/30'}`}
-						>
-							<div
-								className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${privacySettings.allowDMs ? 'translate-x-4' : ''}`}
-							/>
-						</button>
-					</div>
-				</div>
-				<div className="bg-secondary/30 rounded-lg p-4 border border-border/50">
-					<div className="flex items-center justify-between mb-2">
-						<div>
-							<div className="text-sm font-bold text-foreground">
-								Safe Direct Messaging
-							</div>
-							<div className="text-xs text-muted-foreground">
-								Automatically scan and delete direct messages you receive
-								that contain explicit media content.
-							</div>
-						</div>
-						<button
-							onClick={() =>
-								setPrivacySettings((s) => ({
-									...s,
-									safeMessaging: !s.safeMessaging,
-								}))
-							}
-							className={`w-10 h-6 rounded-full transition-colors relative ${privacySettings.safeMessaging ? 'bg-green-500' : 'bg-muted-foreground/30'}`}
-						>
-							<div
-								className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${privacySettings.safeMessaging ? 'translate-x-4' : ''}`}
-							/>
-						</button>
-					</div>
-				</div>
+			<p className="text-muted-foreground max-w-[320px] leading-relaxed">
+				We are working hard to bring you advanced privacy controls and safety features. 
+				Check back soon for encrypted message scanning and DM permissions!
+			</p>
+			
+			<div className="mt-8 px-4 py-2 bg-secondary rounded-full text-[10px] font-bold uppercase tracking-widest text-primary border border-primary/20">
+				Coming Soon
 			</div>
 		</div>
 	);

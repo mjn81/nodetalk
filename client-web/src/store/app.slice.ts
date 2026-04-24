@@ -10,11 +10,17 @@ export interface AppSlice {
 	isLeftSidebarOpen: boolean;
 	isRightSidebarOpen: boolean;
 
+	// Notification Settings
+	enableDesktopNotifications: boolean;
+	enableNotificationSounds: boolean;
+
 	fetchVersion: () => Promise<void>;
 	setWsState: (s: AppSlice['wsState']) => void;
 	setTheme: (theme: 'dark' | 'light') => void;
 	setLeftSidebarOpen: (open: boolean) => void;
 	setRightSidebarOpen: (open: boolean) => void;
+	setEnableDesktopNotifications: (enabled: boolean) => void;
+	setEnableNotificationSounds: (enabled: boolean) => void;
 }
 
 export const useAppStore = create<AppSlice>()(
@@ -25,11 +31,17 @@ export const useAppStore = create<AppSlice>()(
 			theme: 'dark',
 			isLeftSidebarOpen: false,
 			isRightSidebarOpen: false,
+			enableDesktopNotifications: true,
+			enableNotificationSounds: true,
 
 			setWsState: (wsState) => set({ wsState }),
 			setTheme: (theme) => set({ theme }),
 			setLeftSidebarOpen: (isLeftSidebarOpen) => set({ isLeftSidebarOpen }),
 			setRightSidebarOpen: (isRightSidebarOpen) => set({ isRightSidebarOpen }),
+			setEnableDesktopNotifications: (enableDesktopNotifications) =>
+				set({ enableDesktopNotifications }),
+			setEnableNotificationSounds: (enableNotificationSounds) =>
+				set({ enableNotificationSounds }),
 
 			fetchVersion: async () => {
 				try {
@@ -44,6 +56,8 @@ export const useAppStore = create<AppSlice>()(
 			name: 'app-settings',
 			partialize: (s) => ({
 				theme: s.theme,
+				enableDesktopNotifications: s.enableDesktopNotifications,
+				enableNotificationSounds: s.enableNotificationSounds,
 			}),
 		},
 	),

@@ -4,7 +4,7 @@ import NewChannelModal from '@/components/NewChannelModal';
 import SettingsModal from '@/components/SettingsModal';
 import { useExploreChannels } from '@/hooks/useChannels';
 import { apiJoinChannel } from '@/api/client';
-import { Settings, LogOut, Plus, Hash, Search, X } from 'lucide-react';
+import { Settings, LogOut, Plus, Hash, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -22,7 +22,6 @@ import {
 } from '@/store/store';
 import type { AuthUser, Channel } from '@/types/api';
 import { isDirectMessage } from '@/utils/channel';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 const RenderChannel = memo(
 	({
@@ -106,9 +105,6 @@ export default function LeftSidebar() {
 	const appVersion = useAppStore((state) => state.appVersion);
 	const fetchVersion = useAppStore((state) => state.fetchVersion);
 	const wsState = useAppStore((state) => state.wsState);
-	const setLeftSidebarOpen = useAppStore((state) => state.setLeftSidebarOpen);
-	const isMobile = useMediaQuery('(max-width: 768px)');
-
 	const handleSelectChannel = useCallback(
 		(ch: Channel) => {
 			setActiveChannel(ch);

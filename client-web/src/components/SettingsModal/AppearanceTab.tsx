@@ -13,7 +13,7 @@ export const AppearanceTab = () => {
 	};
 
 	return (
-		<div className="max-w-[500px] animate-in fade-in slide-in-from-right-4 duration-300">
+		<div className="w-full max-w-[500px] mx-auto animate-in fade-in slide-in-from-right-4 duration-300">
 			<h2 className="text-xl font-bold text-foreground mb-5">
 				{t('settings.appearance')}
 			</h2>
