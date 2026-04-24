@@ -106,10 +106,14 @@ func BearerToken(r *http.Request) (string, error) {
 		return c.Value, nil
 	}
 	h := r.Header.Get("Authorization")
-	if len(h) < 8 || h[:7] != "Bearer " {
-		return "", errors.New("auth: missing or malformed token")
+	if len(h) >= 8 && h[:7] == "Bearer " {
+		return h[7:], nil
 	}
-	return h[7:], nil
+	// Fallback for query parameter (required for WebSocket handshake in Wails)
+	if t := r.URL.Query().Get("token"); t != "" {
+		return t, nil
+	}
+	return "", errors.New("auth: missing or malformed token")
 }
 
 // Require is an HTTP middleware that enforces session authentication.

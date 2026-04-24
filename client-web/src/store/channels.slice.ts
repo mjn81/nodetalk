@@ -83,11 +83,11 @@ export const useChannelStore = create<ChannelSlice>((set) => ({
 	updateMemberStatus: (userId, status) => {
 		set((state) => {
 			const updatedChannels = state.channels.map((c) => {
-				if (c.member_statuses && c.member_statuses[userId]) {
+				if (c.members?.includes(userId)) {
 					return {
 						...c,
 						member_statuses: {
-							...c.member_statuses,
+							...(c.member_statuses || {}),
 							[userId]: status,
 						},
 					};
@@ -96,13 +96,11 @@ export const useChannelStore = create<ChannelSlice>((set) => ({
 			});
 
 			const updatedActiveChannel =
-				state.activeChannel &&
-				state.activeChannel.member_statuses &&
-				state.activeChannel.member_statuses[userId]
+				state.activeChannel && state.activeChannel.members?.includes(userId)
 					? {
 							...state.activeChannel,
 							member_statuses: {
-								...state.activeChannel.member_statuses,
+								...(state.activeChannel.member_statuses || {}),
 								[userId]: status,
 							},
 						}

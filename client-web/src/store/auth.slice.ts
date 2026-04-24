@@ -35,7 +35,7 @@ export const useAuthStore = create<AuthSlice>()(
 						// Verify session is still valid on server and get fresh data
 						const fresh = await apiMe();
 						set({ user: fresh, isAuthLoading: false });
-						connectWS();
+						connectWS(fresh.token);
 						useChannelStore.getState().refreshChannels();
 					} catch (err: any) {
 						// Only clear session if it's a definitive 401 Unauthorized
@@ -48,7 +48,7 @@ export const useAuthStore = create<AuthSlice>()(
 							// Network error or server blip - stay "logged in" locally
 							// but the UI will show connection errors via WS state.
 							set({ isAuthLoading: false });
-							connectWS();
+							connectWS(saved.token);
 							useChannelStore.getState().refreshChannels().catch(() => {});
 						}
 					}
@@ -61,7 +61,7 @@ export const useAuthStore = create<AuthSlice>()(
 				const user = await apiLogin(u, p);
 				set({ user });
 
-				connectWS();
+				connectWS(user.token);
 				useChannelStore.getState().refreshChannels();
 			},
 

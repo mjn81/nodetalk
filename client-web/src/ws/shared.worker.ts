@@ -49,12 +49,19 @@ _self.onconnect = (e: MessageEvent) => {
 };
 
 function connect() {
-	if (socket?.readyState === WebSocket.OPEN) return;
+	if (socket) {
+		if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+			if (socket.url === wsUrl) return;
+			// If URL changed (e.g. new token), close old and start new
+			socket.close(1000, 'URL changed');
+		}
+	}
 
-	const url = wsUrl;
-	socket = new WebSocket(url);
+	console.info('[SharedWorker] connecting to', wsUrl);
+	socket = new WebSocket(wsUrl);
 
 	socket.onopen = () => {
+		console.info('[SharedWorker] connected');
 		reconnectDelay = 1000;
 		broadcast({ type: 'WS_OPEN' });
 		startHeartbeat();
@@ -72,18 +79,25 @@ function connect() {
 	socket.onclose = (ev) => {
 		stopHeartbeat();
 		broadcast({ type: 'WS_CLOSE', code: ev.code });
+		
+		if (ev.code === 1000 || ev.code === 1001) {
+			console.info('[SharedWorker] closed normally');
+			return;
+		}
+
+		console.warn(`[SharedWorker] closed (${ev.code}), reconnecting in ${reconnectDelay}ms...`);
 		scheduleReconnect();
 	};
 
-	socket.onerror = () => {
-		// browser handles logging
+	socket.onerror = (err) => {
+		console.error('[SharedWorker] websocket error', err);
 	};
 }
 
 function disconnect() {
 	if (reconnectTimer) clearTimeout(reconnectTimer);
 	stopHeartbeat();
-	socket?.close();
+	socket?.close(1000, 'User logout');
 	socket = null;
 }
 

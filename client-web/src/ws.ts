@@ -3,20 +3,16 @@
 import type { Message } from '@/types/api';
 import { isWails } from '@/utils/wails';
 
+import { BASE_URL } from '@/api/client';
+
 const getWsUrl = () => {
-	const envUrl = import.meta.env.VITE_WS_URL;
-	if (envUrl && !envUrl.includes('localhost')) return envUrl.replace(/\/$/, '');
-
-	if (typeof window !== 'undefined') {
-		const host = window.location.hostname;
-		if (host === '[::1]' || host === '127.0.0.1' || host === 'localhost') {
-			return `ws://127.0.0.1:8080`;
-		}
-	}
-	return (envUrl ?? 'ws://127.0.0.1:8080').replace(/\/$/, '');
+	// Derive WS URL from the current API BASE_URL
+	// e.g. http://127.0.0.1:8080 -> ws://127.0.0.1:8080
+	//      https://chat.example.com -> wss://chat.example.com
+	const url = new URL(BASE_URL);
+	const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+	return `${protocol}//${url.host}`;
 };
-
-const WS_URL = getWsUrl();
 
 // ── Binary Helpers ───────────────────────────────────────────────────────
 export function base64ToBytes(base64: string): Uint8Array {
@@ -56,57 +52,168 @@ function emit(event: WSEventType, payload: unknown) {
   listeners.get(event)?.forEach(fn => fn(payload));
 }
 
-// ── SharedWorker Manager ────────────────────────────────────────────────
-let worker: SharedWorker | null = null;
+// ── WebSocket Connection Manager ────────────────────────────────────────
+// Singleton state to manage either a SharedWorker or a direct connection
+let worker: { port: { postMessage: (msg: any) => void, onmessage?: (e: any) => void, start: () => void } } | null = null;
+let directSocket: WebSocket | null = null;
 
-export function wsConnect(): void {
-  if (worker) return; // already initialized
-
-  worker = new SharedWorker(new URL('./ws/shared.worker.ts', import.meta.url), {
-    type: 'module',
-    name: 'nodetalk-ws' // Groups tabs into same worker namespace
-  });
-
-  worker.port.onmessage = (event: MessageEvent) => {
-    const { type, payload, code } = event.data;
-    if (type === 'WS_OPEN') {
-      emit('open', null);
-      console.info('[ws-worker] connected');
-    } else if (type === 'WS_CLOSE') {
-      emit('close', code);
-      console.info('[ws-worker] closed');
-    } else if (type === 'WS_MESSAGE') {
-      handleInbound(payload as { type: string; payload: unknown });
+export function wsConnect(token?: string): void {
+  if (!worker) {
+    // SharedWorker is great for multiple tabs, but Wails/Safari often don't support it
+    // or it's overkill for a single-window desktop app.
+    if (typeof SharedWorker !== 'undefined' && !isWails()) {
+      try {
+        const sw = new SharedWorker(new URL('./ws/shared.worker.ts', import.meta.url), {
+          type: 'module',
+          name: 'nodetalk-ws'
+        });
+        
+        sw.port.onmessage = (event: MessageEvent) => {
+          handleWorkerMessage(event.data);
+        };
+        sw.port.start();
+        
+        worker = {
+          port: {
+            postMessage: (msg) => sw.port.postMessage(msg),
+            start: () => sw.port.start()
+          }
+        };
+        console.info('[ws] using SharedWorker');
+      } catch (err) {
+        console.warn('[ws] SharedWorker failed, falling back to direct connection', err);
+        setupDirectConnection();
+      }
+    } else {
+      setupDirectConnection();
     }
+  }
+
+  // Trigger initial connection or update existing one with new token
+  sendToWorker('CONNECT', { url: getFullWsUrl(token) });
+}
+
+function getFullWsUrl(explicitToken?: string): string {
+  let token = explicitToken || '';
+  if (!token && isWails()) {
+    try {
+      const authData = localStorage.getItem('auth');
+      if (authData) {
+        const { state } = JSON.parse(authData);
+        token = state?.user?.token || '';
+      }
+    } catch (err) { /* ignore */ }
+  }
+  return `${getWsUrl()}/ws${token ? `?token=${token}` : ''}`;
+}
+
+function setupDirectConnection() {
+  console.info('[ws] using direct connection');
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  let reconnectDelay = 1000;
+  const MAX_RECONNECT_DELAY = 10000;
+  let lastUrl = '';
+
+  const stopHeartbeat = () => {
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
   };
 
-  worker.port.start();
+  const startHeartbeat = () => {
+    stopHeartbeat();
+    heartbeatTimer = setInterval(() => {
+      if (directSocket?.readyState === WebSocket.OPEN) {
+        directSocket.send(JSON.stringify({ type: 'ping', payload: null }));
+      }
+    }, 25000);
+  };
+  
+  const connect = (url?: string) => {
+    // If already open or connecting, don't start a new one unless the URL changed
+    if (directSocket) {
+      if (directSocket.readyState === WebSocket.OPEN || directSocket.readyState === WebSocket.CONNECTING) {
+        if (!url || url === lastUrl) return;
+        // If URL changed (e.g. new token), close old and start new
+        directSocket.close(1000, 'URL changed');
+      }
+    }
+    
+    lastUrl = url || getFullWsUrl();
+    console.info('[ws-direct] connecting to', lastUrl);
+    directSocket = new WebSocket(lastUrl);
+    
+    directSocket.onopen = () => {
+      console.info('[ws-direct] connected');
+      reconnectDelay = 1000; // Reset delay on success
+      handleWorkerMessage({ type: 'WS_OPEN' });
+      startHeartbeat();
+    };
+    
+    directSocket.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        handleWorkerMessage({ type: 'WS_MESSAGE', payload: msg });
+      } catch (e) {
+        console.warn('[ws-direct] unparseable message', e);
+      }
+    };
+    
+    directSocket.onclose = (ev) => {
+      stopHeartbeat();
+      handleWorkerMessage({ type: 'WS_CLOSE', code: ev.code });
+      
+      // Don't reconnect if it was a normal closure or if URL changed
+      if (ev.code === 1000 || ev.code === 1001) {
+        console.info('[ws-direct] closed normally');
+        return;
+      }
 
-	// Read token from localStorage for authentication fallback (Wails only)
-	let token = '';
-	if (isWails()) {
-		try {
-			const authData = localStorage.getItem('auth');
-			if (authData) {
-				const { state } = JSON.parse(authData);
-				token = state?.user?.token || '';
-			}
-		} catch (err) {
-			// Ignore
-		}
-	}
+      console.warn(`[ws-direct] closed (${ev.code}), reconnecting in ${reconnectDelay}ms...`);
+      setTimeout(() => {
+        reconnectDelay = Math.min(reconnectDelay * 1.5, MAX_RECONNECT_DELAY);
+        connect(lastUrl);
+      }, reconnectDelay);
+    };
+  };
 
-	worker.port.postMessage({
-		cmd: 'CONNECT',
-		payload: {
-			url: `${WS_URL}/ws${token ? `?token=${token}` : ''}`,
-		}
-	});
+  worker = {
+    port: {
+      postMessage: (msg: any) => {
+        const { cmd, payload } = msg;
+        if (cmd === 'CONNECT') connect(payload?.url);
+        else if (cmd === 'DISCONNECT') {
+          directSocket?.close(1000, 'User logout');
+          directSocket = null;
+        } else if (cmd === 'SEND') {
+          if (directSocket?.readyState === WebSocket.OPEN) {
+            directSocket.send(JSON.stringify(payload));
+          }
+        }
+      },
+      start: () => {}
+    }
+  };
+}
+
+function handleWorkerMessage(data: any) {
+  const { type, payload, code } = data;
+  if (type === 'WS_OPEN') {
+    emit('open', null);
+  } else if (type === 'WS_CLOSE') {
+    emit('close', code);
+  } else if (type === 'WS_MESSAGE') {
+    handleInbound(payload as { type: string; payload: unknown });
+  }
+}
+
+function sendToWorker(cmd: string, payload: any) {
+  worker?.port.postMessage({ cmd, payload });
 }
 
 export function wsDisconnect(): void {
-  worker?.port.postMessage({ cmd: 'DISCONNECT' });
+  sendToWorker('DISCONNECT', null);
   worker = null;
+  directSocket = null;
   useCryptoStore.getState().clearKeys();
 }
 

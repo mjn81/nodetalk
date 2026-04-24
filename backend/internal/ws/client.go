@@ -17,8 +17,11 @@ func (h *Hub) register(c *Client) {
 	h.mu.Lock()
 	// Close any existing connection for this user (new login replaced old tab).
 	if old, ok := h.clients[c.UserID]; ok {
+		log.Printf("ws: replacing existing connection for user %s (%s) with new connection from %s", 
+			c.UserID, old.RemoteAddr, c.RemoteAddr)
 		old.conn.Close(websocket.StatusGoingAway, "replaced by new connection")
-		close(old.send)
+		// We don't close(old.send) here because it might be the same channel or cause a panic if not careful.
+		// The unregister/cleanup logic usually handles this.
 	}
 	h.clients[c.UserID] = c
 	h.mu.Unlock()

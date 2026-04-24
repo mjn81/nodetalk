@@ -30,11 +30,12 @@ type Hub struct {
 
 // Client represents a connected WebSocket peer.
 type Client struct {
-	UserID   string
-	Username string
-	conn     *websocket.Conn
-	send     chan *envelope
-	hub      *Hub
+	UserID     string
+	Username   string
+	RemoteAddr string
+	conn       *websocket.Conn
+	send       chan *envelope
+	hub        *Hub
 }
 
 // envelope wraps a wire message with routing metadata.
@@ -115,11 +116,12 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn.SetReadLimit(5 << 20)
 
 	client := &Client{
-		UserID:   session.UserID,
-		Username: session.Username,
-		conn:     conn,
-		send:     make(chan *envelope, 256), // Increased buffer for high volume
-		hub:      h,
+		UserID:     session.UserID,
+		Username:   session.Username,
+		RemoteAddr: r.RemoteAddr,
+		conn:       conn,
+		send:       make(chan *envelope, 256), // Increased buffer for high volume
+		hub:        h,
 	}
 	h.register(client)
 

@@ -108,11 +108,11 @@ export function initWebSocket() {
 	});
 }
 
-export function connectWS() {
+export function connectWS(token?: string) {
 	connectTime = Date.now();
 	useAppStore.getState().setWsState('connecting');
-	wsConnect();
-	initWebSocket();
+	initWebSocket(); // Register listeners FIRST
+	wsConnect(token); // Then connect
 }
 
 export function disconnectWS() {

@@ -1,7 +1,8 @@
-import { useMemo, memo } from 'react';
+import { useMemo, memo, useState, useEffect } from 'react';
 import { minidenticon } from 'minidenticons';
 import { Avatar as RadixAvatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { apiGetFileUrl } from '@/api/client';
+import { apiGetFile, apiGetFileUrl } from '@/api/client';
+import { isWails } from '@/utils/wails';
 
 interface AvatarProps {
   userId: string;
@@ -11,19 +12,61 @@ interface AvatarProps {
 }
 
 export const Avatar = memo(({ userId, avatarId, size = 36, className }: AvatarProps) => {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
   const dataUrl = useMemo(() => {
     const svgString = minidenticon(userId, 80, 50);
     return `data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`;
   }, [userId]);
+
+  // Use direct URL for browsers, blob for Wails
+  const directUrl = useMemo(() => {
+    if (avatarId && !isWails()) {
+      return apiGetFileUrl(avatarId);
+    }
+    return null;
+  }, [avatarId]);
+
+  useEffect(() => {
+    if (!avatarId || !isWails()) {
+      setBlobUrl(null);
+      return;
+    }
+
+    let active = true;
+    const loadAvatar = async () => {
+      try {
+        const buffer = await apiGetFile(avatarId);
+        if (!active) return;
+        
+        const blob = new Blob([buffer]);
+        const url = URL.createObjectURL(blob);
+        setBlobUrl(url);
+      } catch (err) {
+        console.error('Failed to load avatar:', err);
+      }
+    };
+
+    loadAvatar();
+
+    return () => {
+      active = false;
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [avatarId]);
+
+  const displayUrl = directUrl || blobUrl;
 
   return (
     <RadixAvatar 
       className={`rounded-full overflow-hidden ${className || ''}`} 
       style={{ width: size, height: size }}
     >
-      {avatarId && (
+      {displayUrl && (
         <AvatarImage 
-          src={apiGetFileUrl(avatarId)} 
+          src={displayUrl} 
           className="object-cover"
         />
       )}
