@@ -14,6 +14,7 @@ import (
 
 type ChannelBroadcaster interface {
 	BroadcastChannelCreated(ch *models.Channel)
+	BroadcastChannelUpdated(ch *models.Channel)
 	BroadcastMemberJoined(channelID string, userID string)
 	BroadcastMemberLeft(channelID string, userID string)
 	BroadcastMemberRoleUpdated(channelID string, userID string, role int)

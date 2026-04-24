@@ -95,6 +95,17 @@ export function initWebSocket() {
 			}
 		}
 	});
+
+	onWS('channel_update', (payload: any) => {
+		const { type, channel_id, name, is_private } = payload;
+		if (type === 'settings_updated' && channel_id) {
+			useChannelStore.getState().updateChannelSettings(channel_id, {
+				name,
+				is_private,
+			});
+		}
+		debouncedRefresh();
+	});
 }
 
 export function connectWS() {

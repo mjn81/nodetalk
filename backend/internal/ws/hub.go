@@ -61,22 +61,25 @@ func NewHub(s *store.Store, sessions *auth.SessionStore, kek []byte) *Hub {
 // correct channel members.
 func (h *Hub) run() {
 	for env := range h.broadcast {
-		h.mu.RLock()
-		members, err := h.store.GetChannelMembers(env.channelID)
-		if err != nil {
-			h.mu.RUnlock()
-			continue
-		}
-		for _, m := range members {
-			if c, ok := h.clients[m.UserID]; ok {
-				select {
-				case c.send <- env:
-				default:
-					log.Printf("ws: slow receiver %s, message dropped", m.UserID)
+		// Spawn a goroutine for the broadcaster fan-out so we don't block the main loop
+		// while fetching members or iterating through large lists.
+		go func(e *envelope) {
+			members, err := h.store.GetChannelMembers(e.channelID)
+			if err != nil {
+				return
+			}
+			h.mu.RLock()
+			defer h.mu.RUnlock()
+			for _, m := range members {
+				if c, ok := h.clients[m.UserID]; ok {
+					select {
+					case c.send <- e:
+					default:
+						// Optionally handle buffer full
+					}
 				}
 			}
-		}
-		h.mu.RUnlock()
+		}(env)
 	}
 }
 
@@ -115,11 +118,10 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		UserID:   session.UserID,
 		Username: session.Username,
 		conn:     conn,
-		send:     make(chan *envelope, 64),
+		send:     make(chan *envelope, 256), // Increased buffer for high volume
 		hub:      h,
 	}
 	h.register(client)
-	defer h.unregister(client)
 
 	// Fetch user to check their status preference
 	effectiveStatus := "online"
@@ -140,56 +142,75 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.BroadcastPresence(session.UserID, effectiveStatus)
 	}
 
-	ctx, cancel := context.WithCancel(r.Context())
-	defer cancel()
+	// Formalize the Read/Write pumps as dedicated goroutines.
+	// This ensures that slow network connections don't block the Hub.
+	go client.writePump(r.Context())
+	client.readPump(r.Context())
 
-	// Push all channel AES keys immediately after connect.
-	go client.writeChannelKeys(ctx, h.store, h.kek)
-
-	// Write pump — drains the send channel to the WebSocket.
-	go func() {
-		defer cancel()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case env, ok := <-client.send:
-				if !ok {
-					return
-				}
-				writeCtx, writeCancel := context.WithTimeout(ctx, 10*time.Second)
-				if err := wsjson.Write(writeCtx, conn, env.msg); err != nil {
-					writeCancel()
-					return
-				}
-				writeCancel()
-			}
-		}
-	}()
-
-	// Read pump — receives inbound messages from the client.
-	for {
-		var raw models.WSMessage
-		if err := wsjson.Read(ctx, conn, &raw); err != nil {
-			break
-		}
-		if err := client.handleMessage(ctx, &raw); err != nil {
-			log.Printf("ws: handle error for %s: %v", client.UserID, err)
-		}
-	}
-
-	// Set presence to offline
+	// Cleanup on disconnect
+	h.unregister(client)
 	_ = h.store.SetPresence(session.UserID, "offline")
-
-	// Update DB if auto
 	if u, err := h.store.GetUser(session.UserID); err == nil {
 		if u.StatusPreference == "auto" || u.StatusPreference == "" {
 			_ = h.store.UpdateUserStatus(session.UserID, "offline")
 		}
 	}
-
 	h.BroadcastPresence(session.UserID, "offline")
 	conn.Close(websocket.StatusNormalClosure, "goodbye")
+}
+
+// writePump handles outgoing messages from the Hub to the Client.
+func (c *Client) writePump(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer func() {
+		ticker.Stop()
+		c.conn.Close(websocket.StatusAbnormalClosure, "write pump closed")
+	}()
+
+	// Push channel keys in background immediately
+	go c.writeChannelKeys(ctx, c.hub.store, c.hub.kek)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case env, ok := <-c.send:
+			if !ok {
+				return
+			}
+			writeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			err := wsjson.Write(writeCtx, c.conn, env.msg)
+			cancel()
+			if err != nil {
+				return
+			}
+		case <-ticker.C:
+			// Heartbeat
+			writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			err := c.conn.Ping(writeCtx)
+			cancel()
+			if err != nil {
+				return
+			}
+		}
+	}
+}
+
+// readPump handles incoming messages from the Client to the Hub.
+func (c *Client) readPump(ctx context.Context) {
+	defer func() {
+		c.conn.Close(websocket.StatusAbnormalClosure, "read pump closed")
+	}()
+
+	for {
+		var raw models.WSMessage
+		if err := wsjson.Read(ctx, c.conn, &raw); err != nil {
+			break
+		}
+		if err := c.handleMessage(ctx, &raw); err != nil {
+			log.Printf("ws: handle error for %s: %v", c.UserID, err)
+		}
+	}
 }
 
 // BroadcastChannelCreated notifies all connected clients of a user's status change.
@@ -337,4 +358,16 @@ func (h *Hub) BroadcastMemberRoleUpdated(channelID string, userID string, role i
 		default:
 		}
 	}
+}
+
+// BroadcastChannelUpdated notifies all members that channel settings (like Name) have changed.
+func (h *Hub) BroadcastChannelUpdated(ch *models.Channel) {
+	payload, _ := json.Marshal(map[string]any{
+		"channel_id": ch.ID,
+		"name":       ch.Name,
+		"is_private": ch.IsPrivate,
+		"type":       "settings_updated",
+	})
+	msg := &models.WSMessage{Type: "channel_update", Payload: payload}
+	h.broadcast <- &envelope{channelID: ch.ID, msg: msg}
 }

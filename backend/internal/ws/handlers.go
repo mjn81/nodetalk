@@ -56,11 +56,15 @@ func (c *Client) handleChatMessage(raw *models.WSMessage) error {
 
 	outPayload, _ := json.Marshal(msg)
 	outMsg := &models.WSMessage{Type: "message", Payload: outPayload}
-	c.hub.broadcast <- &envelope{
-		channelID: body.ChannelID,
-		senderID:  c.UserID,
-		msg:       outMsg,
-	}
+	
+	// Background the broadcast fan-out
+	go func() {
+		c.hub.broadcast <- &envelope{
+			channelID: body.ChannelID,
+			senderID:  c.UserID,
+			msg:       outMsg,
+		}
+	}()
 	return nil
 }
 
@@ -96,11 +100,15 @@ func (c *Client) handleEditMessage(raw *models.WSMessage) error {
 
 	outPayload, _ := json.Marshal(msg)
 	outMsg := &models.WSMessage{Type: "message_update", Payload: outPayload}
-	c.hub.broadcast <- &envelope{
-		channelID: body.ChannelID,
-		senderID:  c.UserID,
-		msg:       outMsg,
-	}
+	
+	// Background the broadcast fan-out
+	go func() {
+		c.hub.broadcast <- &envelope{
+			channelID: body.ChannelID,
+			senderID:  c.UserID,
+			msg:       outMsg,
+		}
+	}()
 	return nil
 }
 
@@ -132,11 +140,15 @@ func (c *Client) handleDeleteMessage(raw *models.WSMessage) error {
 		"message_id": body.MessageID,
 	})
 	outMsg := &models.WSMessage{Type: "message_delete", Payload: outPayload}
-	c.hub.broadcast <- &envelope{
-		channelID: body.ChannelID,
-		senderID:  c.UserID,
-		msg:       outMsg,
-	}
+	
+	// Background the broadcast fan-out (Background Deletion Synchronization)
+	go func() {
+		c.hub.broadcast <- &envelope{
+			channelID: body.ChannelID,
+			senderID:  c.UserID,
+			msg:       outMsg,
+		}
+	}()
 	return nil
 }
 

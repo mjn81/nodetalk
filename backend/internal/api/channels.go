@@ -201,7 +201,11 @@ func (h *Handler) UpdateChannel(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to update channel")
 		return
 	}
-
+	
+	if h.Hub != nil {
+		h.Hub.BroadcastChannelUpdated(ch)
+	}
+	
 	writeJSON(w, http.StatusOK, h.toChannelResponse(ch, session.UserID))
 }
 

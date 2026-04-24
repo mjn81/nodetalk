@@ -14,6 +14,7 @@ export interface ChannelSlice {
 	createChannel: (name: string, memberIds: string[], isPrivate: boolean) => Promise<Channel>;
 	incrementUnread: (id: string) => void;
 	updateMemberStatus: (userId: string, status: string) => void;
+	updateChannelSettings: (id: string, settings: Partial<{ name: string; is_private: boolean }>) => void;
 	resetChannels: () => void;
 }
 
@@ -110,6 +111,16 @@ export const useChannelStore = create<ChannelSlice>((set) => ({
 			return {
 				channels: updatedChannels,
 				activeChannel: updatedActiveChannel,
+			};
+		});
+	},
+
+	updateChannelSettings: (id, settings) => {
+		set((state) => {
+			const update = (c: Channel) => (c.id === id ? { ...c, ...settings } : c);
+			return {
+				channels: state.channels.map(update),
+				activeChannel: state.activeChannel ? update(state.activeChannel) : null,
 			};
 		});
 	},
