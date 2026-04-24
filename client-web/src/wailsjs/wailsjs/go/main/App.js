@@ -10,6 +10,10 @@ export function GetServerURL() {
   return window['go']['main']['App']['GetServerURL']();
 }
 
+export function SaveFile(arg1, arg2) {
+  return window['go']['main']['App']['SaveFile'](arg1, arg2);
+}
+
 export function SaveServerURL(arg1) {
   return window['go']['main']['App']['SaveServerURL'](arg1);
 }

@@ -183,7 +183,7 @@ const ChatArea = memo(({ channel }: ChatAreaProps) => {
 
 	return (
 		<Profiler id="ChatArea" onRender={logProfiler}>
-			<div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
+			<div className="flex flex-col h-full w-full bg-background relative overflow-hidden overscroll-none">
 				<ChatTopbar
 					channel={channel}
 					currentUserId={user?.id ?? ''}

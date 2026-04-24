@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // Config holds the application configuration.
@@ -82,3 +85,25 @@ func (a *App) SaveServerURL(url string) {
 func (a *App) AppVersion() string {
 	return "0.1.0-dev"
 }
+
+// SaveFile opens a save dialog and writes the data to the chosen path.
+func (a *App) SaveFile(filename string, base64Data string) error {
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		DefaultFilename: filename,
+		Title:           "Save File",
+	})
+	if err != nil {
+		return err
+	}
+	if path == "" {
+		return nil // User cancelled
+	}
+
+	data, err := base64.StdEncoding.DecodeString(base64Data)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, data, 0644)
+}
+

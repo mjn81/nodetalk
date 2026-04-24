@@ -4,6 +4,10 @@ import { type Message } from '@/types/api';
 import { decryptMessage, getChannelKey, base64ToBytes, onWS } from '@/ws';
 import { decryptAndDecompressFile, ensureZstdReady } from '@/utils/file';
 import { apiGetFile } from '@/api/client';
+import { isWails } from '@/utils/wails';
+import { SaveFile } from '../../wailsjs/wailsjs/go/main/App';
+import { bytesToBase64 } from '@/ws';
+
 
 import { VoiceBubble } from './File/VoiceBubble';
 import { ImageVideoBubble } from './File/ImageVideoBubble';
@@ -118,16 +122,21 @@ export const FileBubble = memo(({ msg }: FileBubbleProps) => {
 			);
 
 			const blob = new Blob([decrypted as any], { type: meta.mime });
-			const downloadUrl = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = downloadUrl;
-			a.download =
-				meta.name ||
-				`file-${meta.file_id.substring(0, 8)}.${meta.mime.split('/')[1] || 'bin'}`;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+			const filename = meta.name || `file-${meta.file_id.substring(0, 8)}.${meta.mime.split('/')[1] || 'bin'}`;
+
+			if (isWails()) {
+				// Pass as base64 string; Wails Go side will unmarshal it into []byte
+				await SaveFile(filename, bytesToBase64(new Uint8Array(decrypted as ArrayBuffer)));
+			} else {
+				const downloadUrl = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = downloadUrl;
+				a.download = filename;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+			}
 		} catch (err) {
 			console.error('Download error:', err);
 			setError('Download failed');

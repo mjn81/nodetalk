@@ -5,4 +5,6 @@ export function AppVersion():Promise<string>;
 
 export function GetServerURL():Promise<string>;
 
+export function SaveFile(arg1:string,arg2:string):Promise<void>;
+
 export function SaveServerURL(arg1:string):Promise<void>;

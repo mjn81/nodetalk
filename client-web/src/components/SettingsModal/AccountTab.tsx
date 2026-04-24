@@ -130,7 +130,7 @@ export const AccountTab = () => {
 				<div className="px-4 pb-4 flex flex-col gap-4">
 					<div className="flex items-center gap-4 -mt-10 mb-2">
 						<div className="relative group">
-							<div className="w-20 h-20 border-[6px] border-background bg-background rounded-full overflow-hidden shadow-lg relative">
+							<div className="w-20 h-20 border-[6px] border-background bg-background rounded-full overflow-hidden shadow-lg relative flex items-center justify-center">
 								<MinidenticonAvatar 
 									userId={user?.id || ''} 
 									avatarId={user?.avatar_id}

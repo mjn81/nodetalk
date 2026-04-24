@@ -120,15 +120,16 @@ export const ChatMessageFeed = memo(
 				const element = instance.scrollElement;
 				if (!element) return;
 
-				const handler = () => {
+				const handler = (isScrolling: boolean) => {
 					// In flex-col-reverse, scrollTop is 0 at bottom and negative towards top.
 					// We want the absolute distance from the bottom.
-					cb(Math.abs(element.scrollTop), false);
+					cb(Math.abs(element.scrollTop), isScrolling);
 				};
 
-				element.addEventListener('scroll', handler, { passive: true });
-				handler();
-				return () => element.removeEventListener('scroll', handler);
+				const onScroll = () => handler(true);
+				element.addEventListener('scroll', onScroll, { passive: true });
+				handler(false);
+				return () => element.removeEventListener('scroll', onScroll);
 			},
 		});
 
@@ -161,7 +162,13 @@ export const ChatMessageFeed = memo(
 				className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 flex flex-col-reverse"
 				ref={feedRef}
 				id="messages-feed"
-				style={{ overflowAnchor: 'none' }}
+				style={{ 
+					overflowAnchor: 'none',
+					willChange: 'scroll-position',
+					overscrollBehaviorY: 'contain',
+					WebkitTransform: 'translateZ(0)',
+					WebkitOverflowScrolling: 'touch'
+				}}
 			>
 				{/* 1. Bottom Spacer (visually newest items) */}
 				<div 
