@@ -24,64 +24,75 @@ import type { AuthUser, Channel } from '@/types/api';
 import { isDirectMessage } from '@/utils/channel';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
-const RenderChannel = memo(({
-	ch,
-	isGroup,
-	user,
-	isActive,
-	onSelect,
-}: {
-	ch: Channel;
-	isGroup: boolean;
-	user: AuthUser | null;
-	isActive: boolean;
-	onSelect: (ch: Channel) => void;
-}) => {
-	const display = getChannelDisplayName(ch, user?.id ?? '');
+const RenderChannel = memo(
+	({
+		ch,
+		isGroup,
+		user,
+		isActive,
+		onSelect,
+	}: {
+		ch: Channel;
+		isGroup: boolean;
+		user: AuthUser | null;
+		isActive: boolean;
+		onSelect: (ch: Channel) => void;
+	}) => {
+		const display = getChannelDisplayName(ch, user?.id ?? '');
 
-	return (
-		<div
-			onClick={() => onSelect(ch)}
-			className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-md cursor-pointer transition ${
-				isActive
-					? 'bg-accent text-foreground'
-					: 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-			}`}
-		>
-			{isGroup ? (
-				<Hash className="w-5 h-5 shrink-0 opacity-70" />
-			) : (
-				<div className="relative shrink-0">
-					<Avatar
-						userId={ch.members.find((m) => m !== user?.id) || ch.id}
-						avatarId={
-							ch.member_avatars?.[
-								ch.members.find((m) => m !== user?.id) || ''
-							]
-						}
-						size={32}
-					/>
-					<div
-						className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-[2px] border-secondary z-10 ${
-							ch.member_statuses?.[ch.members.find((m) => m !== user?.id) || ''] === 'online' ? 'bg-green-500' :
-							ch.member_statuses?.[ch.members.find((m) => m !== user?.id) || ''] === 'away' ? 'bg-yellow-500' :
-							ch.member_statuses?.[ch.members.find((m) => m !== user?.id) || ''] === 'dnd' ? 'bg-red-500' :
-							'bg-gray-500'
-						}`}
-					/>
-				</div>
-			)}
-			<div className="min-w-0 flex-1 flex items-center gap-2">
-				<span className="truncate text-[15px] font-medium">{display}</span>
-				{!isActive && (ch.unread_count ?? 0) > 0 && (
-					<div className="flex items-center justify-center min-w-[16px] h-4 bg-[#f23f42] rounded-full text-[11px] font-bold text-white px-1 opacity-90 shadow-sm shrink-0 ml-auto">
-						{ch.unread_count}
+		return (
+			<div
+				onClick={() => onSelect(ch)}
+				className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-md cursor-pointer transition ${
+					isActive
+						? 'bg-accent text-foreground'
+						: 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+				}`}
+			>
+				{isGroup ? (
+					<Hash className="w-5 h-5 shrink-0 opacity-70" />
+				) : (
+					<div className="relative shrink-0">
+						<Avatar
+							userId={ch.members.find((m) => m !== user?.id) || ch.id}
+							avatarId={
+								ch.member_avatars?.[
+									ch.members.find((m) => m !== user?.id) || ''
+								]
+							}
+							size={32}
+						/>
+						<div
+							className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-[2px] border-secondary z-10 ${
+								ch.member_statuses?.[
+									ch.members.find((m) => m !== user?.id) || ''
+								] === 'online'
+									? 'bg-green-500'
+									: ch.member_statuses?.[
+												ch.members.find((m) => m !== user?.id) || ''
+										  ] === 'away'
+										? 'bg-yellow-500'
+										: ch.member_statuses?.[
+													ch.members.find((m) => m !== user?.id) || ''
+											  ] === 'dnd'
+											? 'bg-red-500'
+											: 'bg-gray-500'
+							}`}
+						/>
 					</div>
 				)}
+				<div className="min-w-0 flex-1 flex items-center gap-2">
+					<span className="truncate text-[15px] font-medium">{display}</span>
+					{!isActive && (ch.unread_count ?? 0) > 0 && (
+						<div className="flex items-center justify-center min-w-[16px] h-4 bg-[#f23f42] rounded-full text-[11px] font-bold text-white px-1 opacity-90 shadow-sm shrink-0 ml-auto">
+							{ch.unread_count}
+						</div>
+					)}
+				</div>
 			</div>
-		</div>
-	);
-});
+		);
+	},
+);
 
 RenderChannel.displayName = 'RenderChannel';
 
@@ -98,9 +109,12 @@ export default function LeftSidebar() {
 	const setLeftSidebarOpen = useAppStore((state) => state.setLeftSidebarOpen);
 	const isMobile = useMediaQuery('(max-width: 768px)');
 
-	const handleSelectChannel = useCallback((ch: Channel) => {
-		setActiveChannel(ch);
-	}, [setActiveChannel]);
+	const handleSelectChannel = useCallback(
+		(ch: Channel) => {
+			setActiveChannel(ch);
+		},
+		[setActiveChannel],
+	);
 	const [search, setSearch] = useState('');
 	const [debouncedSearch, setDebouncedSearch] = useState('');
 	const [isJoining, setIsJoining] = useState<string | null>(null);
@@ -159,32 +173,22 @@ export default function LeftSidebar() {
 			{/* Server Header */}
 			<div className="h-12 border-b border-border flex items-center px-4 shrink-0 shadow-sm transition-colors hover:bg-accent/30 cursor-pointer">
 				<div className="flex-1 flex flex-row justify-between items-center min-w-0">
-					<div className="flex items-center gap-2 min-w-0">
-						<h2 className="font-bold text-[15px] text-foreground truncate leading-tight">
-							NodeTalk Client
-						</h2>
-						<span className="text-[11px] text-muted-foreground font-medium inline-flex items-center gap-1.5 shrink-0">
-							{appVersion}
-							<span
-								className={`w-2 h-2 rounded-full ${
-									wsState === 'connected'
-										? 'bg-green-500'
-										: wsState === 'connecting'
-											? 'bg-yellow-500'
-											: 'bg-red-500'
-								}`}
-								title={wsState}
-							/>
-						</span>
-					</div>
-					{isMobile && (
-						<button 
-							onClick={() => setLeftSidebarOpen(false)}
-							className="p-1 hover:text-foreground text-muted-foreground"
-						>
-							<X size={20} />
-						</button>
-					)}
+					<h2 className="font-bold text-[15px] text-foreground truncate leading-tight">
+						NodeTalk Client
+					</h2>
+					<span className="text-[11px] text-muted-foreground font-medium inline-flex items-center gap-1.5 shrink-0">
+						{appVersion}
+						<span
+							className={`w-2 h-2 rounded-full ${
+								wsState === 'connected'
+									? 'bg-green-500'
+									: wsState === 'connecting'
+										? 'bg-yellow-500'
+										: 'bg-red-500'
+							}`}
+							title={wsState}
+						/>
+					</span>
 				</div>
 			</div>
 
@@ -334,19 +338,26 @@ export default function LeftSidebar() {
 									size={32}
 									className="shrink-0"
 								/>
-								<div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-[2px] border-secondary z-10 ${
-									user?.status === 'online' ? 'bg-green-500' :
-									user?.status === 'away' ? 'bg-yellow-500' :
-									user?.status === 'dnd' ? 'bg-red-500' :
-									'bg-gray-500'
-								}`} />
+								<div
+									className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-[2px] border-secondary z-10 ${
+										user?.status === 'online'
+											? 'bg-green-500'
+											: user?.status === 'away'
+												? 'bg-yellow-500'
+												: user?.status === 'dnd'
+													? 'bg-red-500'
+													: 'bg-gray-500'
+									}`}
+								/>
 							</div>
 							<div className="flex flex-col flex-1 min-w-0 leading-tight">
 								<span className="text-[13px] font-bold text-foreground truncate">
 									{user?.username}
 								</span>
 								<span className="text-[11px] text-muted-foreground truncate">
-									{user?.status ? user.status.charAt(0).toUpperCase() + user.status.slice(1) : 'Offline'}
+									{user?.status
+										? user.status.charAt(0).toUpperCase() + user.status.slice(1)
+										: 'Offline'}
 								</span>
 							</div>
 						</div>

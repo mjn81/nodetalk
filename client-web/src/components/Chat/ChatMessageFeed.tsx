@@ -2,6 +2,9 @@ import { useRef, useMemo, memo, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { type Message, type Channel } from '@/types/api';
 import { MessageItem } from './MessageItem';
+import { Avatar } from '../Avatar';
+import { isDirectMessage } from '@/utils/channel';
+import { getChannelDisplayName, useAuthStore } from '@/store/store';
 
 interface ChatMessageFeedProps {
 	messages: (Message & { text?: string })[];
@@ -101,6 +104,10 @@ export const ChatMessageFeed = memo(
 			return items;
 		}, [messages, hasNextPage]);
 
+		const user = useAuthStore((state) => state.user);
+		const isDM = isDirectMessage(channel);
+		const displayName = getChannelDisplayName(channel, user?.id || '');
+
 		const virtualizer = useVirtualizer({
 			count: renderedItems.length,
 			getScrollElement: () => feedRef.current,
@@ -169,6 +176,7 @@ export const ChatMessageFeed = memo(
 					if (!item) return null;
 
 					if (item.type === 'header') {
+						const otherId = isDM ? channel.members.find(m => m !== user?.id) || channel.id : '';
 						return (
 							<div
 								key={virtualRow.key}
@@ -176,12 +184,27 @@ export const ChatMessageFeed = memo(
 								ref={virtualizer.measureElement}
 								className="py-12 px-4 mb-8 border-b border-border/50"
 							>
-								<div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-									<span className="text-3xl">#</span>
-								</div>
-								<h1 className="text-3xl font-bold mb-2">Welcome to #{channel.name}!</h1>
+								{isDM ? (
+									<div className="mb-4">
+										<Avatar 
+											userId={otherId} 
+											avatarId={channel.member_avatars?.[otherId]} 
+											size={80} 
+										/>
+									</div>
+								) : (
+									<div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+										<span className="text-3xl text-primary font-bold">#</span>
+									</div>
+								)}
+								<h1 className="text-3xl font-bold mb-2">
+									{isDM ? displayName : `Welcome to #${displayName}!`}
+								</h1>
 								<p className="text-muted-foreground">
-									This is the start of the #{channel.name} channel.
+									{isDM 
+										? `This is the beginning of your direct message history with ${displayName}.`
+										: `This is the start of the #${displayName} channel.`
+									}
 								</p>
 							</div>
 						);
