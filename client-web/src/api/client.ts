@@ -8,7 +8,17 @@ import axios, { AxiosError } from 'axios';
 // ─────────────────────────────────────────────
 const getBaseUrl = () => {
 	const envUrl = import.meta.env.VITE_API_URL;
-	if (envUrl && !envUrl.includes('localhost')) return envUrl.replace(/\/$/, '');
+	
+	// If an environment URL is provided and it's not localhost, use it
+	if (envUrl && !envUrl.includes('localhost')) {
+		return envUrl.replace(/\/$/, '');
+	}
+
+	// In production builds, we don't want to fallback to localhost:8080
+	// unless specifically requested via environment variables.
+	if (import.meta.env.PROD) {
+		return envUrl ? envUrl.replace(/\/$/, '') : '';
+	}
 
 	if (typeof window !== 'undefined') {
 		const host = window.location.hostname;

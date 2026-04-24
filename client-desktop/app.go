@@ -32,11 +32,19 @@ func NewApp() *App {
 
 // loadConfig loads the configuration from the user's config directory.
 func (a *App) loadConfig() {
-	home, err := os.UserHomeDir()
+	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return
+		// Fallback to home if config dir is not available
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return
+		}
+		configDir = filepath.Join(home, ".nodetalk")
+	} else {
+		configDir = filepath.Join(configDir, "NodeTalk")
 	}
-	configPath := filepath.Join(home, ".nodetalk", "config.json")
+
+	configPath := filepath.Join(configDir, "config.json")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return
@@ -46,11 +54,17 @@ func (a *App) loadConfig() {
 
 // saveConfig saves the configuration to the user's config directory.
 func (a *App) saveConfig() {
-	home, err := os.UserHomeDir()
+	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return
+		}
+		configDir = filepath.Join(home, ".nodetalk")
+	} else {
+		configDir = filepath.Join(configDir, "NodeTalk")
 	}
-	configDir := filepath.Join(home, ".nodetalk")
+
 	_ = os.MkdirAll(configDir, 0755)
 
 	configPath := filepath.Join(configDir, "config.json")

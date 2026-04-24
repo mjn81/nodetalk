@@ -56,12 +56,18 @@ export default function App() {
         const savedUrl = await wails.GetServerURL();
         if (savedUrl) {
           setApiBaseUrl(savedUrl);
+          // Only init auth if we have a saved server
+          await useAuthStore.getState().initAuth();
         } else {
           setShouldConnect(true);
+          // Stop auth loading since we can't check session without a server
+          useAuthStore.setState({ isAuthLoading: false });
         }
+      } else {
+        // Standard web browser mode
+        await useAuthStore.getState().initAuth();
       }
       
-      useAuthStore.getState().initAuth();
       setIsWailsReady(true);
     };
 
