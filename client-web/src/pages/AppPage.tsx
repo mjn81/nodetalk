@@ -174,7 +174,8 @@ export default function AppPage() {
 				maxSize="25%"
 				collapsible={true}
 				collapsedSize="64px"
-				onResize={(panelSize) => setIsRightCollapsed(panelSize.inPixels <= 64)}
+				onCollapse={() => setIsRightCollapsed(true)}
+				onExpand={() => setIsRightCollapsed(false)}
 				className="bg-secondary flex flex-col border-l border-border transition-all duration-300 ease-in-out"
 			>
 				{renderRightSidebar()}

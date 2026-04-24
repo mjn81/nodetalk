@@ -16,7 +16,7 @@ export const VoiceChatController: React.FC = () => {
 	
 	const streamRef = useRef<MediaStream | null>(null);
 	const audioContextRef = useRef<AudioContext | null>(null);
-	const remotePlayersRef = useRef<Map<string, { node: ScriptProcessorNode, queue: Float32Array[] }>>(new Map());
+	const remotePlayersRef = useRef<Map<string, { node: ScriptProcessorNode, gainNode: GainNode, queue: Float32Array[] }>>(new Map());
 	const remoteGainRef = useRef<GainNode | null>(null);
 
 	const activeChannel = channels.find(c => c.id === activeChannelId);
@@ -268,6 +268,14 @@ export const VoiceChatController: React.FC = () => {
 				audioContextRef.current.close();
 				audioContextRef.current = null;
 			}
+			
+			// DISCONNECT AND CLEAR REMOTE PLAYERS
+			remotePlayersRef.current.forEach(p => {
+				try { p.node.disconnect(); } catch (e) {}
+			});
+			remotePlayersRef.current.clear();
+			remoteGainRef.current = null;
+			
 			const currentWails = (window as any).go?.main?.App;
 			if (currentWails) {
 				addLog('STOP: Sending Leave and Stop to Go...');
@@ -307,6 +315,17 @@ export const VoiceChatController: React.FC = () => {
 			remoteGainRef.current.gain.setTargetAtTime(isDeafened ? 0 : 1, audioContextRef.current?.currentTime || 0, 0.1);
 		}
 	}, [isDeafened]);
+
+	// Update individual user volumes and mutes
+	const { userVolumes, userMutes } = useVoiceStore();
+	useEffect(() => {
+		remotePlayersRef.current.forEach((player, userId) => {
+			const volume = userVolumes[userId] ?? 1;
+			const isMuted = userMutes.has(userId);
+			const targetGain = isMuted ? 0 : volume;
+			player.gainNode.gain.setTargetAtTime(targetGain, audioContextRef.current?.currentTime || 0, 0.1);
+		});
+	}, [userVolumes, userMutes]);
 
 	// Global AudioContext Resume on any click (Browsers/Wails often require this)
 	useEffect(() => {
@@ -370,7 +389,14 @@ export const VoiceChatController: React.FC = () => {
 				let player = remotePlayersRef.current.get(senderID);
 				if (!player) {
 					const node = audioContextRef.current.createScriptProcessor(2048, 0, 1);
+					const gainNode = audioContextRef.current.createGain();
 					const queue: Float32Array[] = [];
+					
+					// Initial volume from store
+					const vol = useVoiceStore.getState().userVolumes[senderID] ?? 1;
+					const mut = useVoiceStore.getState().userMutes.has(senderID);
+					gainNode.gain.value = mut ? 0 : vol;
+
 					node.onaudioprocess = (e) => {
 						const out = e.outputBuffer.getChannelData(0);
 						if (queue.length > 0) {
@@ -380,12 +406,14 @@ export const VoiceChatController: React.FC = () => {
 							out.fill(0);
 						}
 					};
+					
+					node.connect(gainNode);
 					if (remoteGainRef.current) {
-						node.connect(remoteGainRef.current);
+						gainNode.connect(remoteGainRef.current);
 					} else {
-						node.connect(audioContextRef.current.destination);
+						gainNode.connect(audioContextRef.current.destination);
 					}
-					player = { node, queue };
+					player = { node, gainNode, queue };
 					remotePlayersRef.current.set(senderID, player);
 				}
 				

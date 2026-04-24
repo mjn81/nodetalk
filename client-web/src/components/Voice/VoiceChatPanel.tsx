@@ -1,6 +1,17 @@
 import React from 'react';
-import { Mic, MicOff, Volume2, VolumeX, PhoneOff, Maximize2, Minimize2 } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, PhoneOff, Maximize2, Minimize2, Settings2 } from 'lucide-react';
 import { Avatar } from '../Avatar';
+import { 
+	ContextMenu, 
+	ContextMenuContent, 
+	ContextMenuItem, 
+	ContextMenuSeparator, 
+	ContextMenuTrigger,
+	ContextMenuLabel
+} from '../ui/context-menu';
+import { Slider } from '../ui/slider';
+import { useVoiceStore } from '@/store/voiceStore';
+import { useAuthStore } from '@/store/store';
 
 interface VoiceChatPanelProps {
 	isActive: boolean;
@@ -28,6 +39,8 @@ export const VoiceChatPanel: React.FC<VoiceChatPanelProps> = ({
 	memberNames,
 }) => {
 	const [isExpanded, setIsExpanded] = React.useState(false);
+	const { userVolumes, userMutes, setUserVolume, toggleUserMute } = useVoiceStore();
+	const currentUser = useAuthStore(state => state.user);
 
 	if (!isActive) return null;
 
@@ -71,31 +84,83 @@ export const VoiceChatPanel: React.FC<VoiceChatPanelProps> = ({
 				<div className={`grid gap-3 ${gridCols} ${isExpanded ? 'h-auto' : 'min-h-[160px]'}`}>
 					{members.map(userId => {
 						const isSpeaking = speakingUsers.has(userId);
+						const isLocalMuted = userMutes.has(userId);
+						const volume = userVolumes[userId] ?? 1;
+						const isMe = userId === currentUser?.id;
+
 						return (
-							<div 
-								key={userId} 
-								className={`relative flex flex-col items-center justify-center rounded-lg border transition-all duration-200 py-4 ${
-									isSpeaking 
-										? 'border-primary ring-1 ring-primary/20 shadow-lg shadow-primary/5' 
-										: 'bg-muted/20 border-border/50 hover:border-border'
-								}`}
-							>
-								<div className="relative">
-									<Avatar 
-										userId={userId} 
-										avatarId={memberAvatars[userId]} 
-										size={isExpanded ? 96 : 56} 
-									/>
-									{isSpeaking && (
-										<div className="absolute -inset-1 rounded-full border-2 border-primary shadow-[0_0_10px_theme(colors.primary.DEFAULT/40%)] animate-pulse" />
-									)}
-								</div>
-								<div className="mt-2.5 px-2 w-full text-center">
-									<span className={`text-[11px] font-bold truncate block ${isSpeaking ? 'text-primary' : 'text-foreground/70'}`}>
-										{memberNames[userId] || `User ${userId.slice(0, 8)}`}
-									</span>
-								</div>
-							</div>
+							<ContextMenu key={userId}>
+								<ContextMenuTrigger className="w-full">
+									<div 
+										className={`relative flex flex-col items-center justify-center rounded-lg border transition-all duration-200 py-4 w-full cursor-context-menu ${
+											isSpeaking 
+												? 'border-primary ring-1 ring-primary/20 shadow-lg shadow-primary/5' 
+												: 'bg-muted/20 border-border/50 hover:border-border'
+										}`}
+									>
+										<div className="relative">
+											<Avatar 
+												userId={userId} 
+												avatarId={memberAvatars[userId]} 
+												size={isExpanded ? 96 : 56} 
+											/>
+											{isSpeaking && (
+												<div className="absolute -inset-1 rounded-full border-2 border-primary shadow-[0_0_10px_theme(colors.primary.DEFAULT/40%)] animate-pulse" />
+											)}
+											{isLocalMuted && (
+												<div className="absolute -bottom-1 -right-1 bg-destructive text-white rounded-full p-1 border-2 border-background">
+													<VolumeX size={10} />
+												</div>
+											)}
+										</div>
+										<div className="mt-2.5 px-2 w-full text-center">
+											<span className={`text-[11px] font-bold truncate block ${isSpeaking ? 'text-primary' : 'text-foreground/70'}`}>
+												{memberNames[userId] || `User ${userId.slice(0, 8)}`}
+												{isMe && " (You)"}
+											</span>
+										</div>
+									</div>
+								</ContextMenuTrigger>
+								{!isMe && (
+									<ContextMenuContent className="w-64">
+										<ContextMenuLabel className="flex items-center gap-2">
+											<Settings2 size={14} />
+											User Settings
+										</ContextMenuLabel>
+										<ContextMenuSeparator />
+										<div className="px-2 py-3">
+											<div className="flex items-center justify-between mb-2">
+												<span className="text-xs font-medium">User Volume</span>
+												<span className="text-[10px] text-muted-foreground">{Math.round(volume * 100)}%</span>
+											</div>
+											<Slider 
+												value={[volume * 100]} 
+												min={0} 
+												max={200} 
+												step={1} 
+												onValueChange={(vals) => setUserVolume(userId, vals[0] / 100)}
+											/>
+										</div>
+										<ContextMenuSeparator />
+										<ContextMenuItem 
+											onClick={() => toggleUserMute(userId)}
+											className={isLocalMuted ? 'text-primary' : 'text-destructive'}
+										>
+											{isLocalMuted ? (
+												<>
+													<Volume2 className="mr-2 h-4 w-4" />
+													Unmute User
+												</>
+											) : (
+												<>
+													<VolumeX className="mr-2 h-4 w-4" />
+													Mute User
+												</>
+											)}
+										</ContextMenuItem>
+									</ContextMenuContent>
+								)}
+							</ContextMenu>
 						);
 					})}
 				</div>

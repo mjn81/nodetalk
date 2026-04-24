@@ -143,7 +143,7 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 			>
 				{/* Header - Styled to match ChatTopbar, adaptive to collapse */}
 				<div className={`flex items-center h-12 border-b border-border shrink-0 shadow-sm bg-background transition-all ${isCollapsed ? 'justify-center w-full' : 'px-4 gap-3'}`}>
-					<div className="flex-1 flex items-center gap-3 min-w-0">
+					<div className={`flex items-center gap-3 min-w-0 ${isCollapsed ? 'justify-center w-full' : 'flex-1'}`}>
 						{isMobile ? (
 							<button
 								onClick={() => setRightSidebarOpen(false)}
