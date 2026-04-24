@@ -46,15 +46,15 @@ While the backend uses a file, the web client (frontend) uses an environment var
 ### Backend
 ```bash
 cd backend
-docker build -t nodetalk/backend:latest .
-docker run -p 8080:8080 -p 9090:9090/udp -v ./data:/app/data nodetalk/backend:latest
+docker build -t nodetalk-server:latest .
+docker run -p 8080:8080 -p 9090:9090/udp -v ./data:/app/data nodetalk-server:latest
 ```
 
 ### Web Client
 ```bash
 cd client-web
-docker build -t nodetalk/frontend:latest .
-docker run -p 3000:80 -e VITE_API_URL=http://your-backend-ip:8080 nodetalk/frontend:latest
+docker build -t nodetalk-webclient:latest .
+docker run -p 3000:80 -e VITE_API_URL=http://your-backend-ip:8080 nodetalk-webclient:latest
 ```
 
 ---
@@ -65,10 +65,10 @@ If you want to share your images on Docker Hub:
 
 ```bash
 # Tag images
-docker tag nodetalk/backend:latest yourusername/nodetalk-backend:latest
-docker tag nodetalk/frontend:latest yourusername/nodetalk-frontend:latest
+docker tag nodetalk-server:latest yourusername/nodetalk-server:latest
+docker tag nodetalk-webclient:latest yourusername/nodetalk-webclient:latest
 
 # Push images
-docker push yourusername/nodetalk-backend:latest
-docker push yourusername/nodetalk-frontend:latest
+docker push yourusername/nodetalk-server:latest
+docker push yourusername/nodetalk-webclient:latest
 ```

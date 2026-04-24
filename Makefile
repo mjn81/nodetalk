@@ -1,4 +1,4 @@
-.PHONY: help build run dev wails/dev wails/build wails/build/mac swagger test tidy lint clean
+.PHONY: help build run dev wails/dev wails/build wails/build/mac swagger test tidy lint clean docker/build docker/push
 
 GOBIN := $(HOME)/go/bin
 GO    := go
@@ -55,6 +55,17 @@ wails/build/mac: build front/build ## Build macOS universal binary
 	mkdir -p client-desktop/frontend/dist
 	cp -r client-web/dist/* client-desktop/frontend/dist/
 	cd client-desktop && $(GOBIN)/wails build -clean -platform darwin/universal -s
+
+## ── Docker ───────────────────────────────────────────────────────────────────
+docker/build: ## Build production Docker images
+	docker-compose build
+
+docker/push: docker/build ## Push images to Docker Hub (usage: make docker/push DOCKER_USER=name)
+	@if [ -z "$(DOCKER_USER)" ]; then echo "Error: DOCKER_USER is required. Example: make docker/push DOCKER_USER=myusername"; exit 1; fi
+	docker tag nodetalk-server:latest $(DOCKER_USER)/nodetalk-server:latest
+	docker tag nodetalk-webclient:latest $(DOCKER_USER)/nodetalk-webclient:latest
+	docker push $(DOCKER_USER)/nodetalk-server:latest
+	docker push $(DOCKER_USER)/nodetalk-webclient:latest
 
 ## ── Combined ─────────────────────────────────────────────────────────────────
 dev: ## Run standalone backend + Vite concurrently (web mode)
