@@ -18,14 +18,25 @@ export default function VoiceRecorder({ onFile, size = 24 }: VoiceRecorderProps)
 
 	const startRecording = async () => {
 		try {
+			// On macOS Wails, we sometimes need to explicitly trigger the system permission dialog
+			// via the native Go backend because the WebView might not do it automatically.
+			const wails = (window as any).go?.main?.App;
+			if (wails?.RequestMicrophonePermission) {
+				await wails.RequestMicrophonePermission();
+			}
+
+			if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+				throw new Error('Your browser or environment does not support microphone access (possibly due to insecure context or missing permissions).');
+			}
 			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-			// Find supported mime type
-			const mimeType = ['audio/webm', 'audio/ogg', 'audio/mp4'].find((type) =>
+			// Find supported mime type - expand for Safari/WebKit compatibility
+			const mimeType = ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/aac'].find((type) =>
 				MediaRecorder.isTypeSupported(type),
 			);
 
-			const recorder = new MediaRecorder(stream, { mimeType });
+
+			const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 			mediaRecorderRef.current = recorder;
 			chunksRef.current = [];
 			isDiscardingRef.current = false;
@@ -59,8 +70,9 @@ export default function VoiceRecorder({ onFile, size = 24 }: VoiceRecorderProps)
 			timerRef.current = setInterval(() => {
 				setDuration((prev) => prev + 1);
 			}, 1000);
-		} catch (err) {
+		} catch (err: any) {
 			console.error('Failed to start recording:', err);
+			alert(`Microphone error: ${err.message || 'Unknown error'}. Please check permissions.`);
 		}
 	};
 

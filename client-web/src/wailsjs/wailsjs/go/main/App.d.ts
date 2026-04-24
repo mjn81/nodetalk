@@ -3,7 +3,11 @@
 
 export function AppVersion():Promise<string>;
 
+export function GetMicrophonePermissionStatus():Promise<number>;
+
 export function GetServerURL():Promise<string>;
+
+export function RequestMicrophonePermission():Promise<void>;
 
 export function SaveFile(arg1:string,arg2:string):Promise<void>;
 

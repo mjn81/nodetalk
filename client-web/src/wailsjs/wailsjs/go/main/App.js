@@ -6,8 +6,16 @@ export function AppVersion() {
   return window['go']['main']['App']['AppVersion']();
 }
 
+export function GetMicrophonePermissionStatus() {
+  return window['go']['main']['App']['GetMicrophonePermissionStatus']();
+}
+
 export function GetServerURL() {
   return window['go']['main']['App']['GetServerURL']();
+}
+
+export function RequestMicrophonePermission() {
+  return window['go']['main']['App']['RequestMicrophonePermission']();
 }
 
 export function SaveFile(arg1, arg2) {

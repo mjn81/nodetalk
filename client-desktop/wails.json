@@ -20,7 +20,8 @@
   "platforms": [
     {
       "platform": "darwin/universal",
-      "icon": "build/appicon.png"
+      "icon": "build/appicon.png",
+      "entitlements": "build/darwin/entitlements.plist"
     },
     {
       "platform": "windows/amd64",
