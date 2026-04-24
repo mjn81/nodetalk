@@ -1,10 +1,11 @@
-package voice
+package tests
 
 import (
 	"net"
 	"testing"
 	"time"
 	"nodetalk/backend/internal/auth"
+	"nodetalk/backend/internal/voice"
 )
 
 func TestVoiceRouter_ChannelSession(t *testing.T) {
@@ -18,7 +19,7 @@ func TestVoiceRouter_ChannelSession(t *testing.T) {
 	token3, _ := sessions.Create(user3ID, "user3")
 
 	// 2. Setup Router
-	router := NewRouter(sessions, nil)
+	router := voice.NewRouter(sessions, nil)
 
 	// 3. Setup UDP listener
 	addr := &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0}
@@ -42,12 +43,12 @@ func TestVoiceRouter_ChannelSession(t *testing.T) {
 	c3 := dial(); defer c3.Close()
 
 	// 5. Register & Join Channel
-	channelID := "channel-36-chars-uuid-mock-id-value!!"
+	channelID := "channel-36-chars-uuid-mock-id-value!"
 	
 	registerAndJoin := func(c *net.UDPConn, token string) {
-		c.Write(append([]byte{PacketTypeRegister}, []byte(token)...))
+		c.Write(append([]byte{voice.PacketTypeRegister}, []byte(token)...))
 		time.Sleep(10 * time.Millisecond)
-		c.Write(append([]byte{PacketTypeJoin}, []byte(channelID)...))
+		c.Write(append([]byte{voice.PacketTypeJoin}, []byte(channelID)...))
 		time.Sleep(10 * time.Millisecond)
 	}
 
@@ -59,7 +60,7 @@ func TestVoiceRouter_ChannelSession(t *testing.T) {
 	audioPayload := []byte("hello-channel")
 	
 	// C1 sends audio to the channel
-	pkt := append([]byte{PacketTypeAudio}, []byte(channelID)...)
+	pkt := append([]byte{voice.PacketTypeAudio}, []byte(channelID)...)
 	pkt = append(pkt, audioPayload...)
 	c1.Write(pkt)
 
@@ -71,14 +72,14 @@ func TestVoiceRouter_ChannelSession(t *testing.T) {
 		if err != nil {
 			t.Fatalf("client failed to receive audio: %v", err)
 		}
-		if buf[0] != PacketTypeAudio {
+		if buf[0] != voice.PacketTypeAudio {
 			t.Errorf("expected PacketTypeAudio, got %d", buf[0])
 		}
-		senderID := string(buf[1 : 1+IDLength])
+		senderID := string(buf[1 : 1+voice.IDLength])
 		if senderID != expectedSender {
 			t.Errorf("expected senderID %s, got %s", expectedSender, senderID)
 		}
-		receivedAudio := buf[1+IDLength : n]
+		receivedAudio := buf[1+voice.IDLength : n]
 		if string(receivedAudio) != string(audioPayload) {
 			t.Errorf("expected audio %s, got %s", string(audioPayload), string(receivedAudio))
 		}
@@ -88,7 +89,7 @@ func TestVoiceRouter_ChannelSession(t *testing.T) {
 	verifyReceive(c3, user1ID)
 
 	// 7. Test Leave
-	c2.Write(append([]byte{PacketTypeLeave}, []byte(channelID)...))
+	c2.Write(append([]byte{voice.PacketTypeLeave}, []byte(channelID)...))
 	time.Sleep(10 * time.Millisecond)
 
 	c1.Write(pkt) // C1 sends audio again
