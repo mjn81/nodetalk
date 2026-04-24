@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gen2brain/beeep"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -105,5 +106,11 @@ func (a *App) SaveFile(filename string, base64Data string) error {
 	}
 
 	return os.WriteFile(path, data, 0644)
+}
+
+// ShowNotification shows a native desktop notification.
+func (a *App) ShowNotification(title, message string) {
+	// beeep.Notify is cross-platform.
+	_ = beeep.Notify(title, message, "")
 }
 

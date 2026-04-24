@@ -1,4 +1,5 @@
 import { useAppStore } from '@/store/store';
+import { isWails } from './wails';
 
 /**
  * Notification Sound Utility
@@ -32,6 +33,7 @@ export function playNotificationSound(type: SoundType) {
 
 /** Requests permission for browser desktop notifications. */
 export async function requestNotificationPermission() {
+  if (isWails()) return 'granted'; // Wails handles this natively
   if (!('Notification' in window)) return 'denied';
   if (Notification.permission === 'granted') return 'granted';
   return await Notification.requestPermission();
@@ -41,6 +43,15 @@ export async function requestNotificationPermission() {
 export function showBrowserNotification(title: string, body: string, icon?: string) {
   const { enableDesktopNotifications } = useAppStore.getState();
   if (!enableDesktopNotifications) return;
+
+  if (isWails()) {
+    // Call Wails native notification
+    const wails = (window as any).go?.main?.App;
+    if (wails?.ShowNotification) {
+      wails.ShowNotification(title, body);
+    }
+    return;
+  }
 
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   

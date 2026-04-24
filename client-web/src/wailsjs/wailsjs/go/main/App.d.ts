@@ -12,3 +12,5 @@ export function RequestMicrophonePermission():Promise<void>;
 export function SaveFile(arg1:string,arg2:string):Promise<void>;
 
 export function SaveServerURL(arg1:string):Promise<void>;
+
+export function ShowNotification(arg1:string,arg2:string):Promise<void>;
