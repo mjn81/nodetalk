@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, memo, useEffect } from 'react';
 
-import { useAuthStore, useAppStore } from '@/store/store';
+import { useAuthStore } from '@/store/store';
 import { Avatar } from '../Avatar';
 import { type Message, type Channel } from '@/types/api';
 import { FileBubble } from './FileBubble';
@@ -32,9 +32,41 @@ export const MessageItem = memo(
 		const [isEditing, setIsEditing] = useState(false);
 		const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 		const [editValue, setEditValue] = useState(msg.text || '');
+		const [showMobileMenu, setShowMobileMenu] = useState(false);
+		const [dragX, setDragX] = useState(0);
 		const isOwn = user?.id === msg.sender_id;
 
 		const isMobile = useMediaQuery('(max-width: 768px)');
+		const dragStartX = useRef<number | null>(null);
+		const isDragging = useRef(false);
+
+		const handleDragStart = (x: number) => {
+			dragStartX.current = x;
+			isDragging.current = true;
+		};
+
+		const handleDragMove = (x: number) => {
+			if (dragStartX.current === null) return;
+			const delta = x - dragStartX.current;
+			// Only allow dragging to the left (negative delta)
+			if (delta < 0) {
+				// Apply some resistance (clamp)
+				const clamped = Math.max(delta, -120);
+				setDragX(clamped);
+			} else {
+				setDragX(0);
+			}
+		};
+
+		const handleDragEnd = () => {
+			if (dragX < -80) {
+				onReply?.(msg);
+				// Small haptic-like feedback or animation would go here
+			}
+			setDragX(0);
+			dragStartX.current = null;
+			isDragging.current = false;
+		};
 
 		useEffect(() => {
 			const handler = (e: any) => {
@@ -99,19 +131,59 @@ export const MessageItem = memo(
 
 		return (
 			<div
-				className={`group flex mb-0.5 -mx-4 px-4 py-0.5 transition-colors relative ${
+				onMouseDown={(e) => handleDragStart(e.clientX)}
+				onMouseMove={(e) => handleDragMove(e.clientX)}
+				onMouseUp={handleDragEnd}
+				onMouseLeave={handleDragEnd}
+				onTouchStart={(e) => handleDragStart(e.touches[0].clientX)}
+				onTouchMove={(e) => handleDragMove(e.touches[0].clientX)}
+				onTouchEnd={handleDragEnd}
+				onClick={() => isMobile && setShowMobileMenu(!showMobileMenu)}
+				className={`group flex mb-0.5 -mx-4 px-4 py-0.5 transition-colors relative select-none cursor-default ${
 					!grouped ? (isMobile ? 'mt-2' : 'mt-4') : ''
 				} ${
 					isMentioned
 						? 'bg-mention border-l-2 border-mention-border hover:opacity-90'
-						: 'hover:bg-accent/30 border-l-2 border-transparent'
+						: showMobileMenu && isMobile
+							? 'bg-primary/5 border-l-2 border-primary/30'
+							: 'hover:bg-accent/30 border-l-2 border-transparent'
 				}`}
+				style={{ touchAction: 'pan-y' }}
 			>
-				{/* Action Menu */}
-				{!isEditing && (
-					<div className="absolute right-4 -top-3 hidden group-hover:flex items-center gap-0.5 bg-background border border-border rounded-md shadow-sm overflow-hidden z-20">
+				{/* Swipe to Reply Indicator */}
+				<div 
+					className="absolute right-0 top-0 bottom-0 flex items-center justify-center transition-all pointer-events-none"
+					style={{ 
+						width: '80px',
+						opacity: Math.min(Math.abs(dragX) / 60, 1),
+						transform: `translateX(${80 + dragX}px) scale(${Math.min(Math.abs(dragX) / 60, 1.2)})`
+					}}
+				>
+					<div className="bg-primary/10 p-2 rounded-full border border-primary/20">
+						<Reply size={20} className="text-primary" />
+					</div>
+				</div>
+
+				<div 
+					className="flex flex-1 min-w-0 transition-transform duration-75 ease-out"
+					style={{ transform: `translateX(${dragX}px)` }}
+				>
+					{/* Action Menu */}
+					{!isEditing && (
+						<div
+							className={`absolute right-4 -top-3 items-center gap-0.5 bg-background border border-border rounded-md shadow-lg overflow-hidden z-20 ${
+								showMobileMenu && isMobile
+									? 'flex animate-in zoom-in-95 duration-150'
+									: 'hidden group-hover:flex'
+							}`}
+							style={{ transform: `translateX(${-dragX}px)` }} // Counter-translate to keep it visible
+						>
 						<button
-							onClick={() => onReply?.(msg)}
+							onClick={(e) => {
+								e.stopPropagation();
+								onReply?.(msg);
+								if (isMobile) setShowMobileMenu(false);
+							}}
 							className="p-1.5 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
 							title="Reply"
 						>
@@ -119,9 +191,11 @@ export const MessageItem = memo(
 						</button>
 						{isOwn && msg.type === 'text' && (
 							<button
-								onClick={() => {
+								onClick={(e) => {
+									e.stopPropagation();
 									setEditValue(msg.text || '');
 									setIsEditing(true);
+									if (isMobile) setShowMobileMenu(false);
 								}}
 								className="p-1.5 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors border-l border-border"
 								title="Edit Message"
@@ -131,7 +205,11 @@ export const MessageItem = memo(
 						)}
 						{isOwn && (
 							<button
-								onClick={() => setShowDeleteConfirm(true)}
+								onClick={(e) => {
+									e.stopPropagation();
+									setShowDeleteConfirm(true);
+									if (isMobile) setShowMobileMenu(false);
+								}}
 								className="p-1.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors border-l border-border"
 								title="Delete Message"
 							>
@@ -205,7 +283,9 @@ export const MessageItem = memo(
 						</div>
 					)}
 					{!grouped && (
-						<div className={`flex gap-2 flex-nowrap ${isMobile ? 'items-center mb-1' : 'items-baseline mb-0.5'}`}>
+						<div
+							className={`flex gap-2 flex-nowrap ${isMobile ? 'items-center mb-1' : 'items-baseline mb-0.5'}`}
+						>
 							<span
 								className={`font-semibold text-foreground tracking-wide hover:underline cursor-pointer truncate ${isMobile ? 'text-sm font-medium' : 'text-[15px]'}`}
 							>
@@ -281,9 +361,9 @@ export const MessageItem = memo(
 					{msg.type === 'file' && <FileBubble msg={msg} />}
 				</div>
 			</div>
-		);
-	},
-);
+		</div>
+	);
+});
 
 MessageItem.displayName = 'MessageItem';
 
