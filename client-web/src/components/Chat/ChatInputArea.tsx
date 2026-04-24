@@ -150,6 +150,9 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 			setInputText('');
 			setFiles([]);
 			if (replyTo) onCancelReply?.();
+			if (inputRef.current) {
+				inputRef.current.style.height = 'auto';
+			}
 		} catch (err) {
 			console.error('Failed to send messages:', err);
 		} finally {

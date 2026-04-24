@@ -151,7 +151,9 @@ export const MessageItem = memo(
 					variant="danger"
 				/>
 
-				<div className={`flex shrink-0 ${isMobile ? 'w-[40px]' : 'w-[55px]'} pt-1`}>
+				<div
+					className={`flex shrink-0 ${isMobile ? 'w-[40px]' : 'w-[55px]'} pt-1`}
+				>
 					{!grouped ? (
 						<Avatar
 							userId={msg.sender_id}
@@ -159,12 +161,16 @@ export const MessageItem = memo(
 							size={isMobile ? 32 : 40}
 						/>
 					) : (
-						<div className={`w-full text-center text-[10px] text-transparent group-hover:text-muted-foreground select-none ${isMobile ? 'pt-0.5' : 'pt-1'}`}>
+						<div
+							className={`w-full text-center text-transparent group-hover:text-muted-foreground select-none shrink-0 ${isMobile ? 'text-[9px] whitespace-nowrap' : 'pt-1 text-[10px]'}`}
+						>
 							{formatTime(msg.sent_at)}
 						</div>
 					)}
 				</div>
-				<div className={`flex flex-col min-w-0 flex-1 relative ${isMobile ? 'gap-0.5' : ''}`}>
+				<div
+					className={`flex flex-col min-w-0 flex-1 relative ${isMobile ? 'gap-0.5' : ''}`}
+				>
 					{msg.reply_to_id && (
 						<div className="flex items-center gap-1 mb-1 h-5 select-none relative group/reply-target">
 							<CornerUpLeft
@@ -199,11 +205,15 @@ export const MessageItem = memo(
 						</div>
 					)}
 					{!grouped && (
-						<div className="flex items-baseline gap-2 mb-0.5">
-							<span className={`font-semibold text-foreground tracking-wide hover:underline cursor-pointer ${isMobile ? 'text-sm font-medium' : 'text-[15px]'}`}>
+						<div className={`flex gap-2 flex-nowrap ${isMobile ? 'items-center mb-1' : 'items-baseline mb-0.5'}`}>
+							<span
+								className={`font-semibold text-foreground tracking-wide hover:underline cursor-pointer truncate ${isMobile ? 'text-sm font-medium' : 'text-[15px]'}`}
+							>
 								{channel.member_names?.[msg.sender_id] || msg.sender_id}
 							</span>
-							<span className={`text-muted-foreground ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+							<span
+								className={`text-muted-foreground shrink-0 ${isMobile ? 'text-[9px] whitespace-nowrap' : 'text-xs'}`}
+							>
 								{formatTime(msg.sent_at)}
 							</span>
 						</div>

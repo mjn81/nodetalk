@@ -172,6 +172,7 @@ export const ChatMessageFeed = memo(
 						return (
 							<div
 								key={virtualRow.key}
+								data-index={virtualRow.index}
 								ref={virtualizer.measureElement}
 								className="py-12 px-4 mb-8 border-b border-border/50"
 							>
