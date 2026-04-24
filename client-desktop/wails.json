@@ -5,7 +5,7 @@
   "frontend:build": "",
   "frontend:dev:watcher": "",
   "frontend:dev:serverUrl": "http://localhost:5173",
-  "wailsjsdir": "../client-web/src/wailsjs",
+  "wailsjsdir": "../client-web/src",
   "version": "2",
   "info": {
     "companyName": "NodeTalk",

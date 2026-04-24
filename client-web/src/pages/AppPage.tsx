@@ -14,6 +14,7 @@ import { ensureZstdReady } from '@/utils/file';
 import { requestNotificationPermission } from '@/utils/notifications';
 import { apiJoinChannel } from '@/api/client';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { VoiceChatController } from '@/components/Voice/VoiceChatController';
 
 export default function AppPage() {
 	const activeChannel = useChannelStore((state) => state.activeChannel);
@@ -135,11 +136,14 @@ export default function AppPage() {
 						onClick={() => setRightSidebarOpen(false)}
 					/>
 				)}
+
+				<VoiceChatController />
 			</div>
 		);
 	}
 
 	return (
+		<>
 		<ResizablePanelGroup
 			direction="horizontal"
 			className="h-screen w-full bg-background overflow-hidden"
@@ -176,5 +180,7 @@ export default function AppPage() {
 				{renderRightSidebar()}
 			</ResizablePanel>
 		</ResizablePanelGroup>
+		<VoiceChatController />
+	</>
 	);
 }

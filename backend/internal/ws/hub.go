@@ -367,3 +367,31 @@ func (h *Hub) BroadcastChannelUpdated(ch *models.Channel) {
 	msg := &models.WSMessage{Type: "channel_update", Payload: payload}
 	h.broadcast <- &envelope{channelID: ch.ID, msg: msg}
 }
+// BroadcastVoiceState notifies channel members of who is currently in the voice session.
+func (h *Hub) BroadcastVoiceState(channelID string, activeUsers []string) {
+	payload, _ := json.Marshal(map[string]any{
+		"channel_id": channelID,
+		"users":      activeUsers,
+	})
+	msg := &models.WSMessage{Type: "voice_update", Payload: payload}
+	h.broadcast <- &envelope{channelID: channelID, msg: msg}
+}
+
+// SendVoiceState notifies a specific user of who is currently in the voice session.
+func (h *Hub) SendVoiceState(userID string, channelID string, activeUsers []string) {
+	payload, _ := json.Marshal(map[string]any{
+		"channel_id": channelID,
+		"users":      activeUsers,
+	})
+	msg := &models.WSMessage{Type: "voice_update", Payload: payload}
+	env := &envelope{msg: msg}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if c, ok := h.clients[userID]; ok {
+		select {
+		case c.send <- env:
+		default:
+		}
+	}
+}

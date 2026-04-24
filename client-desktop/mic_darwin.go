@@ -1,4 +1,5 @@
 // +build darwin
+
 package main
 
 /*
@@ -26,14 +27,18 @@ int GetMicPermissionStatus() {
 }
 */
 import "C"
+import "log"
 
 // RequestMicrophonePermission triggers the macOS system permission dialog for the microphone.
 func (a *App) RequestMicrophonePermission() {
+	log.Printf("MicPermission: Requesting microphone permission")
 	C.RequestMicPermission()
 }
 
 // GetMicrophonePermissionStatus returns the current authorization status:
 // 0: NotDetermined, 1: Restricted, 2: Denied, 3: Authorized
 func (a *App) GetMicrophonePermissionStatus() int {
-	return int(C.GetMicPermissionStatus())
+	status := int(C.GetMicPermissionStatus())
+	log.Printf("MicPermission: Current status is %d", status)
+	return status
 }

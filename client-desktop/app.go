@@ -18,8 +18,9 @@ type Config struct {
 
 // App is the Wails application struct.
 type App struct {
-	ctx    context.Context
-	config Config
+	ctx          context.Context
+	config       Config
+	voiceManager *VoiceManager
 }
 
 // NewApp creates the application struct.

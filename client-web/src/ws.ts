@@ -46,6 +46,7 @@ type WSEventType =
 	| 'presence'
 	| 'channel_key'
 	| 'channel_update'
+	| 'voice_update'
 	| 'open'
 	| 'close';
 type WSListener = (payload: unknown) => void;
@@ -280,6 +281,9 @@ function handleInbound(msg: { type: string; payload: unknown }) {
 			break;
 		case 'channel_update':
 			emit('channel_update', msg.payload);
+			break;
+		case 'voice_update':
+			emit('voice_update', msg.payload);
 			break;
 		default:
 			console.debug('[ws-worker] unknown message type', msg.type);

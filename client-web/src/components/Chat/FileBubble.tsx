@@ -5,7 +5,7 @@ import { decryptMessage, getChannelKey, base64ToBytes, onWS } from '@/ws';
 import { decryptAndDecompressFile, ensureZstdReady } from '@/utils/file';
 import { apiGetFile } from '@/api/client';
 import { isWails } from '@/utils/wails';
-import { SaveFile } from '../../wailsjs/wailsjs/go/main/App';
+import { SaveFile } from '../../wailsjs/go/main/App';
 import { bytesToBase64 } from '@/ws';
 
 
@@ -126,7 +126,7 @@ export const FileBubble = memo(({ msg }: FileBubbleProps) => {
 
 			if (isWails()) {
 				// Pass as base64 string; Wails Go side will unmarshal it into []byte
-				await SaveFile(filename, bytesToBase64(new Uint8Array(decrypted as ArrayBuffer)));
+				await SaveFile(filename, bytesToBase64(decrypted as any));
 			} else {
 				const downloadUrl = URL.createObjectURL(blob);
 				const a = document.createElement('a');

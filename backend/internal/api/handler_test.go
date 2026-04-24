@@ -177,19 +177,8 @@ func TestLogin_Success(t *testing.T) {
 	var got api.LoginResponse
 	decodeJSON(t, resp, &got)
 
-	// Check for session cookie
-	found := false
-	for _, c := range resp.Cookies() {
-		if c.Name == "nodetalk_session" {
-			found = true
-			if c.Value == "" {
-				t.Error("session cookie value is empty")
-			}
-			break
-		}
-	}
-	if !found {
-		t.Error("session cookie 'nodetalk_session' not found")
+	if got.Token == "" {
+		t.Error("token in JSON response is empty")
 	}
 
 	if got.Username != "carol" {
@@ -239,14 +228,12 @@ func registerAndLogin(t *testing.T, srv *httptest.Server, username, password str
 		t.Fatalf("login failed with status %d", resp.StatusCode)
 	}
 
-	// Extract token from cookie for use in subsequent Bearer-token-aware requests
-	for _, c := range resp.Cookies() {
-		if c.Name == "nodetalk_session" {
-			return c.Value
-		}
+	var got api.LoginResponse
+	decodeJSON(t, resp, &got)
+	if got.Token == "" {
+		t.Fatal("token not found in login response JSON")
 	}
-	t.Fatal("session cookie not found in login response")
-	return ""
+	return got.Token
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -546,7 +533,7 @@ func TestMessageEncryptionAndStorage(t *testing.T) {
 
 	// 5. Verify the logical record in DB
 	// Retrieve messages via API-like store method
-	msgs, err := s.ListMessages(ch.ID, 0, 10)
+	msgs, err := s.ListMessages(ch.ID, "", 10)
 	if err != nil {
 		t.Fatalf("ListMessages failed: %v", err)
 	}

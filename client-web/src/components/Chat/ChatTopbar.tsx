@@ -2,13 +2,28 @@ import { useState, Profiler } from 'react';
 import { logProfiler } from '@/utils/profiler';
 
 import { Avatar } from '../Avatar';
-import { Search, SlidersHorizontal, Hash, X, ChevronLeft, Users } from 'lucide-react';
+import {
+	Search,
+	SlidersHorizontal,
+	Hash,
+	X,
+	ChevronLeft,
+	Users,
+	Mic,
+} from 'lucide-react';
 import { type Channel } from '@/types/api';
-import { getChannelDisplayName, useAppStore, useChannelStore } from '@/store/store';
+import {
+	getChannelDisplayName,
+	useAppStore,
+	useChannelStore,
+} from '@/store/store';
 import { GroupSettingsModal } from './GroupSettingsModal';
 import { isDirectMessage } from '@/utils/channel';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { isAdmin } from '@/utils/role';
+import { isWails } from '@/utils/wails';
+import { useVoiceChat } from '@/hooks/useVoiceChat';
+import { useVoiceStore } from '@/store/voiceStore';
 
 interface ChatTopbarProps {
 	channel: Channel;
@@ -35,6 +50,11 @@ export const ChatTopbar: React.FC<ChatTopbarProps> = ({
 	const isMobile = useMediaQuery('(max-width: 768px)');
 	const { setRightSidebarOpen, isRightSidebarOpen } = useAppStore();
 	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
+
+	const { startVoice, stopVoice } = useVoiceChat();
+	const isActive = useVoiceStore(
+		(state) => state.isActive && state.activeChannelId === channel.id,
+	);
 
 	return (
 		<Profiler id="ChatTopbar" onRender={logProfiler}>
@@ -71,13 +91,18 @@ export const ChatTopbar: React.FC<ChatTopbarProps> = ({
 					</div>
 				</div>
 				<div className="flex items-center gap-2 sm:gap-4 text-muted-foreground">
-					<div className={`flex items-center bg-secondary/50 rounded-lg px-2 transition-all duration-200 ${isSearching || searchQuery ? 'w-32 sm:w-48 ring-1 ring-primary/20' : 'w-9 bg-transparent'}`}>
-						<button 
+					<div
+						className={`flex items-center bg-secondary/50 rounded-lg px-2 transition-all duration-200 ${isSearching || searchQuery ? 'w-32 sm:w-48 ring-1 ring-primary/20' : 'w-9 bg-transparent'}`}
+					>
+						<button
 							onClick={() => setIsSearching(!isSearching)}
-							className="hover:text-foreground transition p-1" 
+							className="hover:text-foreground transition p-1"
 							title="Search"
 						>
-							<Search size={20} className={`${(isSearching || searchQuery) ? 'text-primary opacity-100' : 'opacity-70'}`} />
+							<Search
+								size={20}
+								className={`${isSearching || searchQuery ? 'text-primary opacity-100' : 'opacity-70'}`}
+							/>
 						</button>
 						{(isSearching || searchQuery) && (
 							<>
@@ -98,7 +123,7 @@ export const ChatTopbar: React.FC<ChatTopbarProps> = ({
 										if (!searchQuery) setIsSearching(false);
 									}}
 								/>
-								<button 
+								<button
 									onClick={() => {
 										if (searchQuery) {
 											onSearchChange('');
@@ -134,6 +159,20 @@ export const ChatTopbar: React.FC<ChatTopbarProps> = ({
 								size={22}
 								className="opacity-80 hover:opacity-100"
 							/>
+						</button>
+					)}
+
+					{isWails() && (
+						<button
+							onClick={() => (isActive ? stopVoice() : startVoice(channel.id))}
+							className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors duration-200 ${
+								isActive
+									? 'bg-primary/10 text-primary border border-primary/30'
+									: 'hover:bg-secondary text-muted-foreground hover:text-foreground'
+							}`}
+							title={isActive ? 'Leave Voice Chat' : 'Join Voice Chat'}
+						>
+							<Mic size={20} />
 						</button>
 					)}
 				</div>

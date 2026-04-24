@@ -31,9 +31,11 @@ type Handler struct {
 	Storage        storage.BlobStorage
 	TokenTTL       time.Duration
 	MaxFileSizeMB  int
+	UDPPort        int
 	IsDev          bool
 	FrontendOrigin string
 }
+
 
 // NewRouter wires the full HTTP API with rate limiting.
 func NewRouter(h *Handler, globalRPS, authRPS float64) http.Handler {

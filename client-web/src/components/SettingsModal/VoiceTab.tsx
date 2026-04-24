@@ -1,8 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mic, Check, Play, Square } from 'lucide-react';
-import { Label } from '@/components/ui/label';
+import { Mic, Play, Square } from 'lucide-react';
 
 export const VoiceTab = () => {
 	const { t } = useTranslation();

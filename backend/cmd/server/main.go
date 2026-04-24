@@ -43,6 +43,7 @@ import (
 	"nodetalk/backend/internal/middleware"
 	"nodetalk/backend/internal/storage"
 	"nodetalk/backend/internal/store"
+	"nodetalk/backend/internal/voice"
 	"nodetalk/backend/internal/ws"
 )
 
@@ -106,6 +107,7 @@ func main() {
 		Storage:        blobStorage,
 		TokenTTL:       tokenTTL,
 		MaxFileSizeMB:  cfg.Server.MaxFileSizeMB,
+		UDPPort:        cfg.Server.UDPPort,
 		IsDev:          cfg.Server.Dev,
 		FrontendOrigin: cfg.Server.FrontendOrigin,
 	}
@@ -130,7 +132,8 @@ func main() {
 
 	// ── 8. UDP voice router ────────────────────────────────────────────────
 	if cfg.Server.UDPPort > 0 {
-		go startUDPRouter(cfg.Server.UDPPort)
+		voiceRouter := voice.NewRouter(sessions, hub)
+		go startUDPRouter(cfg.Server.UDPPort, voiceRouter)
 	}
 
 	// ── 9. Graceful shutdown ───────────────────────────────────────────────
@@ -156,7 +159,7 @@ func main() {
 
 // startUDPRouter opens a raw UDP socket for desktop voice routing.
 // The server routes opaque audio packets — it never decodes them.
-func startUDPRouter(port int) {
+func startUDPRouter(port int, router *voice.Router) {
 	addr := &net.UDPAddr{Port: port}
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
@@ -166,15 +169,5 @@ func startUDPRouter(port int) {
 	defer conn.Close()
 	log.Printf("UDP voice router on :%d", port)
 
-	// Routing table: maps sessionToken → remoteAddr (Phase 5)
-	buf := make([]byte, 4096)
-	for {
-		n, remoteAddr, err := conn.ReadFromUDP(buf)
-		if err != nil {
-			log.Printf("UDP read error: %v", err)
-			continue
-		}
-		// Phase 5 TODO: route to peer based on session token header
-		_, _ = conn.WriteToUDP(buf[:n], remoteAddr)
-	}
+	router.HandleConn(conn)
 }

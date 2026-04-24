@@ -7,6 +7,7 @@ import (
 // VersionResponse represents the standard server response for the version API.
 type VersionResponse struct {
 	Version string `json:"version" example:"V1.0.0"`
+	UDPPort int    `json:"udp_port" example:"9090"`
 }
 
 // GetVersion godoc
@@ -19,5 +20,6 @@ type VersionResponse struct {
 func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, VersionResponse{
 		Version: "V1.0.0",
+		UDPPort: h.UDPPort,
 	})
 }
