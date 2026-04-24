@@ -10,11 +10,11 @@
         <key>CFBundleIdentifier</key>
         <string>com.wails.NodeTalk</string>
         <key>CFBundleVersion</key>
-        <string>0.1.0</string>
+        <string>0.9.0</string>
         <key>CFBundleGetInfoString</key>
-        <string>Self-hosted, end-to-end encrypted communication</string>
+        <string>Self-hosted, encrypted communication</string>
         <key>CFBundleShortVersionString</key>
-        <string>0.1.0</string>
+        <string>0.9.0</string>
         <key>CFBundleIconFile</key>
         <string>iconfile</string>
         <key>LSMinimumSystemVersion</key>
@@ -25,11 +25,6 @@
         <string>Copyright © 2026 NodeTalk Contributors</string>
         
         
-        <key>NSAppTransportSecurity</key>
-        <dict>
-            <key>NSAllowsLocalNetworking</key>
-            <true/>
-        </dict>
         <key>NSMicrophoneUsageDescription</key>
         <string>NodeTalk needs access to your microphone to record voice messages.</string>
     </dict>
