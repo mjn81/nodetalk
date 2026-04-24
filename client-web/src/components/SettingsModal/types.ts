@@ -1,1 +1,1 @@
-export type SettingsTab = 'account' | 'appearance' | 'privacy' | 'notifications';
+export type SettingsTab = 'account' | 'appearance' | 'privacy' | 'notifications' | 'voice';

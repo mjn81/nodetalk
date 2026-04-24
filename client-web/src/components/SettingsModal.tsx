@@ -13,6 +13,7 @@ import { AccountTab } from './SettingsModal/AccountTab';
 import { AppearanceTab } from './SettingsModal/AppearanceTab';
 import { PrivacyTab } from './SettingsModal/PrivacyTab';
 import { NotificationsTab } from './SettingsModal/NotificationsTab';
+import { VoiceTab } from './SettingsModal/VoiceTab';
 import type { SettingsTab } from './SettingsModal/types';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
@@ -84,6 +85,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 										{activeTab === 'appearance' && t('settings.appearance')}
 										{activeTab === 'notifications' &&
 											t('settings.notifications')}
+										{activeTab === 'voice' && t('settings.voice_video')}
 									</span>
 								</div>
 							)}
@@ -97,6 +99,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 								{activeTab === 'appearance' && <AppearanceTab />}
 								{activeTab === 'privacy' && <PrivacyTab />}
 								{activeTab === 'notifications' && <NotificationsTab />}
+								{activeTab === 'voice' && <VoiceTab />}
 							</div>
 
 							{/* Floating Close Button - Desktop Only */}

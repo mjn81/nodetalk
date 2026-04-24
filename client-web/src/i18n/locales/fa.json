@@ -77,5 +77,26 @@
     "mic_denied": "دسترسی به میکروفون رد شد",
     "encrypted": "[رمزگذاری‌شده]",
     "decryption_failed": "[رمزگشایی ناموفق بود]"
+  },
+  "settings": {
+    "title": "تنظیمات کاربر",
+    "my_account": "حساب من",
+    "privacy": "حریم خصوصی و امنیت",
+    "appearance": "ظاهر",
+    "notifications": "اعلان‌ها",
+    "voice_video": "صدا و ویدیو",
+    "logout": "خروج",
+    "theme": "تم",
+    "dark": "تاریک",
+    "light": "روشن",
+    "language": "زبان",
+    "microphone": "میکروفون",
+    "input_device": "دستگاه ورودی",
+    "input_volume": "صدای ورودی",
+    "test_mic": "تست میکروفون",
+    "stop_test": "توقف تست",
+    "mic_help": "میکروفونی که برنامه باید استفاده کند را انتخاب کنید.",
+    "wip_title": "در حال توسعه",
+    "wip_description": "این تنظیمات در به‌روزرسانی‌های آینده در دسترس خواهند بود."
   }
 }

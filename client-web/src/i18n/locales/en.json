@@ -104,6 +104,13 @@
 		"dark": "Dark",
 		"light": "Light",
 		"language": "Language",
+		"voice_video": "Voice & Video",
+		"microphone": "Microphone",
+		"input_device": "Input Device",
+		"input_volume": "Input Volume",
+		"test_mic": "Test Microphone",
+		"stop_test": "Stop Test",
+		"mic_help": "Select which microphone the app should use.",
 		"wip_title": "Work in Progress",
 		"wip_description": "These settings are coming in a future update."
 	}

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { User, Shield, Palette, Bell, LogOut } from 'lucide-react';
+import { User, Shield, Palette, Bell, LogOut, Mic } from 'lucide-react';
 import { useAuthStore } from '@/store/store';
 import { TabButton } from './TabButton';
 import type { SettingsTab } from './types';
@@ -59,6 +59,13 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobile }: SidebarProps) => 
 							id="notifications"
 							label={t('settings.notifications')}
 							icon={Bell}
+							activeTab={activeTab}
+							setActiveTab={setActiveTab}
+						/>
+						<TabButton
+							id="voice"
+							label={t('settings.voice_video')}
+							icon={Mic}
 							activeTab={activeTab}
 							setActiveTab={setActiveTab}
 						/>

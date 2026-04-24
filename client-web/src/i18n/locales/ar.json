@@ -77,5 +77,26 @@
     "mic_denied": "تم رفض الوصول إلى الميكروفون",
     "encrypted": "[مشفّر]",
     "decryption_failed": "[فشل فك التشفير]"
+  },
+  "settings": {
+    "title": "إعدادات المستخدم",
+    "my_account": "حسابي",
+    "privacy": "الخصوصية والأمان",
+    "appearance": "المظهر",
+    "notifications": "الإشعارات",
+    "voice_video": "الصوت والفيديو",
+    "logout": "تسجيل الخروج",
+    "theme": "الموضوع",
+    "dark": "داكن",
+    "light": "فاتح",
+    "language": "اللغة",
+    "microphone": "الميكروفون",
+    "input_device": "جهاز الإدخال",
+    "input_volume": "حجم الإدخال",
+    "test_mic": "اختبار الميكروفون",
+    "stop_test": "إيقاف الاختبار",
+    "mic_help": "اختر الميكروفون الذي يجب أن يستخدمه التطبيق.",
+    "wip_title": "قيد التطوير",
+    "wip_description": "ستتوفر هذه الإعدادات في تحديث مستقبلي."
   }
 }

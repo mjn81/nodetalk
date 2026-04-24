@@ -28,7 +28,14 @@ export default function VoiceRecorder({ onFile, size = 24 }: VoiceRecorderProps)
 			if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
 				throw new Error('Your browser or environment does not support microphone access (possibly due to insecure context or missing permissions).');
 			}
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			const preferredMicId = localStorage.getItem('preferred-mic-id');
+			const constraints: MediaStreamConstraints = {
+				audio: preferredMicId && preferredMicId !== 'default' 
+					? { deviceId: { exact: preferredMicId } } 
+					: true
+			};
+
+			const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
 			// Find supported mime type - expand for Safari/WebKit compatibility
 			const mimeType = ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/aac'].find((type) =>
