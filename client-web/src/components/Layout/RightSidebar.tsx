@@ -38,7 +38,9 @@ interface RightSidebarProps {
 	isCollapsed?: boolean;
 }
 
-export default function RightSidebar({ isCollapsed = false }: RightSidebarProps) {
+export default function RightSidebar({
+	isCollapsed = false,
+}: RightSidebarProps) {
 	const activeChannel = useChannelStore((state) => state.activeChannel);
 	const refreshChannels = useChannelStore((state) => state.refreshChannels);
 	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
@@ -79,15 +81,32 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 	}, [activeChannel]);
 
 	// ... (rest of the logic)
-	const owners = useMemo(() => members.filter((m) => isOwner(m.role) && m.status !== 'offline'), [members]);
-	const admins = useMemo(() => members.filter((m) => m.role === ChannelRole.ADMIN && m.status !== 'offline'), [members]);
-	const onlineMembers = useMemo(() => members.filter(
-		(m) => m.role === ChannelRole.MEMBER && m.status !== 'offline',
-	), [members]);
-	const offlineMembers = useMemo(() => members.filter((m) => m.status === 'offline'), [members]);
+	const owners = useMemo(
+		() => members.filter((m) => isOwner(m.role) && m.status !== 'offline'),
+		[members],
+	);
+	const admins = useMemo(
+		() =>
+			members.filter(
+				(m) => m.role === ChannelRole.ADMIN && m.status !== 'offline',
+			),
+		[members],
+	);
+	const onlineMembers = useMemo(
+		() =>
+			members.filter(
+				(m) => m.role === ChannelRole.MEMBER && m.status !== 'offline',
+			),
+		[members],
+	);
+	const offlineMembers = useMemo(
+		() => members.filter((m) => m.status === 'offline'),
+		[members],
+	);
 
 	const isDM = activeChannel ? isDirectMessage(activeChannel) : false;
-	const myRole = (activeChannel && user) ? (activeChannel.member_roles?.[user.id] || 0) : 0;
+	const myRole =
+		activeChannel && user ? activeChannel.member_roles?.[user.id] || 0 : 0;
 
 	const handleLeave = async () => {
 		if (!user || !activeChannel) return;
@@ -136,14 +155,18 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 
 	return (
 		<Profiler id="RightSidebar" onRender={logProfiler}>
-			<div 
+			<div
 				className="flex flex-col h-full bg-secondary"
 				onTouchStart={handleTouchStart}
 				onTouchEnd={handleTouchEnd}
 			>
 				{/* Header - Styled to match ChatTopbar, adaptive to collapse */}
-				<div className={`flex items-center h-12 border-b border-border shrink-0 shadow-sm bg-background transition-all ${isCollapsed ? 'justify-center w-full' : 'px-4 gap-3'}`}>
-					<div className={`flex items-center gap-3 min-w-0 ${isCollapsed ? 'justify-center w-full' : 'flex-1'}`}>
+				<div
+					className={`flex items-center h-12 border-b border-border shrink-0 shadow-sm bg-background transition-all ${isCollapsed ? 'justify-center w-full' : 'px-4 gap-3'}`}
+				>
+					<div
+						className={`flex items-center gap-3 min-w-0 ${isCollapsed ? 'justify-center w-full' : 'flex-1'}`}
+					>
 						{isMobile ? (
 							<button
 								onClick={() => setRightSidebarOpen(false)}
@@ -165,7 +188,9 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 				</div>
 
 				<ScrollArea className="flex-1">
-					<div className={`flex flex-col ${isCollapsed ? 'pt-4 items-center' : 'pt-5 pb-4'}`}>
+					<div
+						className={`flex flex-col ${isCollapsed ? 'pt-4 items-center' : 'pt-5 pb-4'}`}
+					>
 						<Section
 							title="Owner"
 							count={owners.length}
@@ -215,7 +240,9 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 
 				{/* Leave Channel Footer */}
 				{!isDM && (
-					<div className={`border-t border-border/50 bg-background/20 shrink-0 ${isCollapsed ? 'flex items-center justify-center h-14' : 'p-4'}`}>
+					<div
+						className={`border-t border-border/50 bg-background/20 shrink-0 ${isCollapsed ? 'flex items-center justify-center h-14' : 'p-4'}`}
+					>
 						{isCollapsed ? (
 							<TooltipProvider delayDuration={0}>
 								<Tooltip>
@@ -241,7 +268,9 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 								title="Leave Channel"
 							>
 								<LogOut size={16} className="shrink-0" />
-								<span className="truncate whitespace-nowrap">Leave Channel</span>
+								<span className="truncate whitespace-nowrap">
+									Leave Channel
+								</span>
 							</button>
 						)}
 					</div>
@@ -285,23 +314,34 @@ interface SectionProps {
 	isCollapsed: boolean;
 }
 
-const Section = memo(({ title, count, list, isCollapsed, ...props }: SectionProps) => {
-	if (list.length === 0) return null;
-	return (
-		<div className={`mb-5 ${isCollapsed ? 'flex flex-col items-center w-full' : ''}`}>
-			{!isCollapsed && (
-				<h3 className="text-[11px] font-bold text-muted-foreground/60 px-4 mb-1 tracking-wider uppercase select-none truncate">
-					{title} — {count}
-				</h3>
-			)}
-			<div className={`flex flex-col gap-0.5 ${isCollapsed ? 'w-full items-center' : ''}`}>
-				{list.map((m) => (
-					<MemberRow key={m.id} member={m} isCollapsed={isCollapsed} {...props} />
-				))}
+const Section = memo(
+	({ title, count, list, isCollapsed, ...props }: SectionProps) => {
+		if (list.length === 0) return null;
+		return (
+			<div
+				className={`mb-5 ${isCollapsed ? 'flex flex-col items-center w-full' : ''}`}
+			>
+				{!isCollapsed && (
+					<h3 className="text-[11px] font-bold text-muted-foreground/60 px-4 mb-1 tracking-wider uppercase select-none truncate">
+						{title} — {count}
+					</h3>
+				)}
+				<div
+					className={`flex flex-col gap-0.5 ${isCollapsed ? 'w-full items-center' : ''}`}
+				>
+					{list.map((m) => (
+						<MemberRow
+							key={m.id}
+							member={m}
+							isCollapsed={isCollapsed}
+							{...props}
+						/>
+					))}
+				</div>
 			</div>
-		</div>
-	);
-});
+		);
+	},
+);
 
 Section.displayName = 'Section';
 
@@ -315,110 +355,115 @@ interface MemberRowProps {
 	isCollapsed: boolean;
 }
 
-const MemberRow = memo(({
-	member,
-	user,
-	isDM,
-	myRole,
-	onUpdateRole,
-	onKick,
-	isCollapsed,
-}: MemberRowProps) => {
-	const isMe = member.id === user?.id;
-	const canKick = !isDM && isAdmin(myRole) && myRole > member.role && !isMe;
-	const canPromote = !isDM && isOwner(myRole) && member.role === ChannelRole.MEMBER && !isMe;
-	const canDemote = !isDM && isOwner(myRole) && member.role === ChannelRole.ADMIN && !isMe;
+const MemberRow = memo(
+	({
+		member,
+		user,
+		isDM,
+		myRole,
+		onUpdateRole,
+		onKick,
+		isCollapsed,
+	}: MemberRowProps) => {
+		const isMe = member.id === user?.id;
+		const canKick = !isDM && isAdmin(myRole) && myRole > member.role && !isMe;
+		const canPromote =
+			!isDM && isOwner(myRole) && member.role === ChannelRole.MEMBER && !isMe;
+		const canDemote =
+			!isDM && isOwner(myRole) && member.role === ChannelRole.ADMIN && !isMe;
 
-	const roleColor =
-		isOwner(member.role)
+		const roleColor = isOwner(member.role)
 			? 'text-amber-400'
 			: member.role === ChannelRole.ADMIN
 				? 'text-blue-400'
 				: 'text-foreground';
 
-	return (
-		<ContextMenu>
-			<ContextMenuTrigger>
-				<TooltipProvider delayDuration={0}>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<div className={`flex items-center rounded-md cursor-pointer transition-all hover:bg-white/5 active:bg-white/10 group relative ${isCollapsed ? 'justify-center p-2' : 'gap-3 px-2 py-1.5 mx-2'}`}>
-								<div className="relative shrink-0">
-									<Avatar
-										userId={member.id}
-										avatarId={member.avatar_id}
-										size={32}
-										className="shrink-0"
-									/>
-									<div
-										className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-[3px] border-secondary group-hover:border-accent/50 transition-colors ${
-											member.status === 'online'
-												? 'bg-green-500'
-												: member.status === 'away'
-													? 'bg-yellow-500'
-													: member.status === 'dnd'
-														? 'bg-red-500'
-														: 'bg-gray-500'
-										}`}
-									/>
-								</div>
-								{!isCollapsed && (
-									<div className="flex flex-col flex-1 min-w-0">
-										<div className="flex items-center gap-1.5 min-w-0">
-											<span
-												className={`text-[14px] font-medium leading-tight truncate ${member.status !== 'offline' ? roleColor : 'text-muted-foreground/50'}`}
-											>
-												{member.username}
-											</span>
-										</div>
+		return (
+			<ContextMenu>
+				<ContextMenuTrigger>
+					<TooltipProvider delayDuration={0}>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<div
+									className={`flex items-center rounded-md cursor-pointer transition-all hover:bg-white/5 active:bg-white/10 group relative ${isCollapsed ? 'justify-center p-2' : 'gap-3 px-2 py-1.5 mx-2'}`}
+								>
+									<div className="relative shrink-0">
+										<Avatar
+											userId={member.id}
+											avatarId={member.avatar_id}
+											size={32}
+											className="shrink-0"
+										/>
+										<div
+											className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-[3px] border-secondary group-hover:border-accent/50 transition-colors ${
+												member.status === 'online'
+													? 'bg-green-500'
+													: member.status === 'away'
+														? 'bg-yellow-500'
+														: member.status === 'dnd'
+															? 'bg-red-500'
+															: 'bg-gray-500'
+											}`}
+										/>
 									</div>
-								)}
-							</div>
-						</TooltipTrigger>
-						{isCollapsed && (
-							<TooltipContent side="left" className="font-bold">
-								{member.username}
-							</TooltipContent>
-						)}
-					</Tooltip>
-				</TooltipProvider>
-			</ContextMenuTrigger>
-			{(canKick || canPromote || canDemote) && (
-				<ContextMenuContent className="w-48">
-					{canPromote && (
-						<ContextMenuItem
-							className="gap-2"
-							onClick={() => onUpdateRole(member.id, ChannelRole.ADMIN)}
-						>
-							<Shield size={16} className="text-blue-400" />
-							Promote to Admin
-						</ContextMenuItem>
-					)}
-					{canDemote && (
-						<ContextMenuItem
-							className="gap-2"
-							onClick={() => onUpdateRole(member.id, ChannelRole.MEMBER)}
-						>
-							<UserMinus size={16} className="text-muted-foreground" />
-							Demote to Member
-						</ContextMenuItem>
-					)}
-					{canKick && (
-						<>
-							{(canPromote || canDemote) && <ContextMenuSeparator />}
+									{!isCollapsed && (
+										<div className="flex flex-col flex-1 min-w-0">
+											<div className="flex items-center gap-1.5 min-w-0">
+												<span
+													className={`text-[14px] font-medium leading-tight truncate ${member.status !== 'offline' ? roleColor : 'text-muted-foreground/50'}`}
+												>
+													{member.username}
+												</span>
+											</div>
+										</div>
+									)}
+								</div>
+							</TooltipTrigger>
+							{isCollapsed && (
+								<TooltipContent side="left" className="font-bold">
+									{member.username}
+								</TooltipContent>
+							)}
+						</Tooltip>
+					</TooltipProvider>
+				</ContextMenuTrigger>
+				{(canKick || canPromote || canDemote) && (
+					<ContextMenuContent className="w-48">
+						{canPromote && (
 							<ContextMenuItem
-								className="text-destructive focus:text-destructive focus:bg-destructive/10 font-bold gap-2"
-								onClick={() => onKick(member)}
+								className="gap-2"
+								onClick={() => onUpdateRole(member.id, ChannelRole.ADMIN)}
 							>
-								<UserMinus size={16} />
-								Kick Member
+								<Shield size={16} className="text-blue-400" />
+								Promote to Admin
 							</ContextMenuItem>
-						</>
-					)}
-				</ContextMenuContent>
-			)}
-		</ContextMenu>
-	);
-});
+						)}
+						{canDemote && (
+							<ContextMenuItem
+								className="gap-2"
+								onClick={() => onUpdateRole(member.id, ChannelRole.MEMBER)}
+							>
+								<UserMinus size={16} className="text-muted-foreground" />
+								Demote to Member
+							</ContextMenuItem>
+						)}
+						{canKick && (
+							<>
+								{(canPromote || canDemote) && <ContextMenuSeparator />}
+								<ContextMenuItem
+									className="text-destructive focus:text-destructive focus:bg-destructive/10 font-bold gap-2"
+									onClick={() => onKick(member)}
+								>
+									<UserMinus size={16} />
+									Kick Member
+								</ContextMenuItem>
+							</>
+						)}
+					</ContextMenuContent>
+				)}
+			</ContextMenu>
+		);
+	},
+);
 
 MemberRow.displayName = 'MemberRow';
