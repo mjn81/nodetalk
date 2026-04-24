@@ -116,8 +116,10 @@ func main() {
 
 	rootMux := http.NewServeMux()
 	rootMux.Handle("/ws", hub)
-	// Swagger UI — available at /api/docs/
-	rootMux.Handle("/api/docs/", httpSwagger.WrapHandler)
+	// Swagger UI — available at /api/docs/ only in dev mode
+	if cfg.Server.Dev {
+		rootMux.Handle("/api/docs/", httpSwagger.WrapHandler)
+	}
 	rootMux.Handle("/", api.NewRouter(apiHandler, float64(cfg.RateLimit.GlobalRPS), float64(cfg.RateLimit.AuthRPS)))
 
 	// ── 7. HTTP server ─────────────────────────────────────────────────────
