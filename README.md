@@ -62,11 +62,17 @@ NodeTalk uses a **Server-Trusted Encryption** model. While all communication is 
 ## Quick Start
 
 ### 1 — Docker (Recommended)
-The fastest way to deploy NodeTalk is using Docker Compose.
+The fastest way to deploy NodeTalk is using Docker.
+
+*   **Development**: Use the root `docker-compose.yml` to build from source.
+*   **Production**: Use our pre-built images. See the [Production Example](./examples/docker-compose/production/) for a ready-to-use setup.
+
 ```bash
+# To run the development version:
 docker-compose up -d
 ```
-See [DOCKER.md](./DOCKER.md) for detailed configuration.
+
+See [DOCKER.md](./DOCKER.md) for detailed configuration and the [Examples](./examples/) directory for more deployment scenarios.
 
 ### 2 — Native Build (Go & Node)
 ```bash

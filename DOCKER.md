@@ -18,6 +18,9 @@ The easiest way to get started is using Docker Compose.
    ```
 3. Open your browser and navigate to `http://localhost:3000`.
 
+> [!TIP]
+> For a production-ready setup using pre-built images, check out the [Production Example](./examples/docker-compose/production/).
+
 ---
 
 ## 2. Configuration

@@ -1,0 +1,21 @@
+services:
+  backend:
+    image: mjn81/nodetalk-server:latest
+    ports:
+      - "8080:8080"
+      - "9090:9090/udp"
+    volumes:
+      - ./data:/app/data
+      - ./config.toml:/app/config.toml
+    restart: unless-stopped
+
+  frontend:
+    image: mjn81/nodetalk-webclient:latest
+    ports:
+      - "3000:80"
+    environment:
+      # Update this to your public domain or server IP in production
+      - VITE_API_URL=http://localhost:8080
+    depends_on:
+      - backend
+    restart: unless-stopped
