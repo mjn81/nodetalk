@@ -1,4 +1,8 @@
-.PHONY: help build run dev wails/dev wails/build wails/build/mac swagger test tidy lint clean docker/build docker/push
+.PHONY: help build run dev wails/dev wails/build wails/build/mac wails/build/windows wails/build/linux backend/release release swagger test tidy lint clean docker/build docker/push
+
+release: clean backend/release wails/build/mac wails/build/windows wails/build/linux ## Build and package ALL assets for release
+	./scripts/package_release.sh
+
 
 GOBIN := $(HOME)/go/bin
 GO    := go
@@ -55,6 +59,26 @@ wails/build/mac: build front/build ## Build macOS universal binary
 	mkdir -p client-desktop/frontend/dist
 	cp -r client-web/dist/* client-desktop/frontend/dist/
 	cd client-desktop && $(GOBIN)/wails build -clean -platform darwin/universal -s
+
+wails/build/windows: build front/build ## Build Windows binary (amd64)
+	rm -rf client-desktop/frontend/dist
+	mkdir -p client-desktop/frontend/dist
+	cp -r client-web/dist/* client-desktop/frontend/dist/
+	cd client-desktop && $(GOBIN)/wails build -clean -platform windows/amd64 -s
+
+wails/build/linux: build front/build ## Build Linux binary (amd64)
+	rm -rf client-desktop/frontend/dist
+	mkdir -p client-desktop/frontend/dist
+	cp -r client-web/dist/* client-desktop/frontend/dist/
+	cd client-desktop && $(GOBIN)/wails build -clean -platform linux/amd64 -s
+
+backend/release: ## Build backend binaries for multiple platforms
+	mkdir -p release/backend
+	GOOS=linux   GOARCH=amd64 $(GO) build -o release/backend/nodetalk-server-linux-amd64 backend/cmd/server/main.go
+	GOOS=darwin  GOARCH=amd64 $(GO) build -o release/backend/nodetalk-server-darwin-amd64 backend/cmd/server/main.go
+	GOOS=darwin  GOARCH=arm64 $(GO) build -o release/backend/nodetalk-server-darwin-arm64 backend/cmd/server/main.go
+	GOOS=windows GOARCH=amd64 $(GO) build -o release/backend/nodetalk-server-windows-amd64.exe backend/cmd/server/main.go
+	@echo "Backend binaries built in release/backend/"
 
 ## ── Docker ───────────────────────────────────────────────────────────────────
 docker/build: ## Build production Docker images
