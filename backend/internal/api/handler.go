@@ -24,13 +24,15 @@ type ChannelBroadcaster interface {
 
 // Handler bundles all HTTP handler dependencies.
 type Handler struct {
-	Store       *store.Store
-	Sessions    *auth.SessionStore
-	Hub           ChannelBroadcaster
-	KEK           []byte
-	Storage       storage.BlobStorage
-	TokenTTL      time.Duration
-	MaxFileSizeMB int
+	Store          *store.Store
+	Sessions       *auth.SessionStore
+	Hub            ChannelBroadcaster
+	KEK            []byte
+	Storage        storage.BlobStorage
+	TokenTTL       time.Duration
+	MaxFileSizeMB  int
+	IsDev          bool
+	FrontendOrigin string
 }
 
 // NewRouter wires the full HTTP API with rate limiting.
@@ -76,5 +78,5 @@ func NewRouter(h *Handler, globalRPS, authRPS float64) http.Handler {
 	mux.Handle("POST /api/files",                        protect(h.UploadFile))
 	mux.Handle("GET /api/files/{id}",                    protect(h.DownloadFile))
 
-	return middleware.CORS(mux)
+	return middleware.CORS(mux, h.IsDev, h.FrontendOrigin)
 }

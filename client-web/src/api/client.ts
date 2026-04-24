@@ -10,18 +10,25 @@ const getBaseUrl = () => {
 	const envUrl = import.meta.env.VITE_API_URL;
 	if (envUrl && !envUrl.includes('localhost')) return envUrl.replace(/\/$/, '');
 	
-	// If we're on localhost/[::1] and no explicit env URL (or it's localhost),
-	// match the hostname the user is actually using.
 	if (typeof window !== 'undefined') {
 		const host = window.location.hostname;
 		if (host === '[::1]' || host === '127.0.0.1' || host === 'localhost') {
-			return `http://${host}:8080`;
+			// Use 127.0.0.1 explicitly to avoid IPv6/IPv4 cookie mismatches
+			return `http://127.0.0.1:8080`;
 		}
 	}
-	return (envUrl ?? 'http://localhost:8080').replace(/\/$/, '');
+	return (envUrl ?? 'http://127.0.0.1:8080').replace(/\/$/, '');
 };
 
-const BASE_URL = getBaseUrl();
+export let BASE_URL = getBaseUrl();
+
+export const setApiBaseUrl = (url: string) => {
+	BASE_URL = url.replace(/\/$/, '');
+	apiClient.defaults.baseURL = BASE_URL;
+	if (typeof window !== 'undefined') {
+		window.dispatchEvent(new Event('api:url_changed'));
+	}
+};
 
 // ─────────────────────────────────────────────
 // Custom Error Types
@@ -56,6 +63,27 @@ export const apiClient = axios.create({
 	baseURL: BASE_URL,
 	withCredentials: true,
 	timeout: 3600000, // 1 hour for long uploads/downloads
+});
+
+import { isWails } from '@/utils/wails';
+
+apiClient.interceptors.request.use((config) => {
+	// Token fallback is ONLY for Wails desktop build to bypass cookie blocking
+	if (isWails()) {
+		try {
+			const authData = localStorage.getItem('auth');
+			if (authData) {
+				const { state } = JSON.parse(authData);
+				const token = state?.user?.token;
+				if (token) {
+					config.headers.set('Authorization', `Bearer ${token}`);
+				}
+			}
+		} catch (err) {
+			// Ignore parse errors
+		}
+	}
+	return config;
 });
 
 apiClient.interceptors.response.use(

@@ -1,6 +1,7 @@
 // WebSocket client with auto-reconnect and channel key management
 
 import type { Message } from '@/types/api';
+import { isWails } from '@/utils/wails';
 
 const getWsUrl = () => {
 	const envUrl = import.meta.env.VITE_WS_URL;
@@ -9,10 +10,10 @@ const getWsUrl = () => {
 	if (typeof window !== 'undefined') {
 		const host = window.location.hostname;
 		if (host === '[::1]' || host === '127.0.0.1' || host === 'localhost') {
-			return `ws://${host}:8080`;
+			return `ws://127.0.0.1:8080`;
 		}
 	}
-	return (envUrl ?? 'ws://localhost:8080').replace(/\/$/, '');
+	return (envUrl ?? 'ws://127.0.0.1:8080').replace(/\/$/, '');
 };
 
 const WS_URL = getWsUrl();
@@ -81,12 +82,26 @@ export function wsConnect(): void {
 
   worker.port.start();
 
-  worker.port.postMessage({
-    cmd: 'CONNECT',
-    payload: {
-      url: `${WS_URL}/ws`,
-    }
-  });
+	// Read token from localStorage for authentication fallback (Wails only)
+	let token = '';
+	if (isWails()) {
+		try {
+			const authData = localStorage.getItem('auth');
+			if (authData) {
+				const { state } = JSON.parse(authData);
+				token = state?.user?.token || '';
+			}
+		} catch (err) {
+			// Ignore
+		}
+	}
+
+	worker.port.postMessage({
+		cmd: 'CONNECT',
+		payload: {
+			url: `${WS_URL}/ws${token ? `?token=${token}` : ''}`,
+		}
+	});
 }
 
 export function wsDisconnect(): void {

@@ -19,10 +19,12 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Domain        string `toml:"domain"`
-	HTTPPort      int    `toml:"http_port"`
-	UDPPort       int    `toml:"udp_port"`
-	MaxFileSizeMB int    `toml:"max_file_size_mb"`
+	Domain         string `toml:"domain"`
+	HTTPPort       int    `toml:"http_port"`
+	UDPPort        int    `toml:"udp_port"`
+	MaxFileSizeMB  int    `toml:"max_file_size_mb"`
+	Dev            bool   `toml:"dev"`
+	FrontendOrigin string `toml:"frontend_origin"`
 }
 
 type SecurityConfig struct {
@@ -61,10 +63,12 @@ const configPath = "config.toml"
 func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
-			Domain:        "localhost",
-			HTTPPort:      8080,
-			UDPPort:       9090,
-			MaxFileSizeMB: 100, // Default 100MB
+			Domain:         "localhost",
+			HTTPPort:       8080,
+			UDPPort:        9090,
+			MaxFileSizeMB:  100, // Default 100MB
+			Dev:            false,
+			FrontendOrigin: "http://localhost:5173",
 		},
 		Security: SecurityConfig{
 			MasterPassword:   "",
@@ -98,6 +102,11 @@ func Load() (*Config, error) {
 	// Override master password from environment if set (12-Factor App pattern).
 	if envPwd := os.Getenv("NODETALK_MASTER_PASSWORD"); envPwd != "" {
 		cfg.Security.MasterPassword = envPwd
+	}
+
+	// Dev mode override
+	if os.Getenv("NODE_ENV") == "development" || os.Getenv("GO_ENV") == "development" {
+		cfg.Server.Dev = true
 	}
 
 	// If still unset, generate a secure random password and persist it.

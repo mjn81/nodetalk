@@ -16,7 +16,7 @@ build: ## Build standalone web server binary
 	cd backend && $(GO) build -o ../$(BIN) ./cmd/server
 
 run: ## Run standalone web server (go run)
-	cd backend && $(GO) run ./cmd/server
+	cd backend && GO_ENV=development NODE_ENV=development $(GO) run ./cmd/server
 
 test: ## Run all tests with race detector
 	cd backend && $(GO) test ./... -race -cover -count=1

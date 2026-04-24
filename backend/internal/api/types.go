@@ -29,6 +29,7 @@ type LoginResponse struct {
 	StatusPreference string `json:"status_preference" example:"auto"`
 	AvatarID         string `json:"avatar_id,omitempty"`
 	CustomMsg        string `json:"custom_msg,omitempty"`
+	Token            string `json:"token"`
 }
 
 type ChannelResponse struct {

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useAuthStore } from '@/store/store';
+import { BASE_URL } from '@/api/client';
 
 export default function LoginPage() {
 	const { t } = useTranslation();
@@ -114,6 +115,16 @@ export default function LoginPage() {
 							className="text-primary hover:underline font-medium"
 						>
 							Register
+						</Link>
+					</div>
+
+					<div className="mt-4 pt-4 border-t border-border/10 w-full flex items-center justify-between text-[11px] text-muted-foreground/60 italic">
+						<span>Connecting to: {BASE_URL}</span>
+						<Link
+							to="/connect"
+							className="text-primary hover:underline not-italic font-medium"
+						>
+							Change
 						</Link>
 					</div>
 				</CardFooter>

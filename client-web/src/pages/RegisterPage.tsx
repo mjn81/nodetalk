@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { apiRegister } from '@/api/client';
+import { apiRegister, BASE_URL } from '@/api/client';
 import {
 	Card,
 	CardContent,
@@ -133,6 +133,16 @@ export default function RegisterPage() {
 							className="text-primary hover:underline font-medium"
 						>
 							Already have an account?
+						</Link>
+					</div>
+
+					<div className="mt-4 pt-4 border-t border-border/10 w-full flex items-center justify-between text-[11px] text-muted-foreground/60 italic">
+						<span>Connecting to: {BASE_URL}</span>
+						<Link
+							to="/connect"
+							className="text-primary hover:underline not-italic font-medium"
+						>
+							Change
 						</Link>
 					</div>
 				</CardFooter>

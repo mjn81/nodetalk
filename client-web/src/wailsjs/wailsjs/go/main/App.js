@@ -6,10 +6,10 @@ export function AppVersion() {
   return window['go']['main']['App']['AppVersion']();
 }
 
-export function GetAPIURL() {
-  return window['go']['main']['App']['GetAPIURL']();
+export function GetServerURL() {
+  return window['go']['main']['App']['GetServerURL']();
 }
 
-export function GetWSURL() {
-  return window['go']['main']['App']['GetWSURL']();
+export function SaveServerURL(arg1) {
+  return window['go']['main']['App']['SaveServerURL'](arg1);
 }

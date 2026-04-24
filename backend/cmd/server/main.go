@@ -100,12 +100,14 @@ func main() {
 	}
 
 	apiHandler := &api.Handler{
-		Store:         dataStore,
-		Sessions:      sessions,
-		KEK:           kek,
-		Storage:       blobStorage,
-		TokenTTL:      tokenTTL,
-		MaxFileSizeMB: cfg.Server.MaxFileSizeMB,
+		Store:          dataStore,
+		Sessions:       sessions,
+		KEK:            kek,
+		Storage:        blobStorage,
+		TokenTTL:       tokenTTL,
+		MaxFileSizeMB:  cfg.Server.MaxFileSizeMB,
+		IsDev:          cfg.Server.Dev,
+		FrontendOrigin: cfg.Server.FrontendOrigin,
 	}
 	hub := ws.NewHub(dataStore, sessions, kek)
 	apiHandler.Hub = hub

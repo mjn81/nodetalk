@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -131,23 +132,58 @@ func realIP(r *http.Request) string {
 	return host
 }
 
-// CORS returns a middleware that sets permissive CORS headers, suitable for
-// local dev. Tighten AllowedOrigins for production.
-func CORS(next http.Handler) http.Handler {
+// CORS returns a middleware that sets permissive CORS headers and handles preflight requests.
+func CORS(next http.Handler, isDev bool, allowedOrigins string) http.Handler {
+	// Split allowed origins by comma
+	origins := make(map[string]bool)
+	for _, o := range strings.Split(allowedOrigins, ",") {
+		o = strings.TrimSpace(o)
+		if o != "" {
+			origins[o] = true
+		}
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if origin != "" {
+		
+		// 1. Explicitly handle the Origin header
+		if origins[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-		} else {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
+		} else if isDev {
+			// Fallback for development if no origin is configured or mismatch
+			if origin != "" {
+				// Log the mismatch to help with debugging
+				if allowedOrigins != "" {
+					log.Printf("CORS: Origin mismatch. Got %q, expected one of %q. Falling back to echoing origin in Dev mode.", origin, allowedOrigins)
+				}
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			} else {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			}
+		} else if origin != "" {
+			// Production mismatch logging
+			log.Printf("CORS: REJECTED origin %q. Not in allowed list: %q", origin, allowedOrigins)
 		}
+
+		// 2. Set mandatory CORS headers
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		
+		// 3. Handle allowed headers (Content-Type, Authorization, and any requested headers)
+		requestedHeaders := r.Header.Get("Access-Control-Request-Headers")
+		if requestedHeaders != "" {
+			w.Header().Set("Access-Control-Allow-Headers", requestedHeaders)
+		} else {
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-CSRF-Token")
+		}
+
+		// 4. Intercept and Terminate OPTIONS (Preflight) requests
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
+
+		// 5. Continue for actual requests
 		next.ServeHTTP(w, r)
 	})
 }

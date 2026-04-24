@@ -6,6 +6,7 @@ export interface AuthUser {
 	status_preference: string;
 	avatar_id?: string;
 	custom_msg?: string;
+	token?: string;
 }
 
 export interface Channel {

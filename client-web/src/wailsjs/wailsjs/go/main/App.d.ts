@@ -3,6 +3,6 @@
 
 export function AppVersion():Promise<string>;
 
-export function GetAPIURL():Promise<string>;
+export function GetServerURL():Promise<string>;
 
-export function GetWSURL():Promise<string>;
+export function SaveServerURL(arg1:string):Promise<void>;
