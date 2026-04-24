@@ -40,8 +40,8 @@ export default function LoginPage() {
 	};
 
 	return (
-		<div className="flex h-screen w-full items-center justify-center bg-background">
-			<Card className="w-full max-w-[480px] bg-background border-none sm:bg-secondary/50 sm:backdrop-blur-md sm:shadow-lg sm:p-4 text-foreground">
+		<div className="flex h-screen w-full flex-col items-center justify-center bg-background relative overflow-hidden">
+			<Card className="w-full max-w-[480px] bg-background border-none sm:bg-secondary/50 sm:backdrop-blur-md sm:shadow-lg sm:p-4 text-foreground z-10">
 				<CardHeader className="text-center space-y-2 pb-6">
 					<CardTitle className="text-2xl font-bold text-foreground tracking-wide">
 						Welcome back!
@@ -118,6 +118,15 @@ export default function LoginPage() {
 					</div>
 				</CardFooter>
 			</Card>
+
+			<div className="absolute bottom-8 flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity duration-300">
+				<p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground select-none">
+					NodeTalk is open source
+				</p>
+				<p className="text-[10px] font-medium text-muted-foreground select-none">
+					made with ❤️ by <span className="text-foreground">mjn</span>
+				</p>
+			</div>
 		</div>
 	);
 }

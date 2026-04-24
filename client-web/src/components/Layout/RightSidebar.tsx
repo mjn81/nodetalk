@@ -23,6 +23,7 @@ import {
 	ContextMenuSeparator,
 } from '@/components/ui/context-menu';
 import { useRef } from 'react';
+import { ChannelRole, isAdmin, isOwner } from '@/utils/role';
 
 interface Member {
 	id: string;
@@ -78,10 +79,10 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 	}, [activeChannel]);
 
 	// ... (rest of the logic)
-	const owners = useMemo(() => members.filter((m) => m.role >= 20 && m.status !== 'offline'), [members]);
-	const admins = useMemo(() => members.filter((m) => m.role === 10 && m.status !== 'offline'), [members]);
+	const owners = useMemo(() => members.filter((m) => isOwner(m.role) && m.status !== 'offline'), [members]);
+	const admins = useMemo(() => members.filter((m) => m.role === ChannelRole.ADMIN && m.status !== 'offline'), [members]);
 	const onlineMembers = useMemo(() => members.filter(
-		(m) => m.role === 0 && m.status !== 'offline',
+		(m) => m.role === ChannelRole.MEMBER && m.status !== 'offline',
 	), [members]);
 	const offlineMembers = useMemo(() => members.filter((m) => m.status === 'offline'), [members]);
 
@@ -324,14 +325,14 @@ const MemberRow = memo(({
 	isCollapsed,
 }: MemberRowProps) => {
 	const isMe = member.id === user?.id;
-	const canKick = !isDM && myRole >= 10 && myRole > member.role && !isMe;
-	const canPromote = !isDM && myRole >= 20 && member.role === 0 && !isMe;
-	const canDemote = !isDM && myRole >= 20 && member.role === 10 && !isMe;
+	const canKick = !isDM && isAdmin(myRole) && myRole > member.role && !isMe;
+	const canPromote = !isDM && isOwner(myRole) && member.role === ChannelRole.MEMBER && !isMe;
+	const canDemote = !isDM && isOwner(myRole) && member.role === ChannelRole.ADMIN && !isMe;
 
 	const roleColor =
-		member.role >= 20
+		isOwner(member.role)
 			? 'text-amber-400'
-			: member.role === 10
+			: member.role === ChannelRole.ADMIN
 				? 'text-blue-400'
 				: 'text-foreground';
 
@@ -387,7 +388,7 @@ const MemberRow = memo(({
 					{canPromote && (
 						<ContextMenuItem
 							className="gap-2"
-							onClick={() => onUpdateRole(member.id, 10)}
+							onClick={() => onUpdateRole(member.id, ChannelRole.ADMIN)}
 						>
 							<Shield size={16} className="text-blue-400" />
 							Promote to Admin
@@ -396,7 +397,7 @@ const MemberRow = memo(({
 					{canDemote && (
 						<ContextMenuItem
 							className="gap-2"
-							onClick={() => onUpdateRole(member.id, 0)}
+							onClick={() => onUpdateRole(member.id, ChannelRole.MEMBER)}
 						>
 							<UserMinus size={16} className="text-muted-foreground" />
 							Demote to Member

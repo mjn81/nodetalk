@@ -8,6 +8,7 @@ import { getChannelDisplayName, useAppStore, useChannelStore } from '@/store/sto
 import { GroupSettingsModal } from './GroupSettingsModal';
 import { isDirectMessage } from '@/utils/channel';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { isAdmin } from '@/utils/role';
 
 interface ChatTopbarProps {
 	channel: Channel;
@@ -29,7 +30,7 @@ export const ChatTopbar: React.FC<ChatTopbarProps> = ({
 		channel.members.find((m) => m !== currentUserId) || channel.id;
 
 	// Only show settings icon for admins/owners of group channels
-	const canManage = !isDM && channel.user_role >= 10;
+	const canManage = !isDM && isAdmin(channel.user_role);
 
 	const isMobile = useMediaQuery('(max-width: 768px)');
 	const { setRightSidebarOpen, isRightSidebarOpen } = useAppStore();

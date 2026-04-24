@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
 	Dialog,
 	DialogContent,
@@ -9,12 +9,28 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Trash2, Copy, Check, Lock, Globe, Search, UserPlus, X, Loader2 } from 'lucide-react';
+import {
+	Trash2,
+	Copy,
+	Check,
+	Lock,
+	Globe,
+	Search,
+	UserPlus,
+	X,
+	Loader2,
+} from 'lucide-react';
 import { type Channel, type User } from '@/types/api';
-import { apiUpdateChannel, apiDeleteChannel, apiSearchUsers, apiAddMember } from '@/api/client';
+import {
+	apiUpdateChannel,
+	apiDeleteChannel,
+	apiSearchUsers,
+	apiAddMember,
+} from '@/api/client';
 import { useChannelStore } from '@/store/store';
 import { Avatar } from '../Avatar';
 import { ConfirmModal } from '../ConfirmModal';
+import { isAdmin as checkAdmin, isOwner as checkOwner } from '@/utils/role';
 
 interface GroupSettingsModalProps {
 	channel: Channel;
@@ -40,22 +56,19 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 	const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
 	const [isAddingMembers, setIsAddingMembers] = useState(false);
 
-	const isAdmin = channel.user_role >= 10;
-	const isOwner = channel.user_role >= 20;
+	const isAdmin = checkAdmin(channel.user_role);
+	const isOwner = checkOwner(channel.user_role);
 
 	// Search logic
 	useEffect(() => {
-		if (searchTerm.length < 2) {
-			setSearchResults([]);
-			return;
-		}
+		if (searchTerm.length < 2) return;
 
 		const delay = setTimeout(async () => {
 			setIsSearching(true);
 			try {
 				const results = await apiSearchUsers(searchTerm);
 				// Filter out users who are already in the channel
-				const filtered = results.filter(u => !channel.members.includes(u.id));
+				const filtered = results.filter((u) => !channel.members.includes(u.id));
 				setSearchResults(filtered);
 			} catch (err) {
 				console.error('Search failed:', err);
@@ -67,22 +80,28 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 		return () => clearTimeout(delay);
 	}, [searchTerm, channel.members]);
 
+	// Derived results for the UI
+	const visibleResults = searchTerm.length >= 2 ? searchResults : [];
+
 	const handleAddMember = (user: User) => {
-		if (selectedUsers.find(u => u.id === user.id)) return;
+		if (selectedUsers.find((u) => u.id === user.id)) return;
 		setSelectedUsers([...selectedUsers, user]);
 		setSearchTerm('');
 		setSearchResults([]);
 	};
 
 	const removeSelected = (userId: string) => {
-		setSelectedUsers(selectedUsers.filter(u => u.id !== userId));
+		setSelectedUsers(selectedUsers.filter((u) => u.id !== userId));
 	};
 
 	const submitAddMembers = async () => {
 		if (selectedUsers.length === 0) return;
 		setIsAddingMembers(true);
 		try {
-			await apiAddMember(channel.id, selectedUsers.map(u => u.id));
+			await apiAddMember(
+				channel.id,
+				selectedUsers.map((u) => u.id),
+			);
 			await refreshChannels();
 			setSelectedUsers([]);
 			// Optionally show success or just stay open
@@ -152,7 +171,12 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 					{/* Group Name & Status */}
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 						<div className="space-y-2">
-							<Label htmlFor="name" className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Channel Name</Label>
+							<Label
+								htmlFor="name"
+								className="text-xs uppercase font-bold text-muted-foreground tracking-wider"
+							>
+								Channel Name
+							</Label>
 							<Input
 								id="name"
 								value={name}
@@ -163,7 +187,9 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 						</div>
 
 						<div className="space-y-2">
-							<Label className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Privacy</Label>
+							<Label className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
+								Privacy
+							</Label>
 							<div className="flex gap-2">
 								<Button
 									variant={isPrivate ? 'default' : 'outline'}
@@ -189,10 +215,13 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 							<Label className="text-xs uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-2">
 								<UserPlus size={14} /> Add Members
 							</Label>
-							
+
 							<div className="relative">
 								<div className="relative">
-									<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+									<Search
+										className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+										size={16}
+									/>
 									<Input
 										value={searchTerm}
 										onChange={(e) => setSearchTerm(e.target.value)}
@@ -200,23 +229,34 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 										className="pl-10 bg-secondary/30 border-border h-10"
 									/>
 									{isSearching && (
-										<Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-primary" size={16} />
+										<Loader2
+											className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-primary"
+											size={16}
+										/>
 									)}
 								</div>
 
 								{/* Search Results Dropdown */}
-								{searchResults.length > 0 && (
+								{visibleResults.length > 0 && (
 									<div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
-										{searchResults.map(u => (
+										{visibleResults.map((u) => (
 											<button
 												key={u.id}
 												onClick={() => handleAddMember(u)}
 												className="w-full flex items-center gap-3 p-2 hover:bg-accent transition-colors border-b last:border-0 border-border/50"
 											>
-												<Avatar userId={u.id} avatarId={u.avatar_id} size={32} />
+												<Avatar
+													userId={u.id}
+													avatarId={u.avatar_id}
+													size={32}
+												/>
 												<div className="flex flex-col items-start">
-													<span className="text-sm font-bold">{u.username}</span>
-													<span className="text-[10px] text-muted-foreground">@{u.domain}</span>
+													<span className="text-sm font-bold">
+														{u.username}
+													</span>
+													<span className="text-[10px] text-muted-foreground">
+														@{u.domain}
+													</span>
 												</div>
 											</button>
 										))}
@@ -227,11 +267,14 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 							{/* Selected Users Chips */}
 							{selectedUsers.length > 0 && (
 								<div className="flex flex-wrap gap-2 p-2 bg-secondary/20 rounded-lg border border-dashed border-border/50">
-									{selectedUsers.map(u => (
-										<div key={u.id} className="flex items-center gap-2 bg-accent/50 pl-1 pr-2 py-1 rounded-md border border-accent">
+									{selectedUsers.map((u) => (
+										<div
+											key={u.id}
+											className="flex items-center gap-2 bg-accent/50 pl-1 pr-2 py-1 rounded-md border border-accent"
+										>
 											<Avatar userId={u.id} avatarId={u.avatar_id} size={20} />
 											<span className="text-xs font-medium">{u.username}</span>
-											<button 
+											<button
 												onClick={() => removeSelected(u.id)}
 												className="hover:text-destructive transition-colors"
 											>
@@ -239,8 +282,8 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 											</button>
 										</div>
 									))}
-									<Button 
-										size="sm" 
+									<Button
+										size="sm"
 										className="ml-auto h-7 text-[10px] font-bold px-3"
 										onClick={submitAddMembers}
 										disabled={isAddingMembers}
@@ -250,7 +293,8 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 										) : (
 											<UserPlus size={12} className="mr-1" />
 										)}
-										Add {selectedUsers.length} Member{selectedUsers.length > 1 ? 's' : ''}
+										Add {selectedUsers.length} Member
+										{selectedUsers.length > 1 ? 's' : ''}
 									</Button>
 								</div>
 							)}
@@ -260,14 +304,21 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 					{/* Join Link */}
 					{channel.invite_link && (
 						<div className="space-y-2 pt-2 border-t border-border/50">
-							<Label className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Invite Link</Label>
+							<Label className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
+								Invite Link
+							</Label>
 							<div className="flex gap-2">
 								<Input
 									readOnly
 									value={fullInviteLink}
 									className="bg-secondary/30 border-border font-mono text-xs h-9"
 								/>
-								<Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={copyLink}>
+								<Button
+									size="icon"
+									variant="outline"
+									className="h-9 w-9 shrink-0"
+									onClick={copyLink}
+								>
 									{copied ? (
 										<Check size={16} className="text-green-500" />
 									) : (

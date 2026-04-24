@@ -28,8 +28,8 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "auth.errors.invalid_json")
 		return
 	}
-	if body.Username == "" || len(body.Password) < 8 {
-		writeError(w, http.StatusBadRequest, "auth.errors.password_length")
+	if len(body.Username) < 3 || len(body.Password) < 8 {
+		writeError(w, http.StatusBadRequest, "auth.errors.invalid_length")
 		return
 	}
 	u, err := h.Store.CreateUser(body.Username, body.Password, "localhost")

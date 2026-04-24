@@ -88,6 +88,10 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if body.Username != "" && body.Username != u.Username {
+		if len(body.Username) < 3 {
+			writeError(w, http.StatusBadRequest, "username too short")
+			return
+		}
 		// Check if username is already taken by someone else
 		existing, _ := h.Store.GetUserByUsername(body.Username)
 		if existing != nil && existing.ID != u.ID {
