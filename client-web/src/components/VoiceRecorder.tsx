@@ -13,6 +13,8 @@ export default function VoiceRecorder({ onFile, size = 24 }: VoiceRecorderProps)
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 	const chunksRef = useRef<Blob[]>([]);
 	const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	const isDiscardingRef = useRef(false);
+
 
 	const startRecording = async () => {
 		try {
@@ -26,12 +28,19 @@ export default function VoiceRecorder({ onFile, size = 24 }: VoiceRecorderProps)
 			const recorder = new MediaRecorder(stream, { mimeType });
 			mediaRecorderRef.current = recorder;
 			chunksRef.current = [];
+			isDiscardingRef.current = false;
+
 
 			recorder.ondataavailable = (e) => {
 				if (e.data.size > 0) chunksRef.current.push(e.data);
 			};
 
 			recorder.onstop = () => {
+				if (isDiscardingRef.current) {
+					stream.getTracks().forEach((track) => track.stop());
+					return;
+				}
+
 				const mimeType = recorder.mimeType || 'audio/webm';
 				const blob = new Blob(chunksRef.current, { type: mimeType });
 				const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
@@ -57,10 +66,12 @@ export default function VoiceRecorder({ onFile, size = 24 }: VoiceRecorderProps)
 
 	const stopRecording = (shouldSave: boolean) => {
 		if (mediaRecorderRef.current && isRecording) {
+			isDiscardingRef.current = !shouldSave;
 			if (!shouldSave) {
 				chunksRef.current = [];
 			}
 			mediaRecorderRef.current.stop();
+
 			setIsRecording(false);
 			if (timerRef.current) clearInterval(timerRef.current);
 		}
