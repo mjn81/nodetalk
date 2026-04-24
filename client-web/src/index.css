@@ -107,3 +107,41 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(220 6% 26%);
 }
+
+@layer utilities {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Hide scrollbars on mobile for a cleaner look */
+@media (max-width: 768px) {
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Active scale effect for buttons on mobile (Haptic feel) */
+  button:active {
+    transform: scale(0.96);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* Better font smoothing */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fix for mobile height issues */
+.h-screen {
+  height: 100vh; /* Fallback */
+  height: 100dvh;
+}

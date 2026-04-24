@@ -1,15 +1,14 @@
 import { useState, useRef, useMemo, memo, useEffect } from 'react';
 
-import { useAuthStore } from '@/store/store';
+import { useAuthStore, useAppStore } from '@/store/store';
 import { Avatar } from '../Avatar';
 import { type Message, type Channel } from '@/types/api';
 import { FileBubble } from './FileBubble';
 import { Reply, Pencil, Trash2, Play, Pause, CornerUpLeft } from 'lucide-react';
 import { wsEditMessage, wsDeleteMessage } from '@/ws';
-
 import { JoinPreview } from './JoinPreview';
-
 import { ConfirmModal } from '../ConfirmModal';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 interface MessageItemProps {
 	msg: Message & { text?: string };
@@ -34,6 +33,8 @@ export const MessageItem = memo(
 		const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 		const [editValue, setEditValue] = useState(msg.text || '');
 		const isOwn = user?.id === msg.sender_id;
+
+		const isMobile = useMediaQuery('(max-width: 768px)');
 
 		useEffect(() => {
 			const handler = (e: any) => {
@@ -99,7 +100,7 @@ export const MessageItem = memo(
 		return (
 			<div
 				className={`group flex mb-0.5 -mx-4 px-4 py-0.5 transition-colors relative ${
-					!grouped ? 'mt-4' : ''
+					!grouped ? (isMobile ? 'mt-2' : 'mt-4') : ''
 				} ${
 					isMentioned
 						? 'bg-mention border-l-2 border-mention-border hover:opacity-90'
@@ -150,25 +151,25 @@ export const MessageItem = memo(
 					variant="danger"
 				/>
 
-				<div className="flex shrink-0 w-[55px] pt-1">
+				<div className={`flex shrink-0 ${isMobile ? 'w-[40px]' : 'w-[55px]'} pt-1`}>
 					{!grouped ? (
 						<Avatar
 							userId={msg.sender_id}
 							avatarId={channel.member_avatars?.[msg.sender_id]}
-							size={40}
+							size={isMobile ? 32 : 40}
 						/>
 					) : (
-						<div className="w-full text-center text-[10px] text-transparent group-hover:text-muted-foreground select-none pt-1">
+						<div className={`w-full text-center text-[10px] text-transparent group-hover:text-muted-foreground select-none ${isMobile ? 'pt-0.5' : 'pt-1'}`}>
 							{formatTime(msg.sent_at)}
 						</div>
 					)}
 				</div>
-				<div className="flex flex-col min-w-0 flex-1 relative">
+				<div className={`flex flex-col min-w-0 flex-1 relative ${isMobile ? 'gap-0.5' : ''}`}>
 					{msg.reply_to_id && (
 						<div className="flex items-center gap-1 mb-1 h-5 select-none relative group/reply-target">
 							<CornerUpLeft
 								size={14}
-								className="text-muted-foreground/40 ml-[-17px] shrink-0"
+								className={`text-muted-foreground/40 shrink-0 ${isMobile ? 'ml-[-13px]' : 'ml-[-17px]'}`}
 							/>
 
 							<div className="flex items-center gap-1.5 min-w-0 opacity-70 hover:opacity-100 transition-opacity">
@@ -199,10 +200,10 @@ export const MessageItem = memo(
 					)}
 					{!grouped && (
 						<div className="flex items-baseline gap-2 mb-0.5">
-							<span className="font-semibold text-[15px] text-foreground tracking-wide hover:underline cursor-pointer">
+							<span className={`font-semibold text-foreground tracking-wide hover:underline cursor-pointer ${isMobile ? 'text-sm font-medium' : 'text-[15px]'}`}>
 								{channel.member_names?.[msg.sender_id] || msg.sender_id}
 							</span>
-							<span className="text-xs text-muted-foreground">
+							<span className={`text-muted-foreground ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
 								{formatTime(msg.sent_at)}
 							</span>
 						</div>
@@ -252,7 +253,7 @@ export const MessageItem = memo(
 								</div>
 							) : (
 								<div
-									className="text-[15px] text-foreground/90 leading-[22px] whitespace-pre-wrap break-words"
+									className={`text-[15px] text-foreground/90 leading-[22px] whitespace-pre-wrap break-words flex-1 min-w-0`}
 									dir="auto"
 								>
 									{msg.text ? renderText(msg.text) : '[encrypted]'}

@@ -3,17 +3,18 @@ import { logProfiler } from '@/utils/profiler';
 
 import { Avatar } from '@/components/Avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, LogOut, UserMinus, Shield } from 'lucide-react';
+import { Users, LogOut, UserMinus, Shield, ChevronLeft } from 'lucide-react';
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useChannelStore, useAuthStore } from '@/store/store';
+import { useChannelStore, useAuthStore, useAppStore } from '@/store/store';
 import { apiLeaveChannel, apiUpdateMemberRole } from '@/api/client';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { isDirectMessage } from '@/utils/channel';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -21,6 +22,7 @@ import {
 	ContextMenuTrigger,
 	ContextMenuSeparator,
 } from '@/components/ui/context-menu';
+import { useRef } from 'react';
 
 interface Member {
 	id: string;
@@ -44,6 +46,25 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 	const [showKickConfirm, setShowKickConfirm] = useState<Member | null>(null);
 	const [loading, setLoading] = useState(false);
 
+	const setRightSidebarOpen = useAppStore((state) => state.setRightSidebarOpen);
+	const isMobile = useMediaQuery('(max-width: 768px)');
+
+	// Touch gesture support
+	const touchStartX = useRef<number | null>(null);
+	const handleTouchStart = (e: React.TouchEvent) => {
+		touchStartX.current = e.touches[0].clientX;
+	};
+	const handleTouchEnd = (e: React.TouchEvent) => {
+		if (touchStartX.current === null) return;
+		const touchEndX = e.changedTouches[0].clientX;
+		const deltaX = touchEndX - touchStartX.current;
+		// If swiped right more than 50px
+		if (deltaX > 50 && isMobile) {
+			setRightSidebarOpen(false);
+		}
+		touchStartX.current = null;
+	};
+
 	const members: Member[] = useMemo(() => {
 		if (!activeChannel) return [];
 		return activeChannel.members.map((id) => ({
@@ -56,7 +77,7 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 		}));
 	}, [activeChannel]);
 
-	// Grouping logic (Discord style)
+	// ... (rest of the logic)
 	const owners = useMemo(() => members.filter((m) => m.role >= 20 && m.status !== 'offline'), [members]);
 	const admins = useMemo(() => members.filter((m) => m.role === 10 && m.status !== 'offline'), [members]);
 	const onlineMembers = useMemo(() => members.filter(
@@ -114,17 +135,32 @@ export default function RightSidebar({ isCollapsed = false }: RightSidebarProps)
 
 	return (
 		<Profiler id="RightSidebar" onRender={logProfiler}>
-			<div className="flex flex-col h-full bg-secondary">
+			<div 
+				className="flex flex-col h-full bg-secondary"
+				onTouchStart={handleTouchStart}
+				onTouchEnd={handleTouchEnd}
+			>
 				{/* Header - Styled to match ChatTopbar, adaptive to collapse */}
 				<div className={`flex items-center h-12 border-b border-border shrink-0 shadow-sm bg-background transition-all ${isCollapsed ? 'justify-center w-full' : 'px-4 gap-3'}`}>
-					<div className="w-8 h-8 flex items-center justify-center text-muted-foreground shrink-0">
-						<Users size={24} className="opacity-70" />
+					<div className="flex-1 flex items-center gap-3 min-w-0">
+						{isMobile ? (
+							<button
+								onClick={() => setRightSidebarOpen(false)}
+								className="p-1 -ml-2 text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
+							>
+								<ChevronLeft size={26} />
+							</button>
+						) : (
+							<div className="w-8 h-8 flex items-center justify-center text-muted-foreground shrink-0">
+								<Users size={24} className="opacity-70" />
+							</div>
+						)}
+						{!isCollapsed && (
+							<h2 className="text-[15px] font-bold text-foreground leading-tight truncate">
+								Members
+							</h2>
+						)}
 					</div>
-					{!isCollapsed && (
-						<h2 className="text-[15px] font-bold text-foreground leading-tight truncate">
-							Members
-						</h2>
-					)}
 				</div>
 
 				<ScrollArea className="flex-1">

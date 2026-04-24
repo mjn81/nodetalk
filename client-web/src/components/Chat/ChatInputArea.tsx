@@ -16,7 +16,11 @@ import {
 	AtSign,
 	Reply as ReplyIcon,
 } from 'lucide-react';
-import { useAuthStore, getChannelDisplayName, useAppStore } from '@/store/store';
+import {
+	useAuthStore,
+	getChannelDisplayName,
+	useAppStore,
+} from '@/store/store';
 import { apiGetChannelMembers } from '@/api/client';
 import { Avatar } from '../Avatar';
 import EmojiPicker from '../EmojiPicker';
@@ -28,6 +32,7 @@ import { wsSendMessage } from '@/ws';
 import { bytesToBase64 } from '@/ws';
 import { isDirectMessage } from '@/utils/channel';
 import { playNotificationSound } from '@/utils/notifications';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 interface ChatInputAreaProps {
 	channel: Channel;
@@ -151,7 +156,15 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 			setSending(false);
 			inputRef.current?.focus();
 		}
-	}, [inputText, files, sending, channel.id, channelKey, replyTo, onCancelReply]);
+	}, [
+		inputText,
+		files,
+		sending,
+		channel.id,
+		channelKey,
+		replyTo,
+		onCancelReply,
+	]);
 
 	const insertMention = useCallback(
 		(username: string) => {
@@ -331,14 +344,20 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 	const displayName = getChannelDisplayName(channel, user?.id || '');
 	const prefix = isDirect ? '@' : '#';
 
+	const isSmall = useMediaQuery('(max-width: 400px)');
+
 	return (
-		<div className="px-4 pb-6 pt-2 shrink-0 relative">
+		<div
+			className={`${isSmall ? 'px-2 pb-4 pt-1' : 'px-4 pb-6 pt-2'} shrink-0 relative`}
+		>
 			{/* Global Drag & Drop Overlay - Discord Like */}
 			{isDragging && (
 				<div className="fixed inset-0 bg-primary/20 border-4 border-dashed border-primary z-[999] flex items-center justify-center backdrop-blur-sm pointer-events-none transition-all animate-in fade-in duration-200">
 					<div className="bg-background p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-2 border border-primary/30">
-						<Plus size={48} className="text-primary" />
-						<span className="text-foreground font-bold text-xl">
+						<Plus size={isSmall ? 32 : 48} className="text-primary" />
+						<span
+							className={`text-foreground font-bold ${isSmall ? 'text-lg' : 'text-xl'}`}
+						>
 							Upload to {prefix}
 							{displayName}
 						</span>
@@ -368,12 +387,17 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 						className="p-1 hover:bg-destructive/10 rounded-full transition-colors text-muted-foreground hover:text-destructive group"
 						title="Cancel Reply"
 					>
-						<X size={14} className="group-hover:scale-110 transition-transform" />
+						<X
+							size={14}
+							className="group-hover:scale-110 transition-transform"
+						/>
 					</button>
 				</div>
 			)}
 
-			<div className={`bg-secondary/50 rounded-lg flex flex-col relative focus-within:ring-0 transition-all overflow-hidden border border-border text-flat ${replyTo ? 'rounded-t-none border-t-0' : ''}`}>
+			<div
+				className={`bg-secondary/50 rounded-lg flex flex-col relative focus-within:ring-0 transition-all overflow-hidden border border-border text-flat ${replyTo ? 'rounded-t-none border-t-0' : ''}`}
+			>
 				{/* File Previews - Reverted Style */}
 				{files.length > 0 && (
 					<div className="flex gap-3 p-3 overflow-x-auto border-b border-border">
@@ -408,12 +432,12 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 								{f.status !== 'idle' && f.status !== 'done' && (
 									<div className="absolute inset-0 bg-background/80 rounded-md flex flex-col items-center justify-center p-2">
 										{f.status === 'encrypting' ? (
-											<Lock
-												size={16}
-												className="text-primary animate-pulse"
-											/>
+											<Lock size={16} className="text-primary animate-pulse" />
 										) : (
-											<Loader2 size={16} className="text-foreground animate-spin" />
+											<Loader2
+												size={16}
+												className="text-foreground animate-spin"
+											/>
 										)}
 										<div className="w-full bg-black/40 h-1 rounded-full mt-2 overflow-hidden">
 											<div
@@ -428,12 +452,16 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 					</div>
 				)}
 
-				<div className="flex items-start px-4 py-2.5 gap-3">
+				<div
+					className={`flex items-start ${isSmall ? 'px-2 py-2 gap-2' : 'px-4 py-2.5 gap-3'}`}
+				>
 					<button
 						onClick={() => fileInputRef.current?.click()}
 						className="mt-0.5 text-muted-foreground hover:text-foreground transition"
 					>
-						<Plus className="bg-muted-foreground/10 rounded-full p-1 w-6 h-6 hover:bg-muted-foreground/20" />
+						<Plus
+							className={`bg-muted-foreground/10 rounded-full p-1 ${isSmall ? 'w-5 h-5' : 'w-6 h-6'} hover:bg-muted-foreground/20`}
+						/>
 					</button>
 					<input
 						type="file"
@@ -448,7 +476,9 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 					<textarea
 						ref={inputRef}
 						className="flex-1 bg-transparent border-none outline-none text-foreground text-[15px] leading-6 resize-none min-h-[24px] max-h-[140px] placeholder-muted-foreground/60 py-0 shadow-none ring-0 focus:ring-0"
-						placeholder={`Message ${prefix}${displayName}`}
+						placeholder={
+							isSmall ? 'Message...' : `Message ${prefix}${displayName}`
+						}
 						value={inputText}
 						onChange={handleInput}
 						onKeyDown={handleKeyDown}
@@ -456,10 +486,13 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 						dir="auto"
 					/>
 
-					<div className="flex items-center gap-3 shrink-0 h-6">
-						<VoiceRecorder 
-							channelId={channel.id} 
-							onFile={(file) => addFiles([file])} 
+					<div
+						className={`flex items-center ${isSmall ? 'gap-1.5' : 'gap-3'} shrink-0 h-6`}
+					>
+						<VoiceRecorder
+							channelId={channel.id}
+							onFile={(file) => addFiles([file])}
+							size={isSmall ? 18 : 24}
 						/>
 						<div className="relative flex items-center justify-center">
 							<button
@@ -469,7 +502,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 								}}
 								className="text-muted-foreground hover:text-foreground transition flex items-center"
 							>
-								<Smile size={24} />
+								<Smile size={isSmall ? 20 : 24} />
 							</button>
 						</div>
 						<button
@@ -478,9 +511,9 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 							className="text-muted-foreground hover:text-foreground disabled:opacity-50 transition"
 						>
 							{sending ? (
-								<Loader2 size={24} className="animate-spin" />
+								<Loader2 size={isSmall ? 20 : 24} className="animate-spin" />
 							) : (
-								<SendHorizontal size={24} />
+								<SendHorizontal size={isSmall ? 20 : 24} />
 							)}
 						</button>
 					</div>

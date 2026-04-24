@@ -62,6 +62,7 @@ export const ChatMessageFeed = memo(
 		const renderedItems = useMemo(() => {
 			const items: Array<
 				| { type: 'date'; label: string; id: string }
+				| { type: 'header'; id: string }
 				| {
 						type: 'msg';
 						msg: Message & { text?: string };
@@ -113,7 +114,7 @@ export const ChatMessageFeed = memo(
 				const handler = () => {
 					// In flex-col-reverse, scrollTop is 0 at bottom and negative towards top.
 					// We want the absolute distance from the bottom.
-					cb(Math.abs(element.scrollTop));
+					cb(Math.abs(element.scrollTop), false);
 				};
 
 				element.addEventListener('scroll', handler, { passive: true });

@@ -4,9 +4,10 @@ import { Mic, Trash2, Send } from 'lucide-react';
 interface VoiceRecorderProps {
 	channelId: string;
 	onFile: (file: File) => void;
+	size?: number;
 }
 
-export default function VoiceRecorder({ onFile }: VoiceRecorderProps) {
+export default function VoiceRecorder({ onFile, size = 24 }: VoiceRecorderProps) {
 	const [isRecording, setIsRecording] = useState(false);
 	const [duration, setDuration] = useState(0);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -110,7 +111,7 @@ export default function VoiceRecorder({ onFile }: VoiceRecorderProps) {
 			className="text-muted-foreground hover:text-foreground transition-colors p-1"
 			title="Record Voice Note"
 		>
-			<Mic size={24} />
+			<Mic size={size} />
 		</button>
 	);
 }

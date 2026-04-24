@@ -8,17 +8,24 @@ import LeftSidebar from '@/components/Layout/LeftSidebar';
 import RightSidebar from '@/components/Layout/RightSidebar';
 import ChatArea from '@/components/ChatArea';
 
-import { useChannelStore } from '@/store/store';
+import { useAppStore, useChannelStore } from '@/store/store';
 import { onWS } from '@/ws';
 import { ensureZstdReady } from '@/utils/file';
 import { requestNotificationPermission } from '@/utils/notifications';
-
 import { apiJoinChannel } from '@/api/client';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 export default function AppPage() {
 	const activeChannel = useChannelStore((state) => state.activeChannel);
 	const refreshChannels = useChannelStore((state) => state.refreshChannels);
 	const setActiveChannel = useChannelStore((state) => state.setActiveChannel);
+
+	const isMobile = useMediaQuery('(max-width: 768px)');
+	const {
+		isRightSidebarOpen,
+		setLeftSidebarOpen,
+		setRightSidebarOpen,
+	} = useAppStore();
 
 	useEffect(() => {
 		const path = window.location.pathname;
@@ -29,9 +36,7 @@ export default function AppPage() {
 					try {
 						const res = await apiJoinChannel(code);
 						await refreshChannels();
-						// Remove join from URL
 						window.history.replaceState({}, '', '/');
-						// Find newly joined channel in the refreshed list
 						const allChannels = useChannelStore.getState().channels;
 						const ch = allChannels.find((c) => c.id === res.id);
 						if (ch) setActiveChannel(ch);
@@ -46,11 +51,9 @@ export default function AppPage() {
 	}, []);
 
 	useEffect(() => {
-		// Initialize ZSTD WASM once on app load
 		ensureZstdReady();
 		requestNotificationPermission();
 
-		// Listen for realtime channel state updates (e.g. member joins)
 		const unsubChannel = onWS('channel_update', () => {
 			refreshChannels();
 		});
@@ -62,41 +65,101 @@ export default function AppPage() {
 
 	const [isRightCollapsed, setIsRightCollapsed] = useState(false);
 
+	// Close sidebars when active channel changes on mobile
+	useEffect(() => {
+		if (isMobile) {
+			setLeftSidebarOpen(false);
+			setRightSidebarOpen(false);
+		}
+	}, [activeChannel?.id, isMobile]);
+
+	const renderLeftSidebar = () => (
+		<div className="flex flex-col h-full overflow-hidden bg-secondary">
+			<LeftSidebar />
+		</div>
+	);
+
+	const renderRightSidebar = () => (
+		<div className="flex flex-col h-full overflow-hidden bg-secondary">
+			<RightSidebar isCollapsed={isMobile ? false : isRightCollapsed} />
+		</div>
+	);
+
+	const renderChatArea = () => (
+		<div className="flex flex-col flex-1 bg-background relative overflow-hidden">
+			{activeChannel ? (
+				<ChatArea channel={activeChannel} />
+			) : (
+				<div className="flex flex-col items-center justify-center flex-1 gap-4 text-center p-10">
+					<div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center text-3xl border border-border">
+						💬
+					</div>
+					<h1 className="text-xl font-bold">Welcome to NodeTalk</h1>
+					<p className="text-sm text-muted-foreground max-w-sm">
+						Discover public channels, or create a new group/DM on the left.
+					</p>
+				</div>
+			)}
+		</div>
+	);
+
+	if (isMobile) {
+		return (
+			<div className="h-screen w-full bg-background flex flex-col overflow-hidden relative">
+				{/* Mobile App Navigation Logic */}
+				{!activeChannel ? (
+					// Mode 1: Chat Selector (Main Page)
+					<div className="flex-1 flex flex-col overflow-hidden animate-in fade-in slide-in-from-left-4 duration-300">
+						{renderLeftSidebar()}
+					</div>
+				) : (
+					// Mode 2: Dedicated Chat View
+					<div className="flex-1 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
+						{renderChatArea()}
+					</div>
+				)}
+
+				{/* Right Sidebar Drawer (Members) - Only accessible from Chat View */}
+				<div
+					className={`fixed inset-y-0 right-0 w-full sm:w-[320px] z-50 transform transition-transform duration-300 ease-in-out shadow-2xl ${
+						isRightSidebarOpen && activeChannel ? 'translate-x-0' : 'translate-x-full'
+					}`}
+				>
+					{renderRightSidebar()}
+				</div>
+
+				{/* Overlay for Right Sidebar on Tablets/Small Desktop but we use isMobile here */}
+				{isRightSidebarOpen && activeChannel && isMobile && (
+					<div
+						className="fixed inset-0 bg-black/60 z-40 backdrop-blur-[2px] transition-opacity duration-300 animate-in fade-in"
+						onClick={() => setRightSidebarOpen(false)}
+					/>
+				)}
+			</div>
+		);
+	}
+
 	return (
 		<ResizablePanelGroup
 			direction="horizontal"
 			className="h-screen w-full bg-background overflow-hidden"
 		>
-			{/* Left Sidebar Pane */}
 			<ResizablePanel
 				defaultSize="20%"
 				minSize="15%"
 				maxSize="20%"
 				className="bg-secondary flex flex-col border-r border-border overflow-hidden"
 			>
-				<LeftSidebar />
+				{renderLeftSidebar()}
 			</ResizablePanel>
 
 			<ResizableHandle withHandle className="bg-border" />
 
-			{/* Center Chat Pane */}
 			<ResizablePanel
 				minSize="40%"
 				className="flex flex-col bg-background relative"
 			>
-				{activeChannel ? (
-					<ChatArea channel={activeChannel} />
-				) : (
-					<div className="flex flex-col items-center justify-center flex-1 gap-4 text-center p-10">
-						<div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center text-3xl border border-border">
-							💬
-						</div>
-						<h1 className="text-xl font-bold">Welcome to NodeTalk</h1>
-						<p className="text-sm text-muted-foreground max-w-sm">
-							Discover public channels, or create a new group/DM on the left.
-						</p>
-					</div>
-				)}
+				{renderChatArea()}
 			</ResizablePanel>
 
 			<ResizableHandle withHandle className="bg-border" />
@@ -110,7 +173,7 @@ export default function AppPage() {
 				onResize={(panelSize) => setIsRightCollapsed(panelSize.inPixels <= 64)}
 				className="bg-secondary flex flex-col border-l border-border transition-all duration-300 ease-in-out"
 			>
-				<RightSidebar isCollapsed={isRightCollapsed} />
+				{renderRightSidebar()}
 			</ResizablePanel>
 		</ResizablePanelGroup>
 	);

@@ -4,7 +4,7 @@ import NewChannelModal from '@/components/NewChannelModal';
 import SettingsModal from '@/components/SettingsModal';
 import { useExploreChannels } from '@/hooks/useChannels';
 import { apiJoinChannel } from '@/api/client';
-import { Settings, LogOut, Plus, Hash, Search } from 'lucide-react';
+import { Settings, LogOut, Plus, Hash, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -22,6 +22,7 @@ import {
 } from '@/store/store';
 import type { AuthUser, Channel } from '@/types/api';
 import { isDirectMessage } from '@/utils/channel';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 const RenderChannel = memo(({
 	ch,
@@ -94,6 +95,8 @@ export default function LeftSidebar() {
 	const appVersion = useAppStore((state) => state.appVersion);
 	const fetchVersion = useAppStore((state) => state.fetchVersion);
 	const wsState = useAppStore((state) => state.wsState);
+	const setLeftSidebarOpen = useAppStore((state) => state.setLeftSidebarOpen);
+	const isMobile = useMediaQuery('(max-width: 768px)');
 
 	const handleSelectChannel = useCallback((ch: Channel) => {
 		setActiveChannel(ch);
@@ -155,23 +158,33 @@ export default function LeftSidebar() {
 		<div className="flex flex-col h-full bg-secondary w-full overflow-hidden">
 			{/* Server Header */}
 			<div className="h-12 border-b border-border flex items-center px-4 shrink-0 shadow-sm transition-colors hover:bg-accent/30 cursor-pointer">
-				<div className="flex-1 flex flex-row justify-between min-w-0">
-					<h2 className="font-bold text-[15px] text-foreground truncate leading-tight">
-						NodeTalk Client
-					</h2>
-					<span className="text-[11px] text-muted-foreground font-medium inline-flex items-center gap-1.5">
-						{appVersion}
-						<span
-							className={`w-2 h-2 rounded-full ${
-								wsState === 'connected'
-									? 'bg-green-500'
-									: wsState === 'connecting'
-										? 'bg-yellow-500'
-										: 'bg-red-500'
-							}`}
-							title={wsState}
-						/>
-					</span>
+				<div className="flex-1 flex flex-row justify-between items-center min-w-0">
+					<div className="flex items-center gap-2 min-w-0">
+						<h2 className="font-bold text-[15px] text-foreground truncate leading-tight">
+							NodeTalk Client
+						</h2>
+						<span className="text-[11px] text-muted-foreground font-medium inline-flex items-center gap-1.5 shrink-0">
+							{appVersion}
+							<span
+								className={`w-2 h-2 rounded-full ${
+									wsState === 'connected'
+										? 'bg-green-500'
+										: wsState === 'connecting'
+											? 'bg-yellow-500'
+											: 'bg-red-500'
+								}`}
+								title={wsState}
+							/>
+						</span>
+					</div>
+					{isMobile && (
+						<button 
+							onClick={() => setLeftSidebarOpen(false)}
+							className="p-1 hover:text-foreground text-muted-foreground"
+						>
+							<X size={20} />
+						</button>
+					)}
 				</div>
 			</div>
 
