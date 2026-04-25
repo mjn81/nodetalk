@@ -6,6 +6,9 @@ This document tracks planned features, performance optimizations, and upcoming a
 
 ## 🚀 Phase 6: Performance & Core Stability
 *High priority. Focusing on user experience and system reliability.*
+- **Modal inactive gestures**: when modal is opened inactive left / right swipe gestures
+- **day tag light mode support**: for chat day tags (e.g. today, tomorrow) in light mode add custom
+- **i18n update**: complete farsi translations, remove rtl / direction changes when going to farsi and only update texts, remove text direction changing when switching to RTL
 - **MARKDOWN RENDERING**: custom markdown renderer and link highlighting
 - **TEXT SELECTION**: fix text selection SO PEOPLE CAN SELECT TEXTS IN WEB / CLIENT
 - **AVATARS**: FIX AVATARS LOADING ISSUE / LAG
