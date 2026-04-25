@@ -136,18 +136,33 @@ func realIP(r *http.Request) string {
 func CORS(next http.Handler, isDev bool, allowedOrigins string) http.Handler {
 	// Split allowed origins by comma
 	origins := make(map[string]bool)
+	allowAll := false
 	for _, o := range strings.Split(allowedOrigins, ",") {
 		o = strings.TrimSpace(o)
+		if o == "*" {
+			allowAll = true
+		}
 		if o != "" {
 			origins[o] = true
 		}
 	}
 
+	// Always allow Wails desktop app origins
+	origins["wails://wails.localhost"] = true // macOS/Linux
+	origins["http://wails.localhost"] = true  // Windows
+	origins["http://localhost:34115"] = true  // Wails dev mode default
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		
 		// 1. Explicitly handle the Origin header
-		if origins[origin] {
+		if allowAll {
+			if origin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			} else {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			}
+		} else if origins[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 		} else if isDev {
 			// Fallback for development if no origin is configured or mismatch

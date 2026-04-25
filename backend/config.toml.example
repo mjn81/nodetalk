@@ -8,6 +8,14 @@ domain = "localhost"
 http_port = 8080
 # Raw UDP port for voice routing (Wails desktop client only).
 udp_port = 9090
+# The origin(s) allowed to access the API via CORS. Comma-separated.
+# Use "*" to allow all origins (not recommended for production).
+# Note: Wails desktop app origins are allowed by default.
+frontend_origin = "http://localhost:5173"
+# Maximum allowed file upload size in MB.
+max_file_size_mb = 100
+# Enable development mode (extra logging, Swagger UI at /api/docs/).
+dev = false
 
 [security]
 # Master password for encrypting the database DEK via Argon2id (KEK derivation).
