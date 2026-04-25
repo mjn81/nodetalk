@@ -81,8 +81,17 @@ backend/release: ## Build backend binaries for multiple platforms
 	@echo "Backend binaries built in release/backend/"
 
 ## ── Docker ───────────────────────────────────────────────────────────────────
-docker/build: ## Build production Docker images
-	docker-compose build
+docker/setup: ## Create and switch to a multi-platform builder
+	docker buildx create --name nodetalk-builder --use || docker buildx use nodetalk-builder
+	docker buildx inspect --bootstrap
+
+docker/build: ## Build production Docker images locally
+	docker-compose build --pull
+
+docker/build-multi: ## Build and push multi-platform Docker images (usage: make docker/build-multi DOCKER_USER=name)
+	@if [ -z "$(DOCKER_USER)" ]; then echo "Error: DOCKER_USER is required."; exit 1; fi
+	docker buildx build --platform linux/amd64,linux/arm64 -t $(DOCKER_USER)/nodetalk-server:latest --push ./backend
+	docker buildx build --platform linux/amd64,linux/arm64 -t $(DOCKER_USER)/nodetalk-webclient:latest --push ./client-web
 
 docker/push: docker/build ## Push images to Docker Hub (usage: make docker/push DOCKER_USER=name)
 	@if [ -z "$(DOCKER_USER)" ]; then echo "Error: DOCKER_USER is required. Example: make docker/push DOCKER_USER=myusername"; exit 1; fi

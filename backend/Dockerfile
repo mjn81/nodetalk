@@ -1,5 +1,9 @@
 # Build stage
-FROM golang:1.26-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS builder
+
+# TARGETOS and TARGETARCH are automatically set by Docker buildx
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /app
 
@@ -14,14 +18,15 @@ RUN go mod download
 COPY . .
 
 # Build the binary
-RUN CGO_ENABLED=1 GOOS=linux go build -o nodetalk-server ./cmd/server
+# We explicitly set GOARCH to TARGETARCH to ensure we build for the target platform
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=$TARGETARCH go build -o nodetalk-server ./cmd/server
 
 # Run stage
 FROM alpine:latest
 
 WORKDIR /app
 
-# Install runtime dependencies (e.g., for sqlite/cgo if needed, or just CA certs)
+# Install runtime dependencies
 RUN apk add --no-cache ca-certificates
 
 # Copy the binary from the builder stage

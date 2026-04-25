@@ -1,5 +1,5 @@
 # Build stage
-FROM node:24-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -19,6 +19,8 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copy built assets from builder stage
+# These are just static files, architecture doesn't matter for the files themselves,
+# but the nginx image will match the target architecture.
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy entrypoint script
@@ -29,5 +31,5 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 EXPOSE 80
 
 # Use the custom entrypoint script
-ENTRYPOINT ["entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
