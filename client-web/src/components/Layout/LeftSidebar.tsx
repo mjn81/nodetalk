@@ -206,12 +206,16 @@ export default function LeftSidebar() {
 			<div className="px-3 pt-3 pb-2 shrink-0 flex items-center gap-2">
 				<div className="relative flex-1">
 					<Input
-						id="channel-search"
+						id="search-explore-input"
+						name="search-explore"
+						type="text"
 						className="bg-popover border-none text-[13px] h-8 pl-8 pr-2 text-foreground focus-visible:ring-0 rounded-md placeholder:text-muted-foreground w-full"
 						placeholder="Search or explore..."
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
 						autoComplete="off"
+						autoCorrect="off"
+						autoCapitalize="none"
 					/>
 					<Search className="absolute left-2.5 top-2 w-4 h-4 text-muted-foreground" />
 				</div>

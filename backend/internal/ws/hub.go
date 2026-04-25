@@ -19,7 +19,7 @@ import (
 // Hub manages all active WebSocket connections and broadcasts messages.
 type Hub struct {
 	mu      sync.RWMutex
-	clients map[string]*Client // key: userID
+	clients map[string][]*Client // key: userID, value: slice of active connections
 
 	store    *store.Store
 	sessions *auth.SessionStore
@@ -48,7 +48,7 @@ type envelope struct {
 // NewHub creates and starts a Hub.
 func NewHub(s *store.Store, sessions *auth.SessionStore, kek []byte) *Hub {
 	h := &Hub{
-		clients:   make(map[string]*Client),
+		clients:   make(map[string][]*Client),
 		store:     s,
 		sessions:  sessions,
 		kek:       kek,
@@ -72,11 +72,13 @@ func (h *Hub) run() {
 			h.mu.RLock()
 			defer h.mu.RUnlock()
 			for _, m := range members {
-				if c, ok := h.clients[m.UserID]; ok {
-					select {
-					case c.send <- e:
-					default:
-						// Optionally handle buffer full
+				if clients, ok := h.clients[m.UserID]; ok {
+					for _, c := range clients {
+						select {
+						case c.send <- e:
+						default:
+							// Optionally handle buffer full
+						}
 					}
 				}
 			}
@@ -145,13 +147,20 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Cleanup on disconnect
 	h.unregister(client)
-	_ = h.store.SetPresence(session.UserID, "offline")
-	if u, err := h.store.GetUser(session.UserID); err == nil {
-		if u.StatusPreference == "auto" || u.StatusPreference == "" {
-			_ = h.store.UpdateUserStatus(session.UserID, "offline")
+
+	h.mu.RLock()
+	_, stillConnected := h.clients[session.UserID]
+	h.mu.RUnlock()
+
+	if !stillConnected {
+		_ = h.store.SetPresence(session.UserID, "offline")
+		if u, err := h.store.GetUser(session.UserID); err == nil {
+			if u.StatusPreference == "auto" || u.StatusPreference == "" {
+				_ = h.store.UpdateUserStatus(session.UserID, "offline")
+			}
 		}
+		h.BroadcastPresence(session.UserID, "offline")
 	}
-	h.BroadcastPresence(session.UserID, "offline")
 	conn.Close(websocket.StatusNormalClosure, "goodbye")
 }
 
@@ -231,10 +240,12 @@ func (h *Hub) BroadcastChannelCreated(ch *models.Channel) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for _, m := range members {
-		if c, ok := h.clients[m.UserID]; ok {
-			select {
-			case c.send <- env:
-			default:
+		if clients, ok := h.clients[m.UserID]; ok {
+			for _, c := range clients {
+				select {
+				case c.send <- env:
+				default:
+				}
 			}
 		}
 	}
@@ -262,10 +273,12 @@ func (h *Hub) SendChannelKey(channelID, userID string) {
 
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	if c, ok := h.clients[userID]; ok {
-		select {
-		case c.send <- env:
-		default:
+	if clients, ok := h.clients[userID]; ok {
+		for _, c := range clients {
+			select {
+			case c.send <- env:
+			default:
+			}
 		}
 	}
 }
@@ -280,10 +293,12 @@ func (h *Hub) BroadcastPresence(userID, status string) {
 	env := &envelope{msg: msg}
 
 	h.mu.RLock()
-	for _, c := range h.clients {
-		select {
-		case c.send <- env:
-		default:
+	for _, clients := range h.clients {
+		for _, c := range clients {
+			select {
+			case c.send <- env:
+			default:
+			}
 		}
 	}
 	h.mu.RUnlock()
@@ -319,15 +334,17 @@ func (h *Hub) BroadcastMemberLeft(channelID string, userID string) {
 	// so their UI can react (e.g. remove channel from sidebar)
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	if c, ok := h.clients[userID]; ok {
-		kickPayload, _ := json.Marshal(map[string]any{
-			"channel_id": channelID,
-			"type":       "kicked",
-		})
-		kickMsg := &models.WSMessage{Type: "channel_update", Payload: kickPayload}
-		select {
-		case c.send <- &envelope{msg: kickMsg}:
-		default:
+	if clients, ok := h.clients[userID]; ok {
+		for _, c := range clients {
+			kickPayload, _ := json.Marshal(map[string]any{
+				"channel_id": channelID,
+				"type":       "kicked",
+			})
+			kickMsg := &models.WSMessage{Type: "channel_update", Payload: kickPayload}
+			select {
+			case c.send <- &envelope{msg: kickMsg}:
+			default:
+			}
 		}
 	}
 }
@@ -348,10 +365,12 @@ func (h *Hub) BroadcastMemberRoleUpdated(channelID string, userID string, role i
 	// Also send targeted notification to the user who was updated
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	if c, ok := h.clients[userID]; ok {
-		select {
-		case c.send <- &envelope{msg: msg}:
-		default:
+	if clients, ok := h.clients[userID]; ok {
+		for _, c := range clients {
+			select {
+			case c.send <- &envelope{msg: msg}:
+			default:
+			}
 		}
 	}
 }
@@ -388,10 +407,12 @@ func (h *Hub) SendVoiceState(userID string, channelID string, activeUsers []stri
 
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	if c, ok := h.clients[userID]; ok {
-		select {
-		case c.send <- env:
-		default:
+	if clients, ok := h.clients[userID]; ok {
+		for _, c := range clients {
+			select {
+			case c.send <- env:
+			default:
+			}
 		}
 	}
 }

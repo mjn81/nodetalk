@@ -75,6 +75,8 @@ export default function LoginPage() {
 									setUsername(e.target.value)
 								}
 								autoComplete="username"
+								autoCorrect="off"
+								autoCapitalize="none"
 								autoFocus
 								required
 							/>

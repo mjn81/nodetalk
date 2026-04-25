@@ -19,9 +19,10 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copy built assets from builder stage
-# These are just static files, architecture doesn't matter for the files themselves,
-# but the nginx image will match the target architecture.
 COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy custom nginx config for SPA routing
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy entrypoint script
 COPY entrypoint.sh /usr/local/bin/

@@ -38,6 +38,8 @@ function RequireGuest({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+import NotFoundPage from './pages/NotFoundPage';
+
 export default function App() {
   const theme = useAppStore(state => state.theme);
   const [isWailsReady, setIsWailsReady] = React.useState(false);
@@ -100,12 +102,22 @@ export default function App() {
         <Route path="/login"    element={<RequireGuest><LoginPage /></RequireGuest>} />
         <Route path="/register" element={<RequireGuest><RegisterPage /></RequireGuest>} />
 
-        {/* Protected app shell */}
-        <Route path="/*" element={
+        {/* Support legacy /join/ paths which AppPage handles internally */}
+        <Route path="/join/*" element={
           <RequireAuth>
             <AppPage />
           </RequireAuth>
         } />
+
+        {/* Main app shell */}
+        <Route path="/" element={
+          <RequireAuth>
+            <AppPage />
+          </RequireAuth>
+        } />
+
+        {/* Catch-all 404 */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );

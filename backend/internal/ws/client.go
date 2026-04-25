@@ -7,33 +7,38 @@ import (
 	"log"
 	"time"
 
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
 	"nodetalk/backend/internal/models"
 	"nodetalk/backend/internal/store"
+
+	"github.com/coder/websocket/wsjson"
 )
 
 func (h *Hub) register(c *Client) {
 	h.mu.Lock()
-	// Close any existing connection for this user (new login replaced old tab).
-	if old, ok := h.clients[c.UserID]; ok {
-		log.Printf("ws: replacing existing connection for user %s (%s) with new connection from %s", 
-			c.UserID, old.RemoteAddr, c.RemoteAddr)
-		old.conn.Close(websocket.StatusGoingAway, "replaced by new connection")
-		// We don't close(old.send) here because it might be the same channel or cause a panic if not careful.
-		// The unregister/cleanup logic usually handles this.
-	}
-	h.clients[c.UserID] = c
+	h.clients[c.UserID] = append(h.clients[c.UserID], c)
 	h.mu.Unlock()
 }
 
 func (h *Hub) unregister(c *Client) {
 	h.mu.Lock()
-	if existing, ok := h.clients[c.UserID]; ok && existing == c {
-		delete(h.clients, c.UserID)
-		close(c.send)
+	defer h.mu.Unlock()
+	clients, ok := h.clients[c.UserID]
+	if !ok {
+		return
 	}
-	h.mu.Unlock()
+
+	for i, client := range clients {
+		if client == c {
+			// Remove the client from the slice
+			h.clients[c.UserID] = append(clients[:i], clients[i+1:]...)
+			close(c.send)
+			break
+		}
+	}
+
+	if len(h.clients[c.UserID]) == 0 {
+		delete(h.clients, c.UserID)
+	}
 }
 
 // writeChannelKeys pushes all decrypted AES channel keys to the client so it

@@ -94,6 +94,8 @@ export default function RegisterPage() {
 									setUsername(e.target.value)
 								}
 								autoComplete="username"
+								autoCorrect="off"
+								autoCapitalize="none"
 								autoFocus
 								required
 							/>

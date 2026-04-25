@@ -6,7 +6,10 @@ This document tracks planned features, performance optimizations, and upcoming a
 
 ## 🚀 Phase 6: Performance & Core Stability
 *High priority. Focusing on user experience and system reliability.*
-
+- **MARKDOWN RENDERING**: custom markdown renderer and link highlighting
+- **TEXT SELECTION**: fix text selection SO PEOPLE CAN SELECT TEXTS IN WEB / CLIENT
+- **AVATARS**: FIX AVATARS LOADING ISSUE / LAG
+- **COPY BUTTON**: ADD ABILITY TO COPY MESSAGE TEXTS FROM MESSAGE BUBBLE
 - **UI Performance Optimization**: Resolve the "remounting" issue and reduce React rendering times to ensure a buttery-smooth interface.
 - **Complete Internationalization (i18n)**: Finalize all translations and ensure 100% coverage for English, Persian, and Arabic.
 - **Avatar System Refinement**: Resolve edge cases in deterministic avatar generation and icon rendering.
